@@ -1,0 +1,184 @@
+{
+  "$schema": "../../schemas/display.schema.json",
+  "displays": [
+    {
+      "address": "0x0000000000000000000000000000000000000000",
+      "title": "Transfer",
+      "abi": "function transfer(address receiver, uint256 amount)",
+      "fields": [
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [
+            {
+              "key": "token",
+              "value": "$msg.to"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.amount"
+            }
+          ]
+        },
+        {
+          "title": "$labels.sender",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$msg.sender"
+            }
+          ]
+        },
+        {
+          "title": "$labels.receiver",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.receiver"
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {
+              "key": "receiver",
+              "value": "To"
+            },
+            {
+              "key": "amount",
+              "value": "Amount"
+            },
+            {
+              "key": "sender",
+              "value": "From"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000000",
+      "title": "Approve",
+      "abi": "function approve(address spender, uint256 amount)",
+      "fields": [
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [
+            {
+              "key": "token",
+              "value": "$msg.to"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.amount"
+            }
+          ]
+        },
+        {
+          "title": "$labels.sender",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$msg.sender"
+            }
+          ]
+        },
+        {
+          "title": "$labels.spender",
+          "format": "contract",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.spender"
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {
+              "key": "spender",
+              "value": "Spender"
+            },
+            {
+              "key": "amount",
+              "value": "Amount"
+            },
+            {
+              "key": "sender",
+              "value": "From"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0xcA11bde05977b3631167028862bE2a173976CA11",
+      "title": "$labels.aggregate",
+      "abi": "function aggregate((address to, bytes data)[] calls)",
+      "fields": [
+        {
+          "title": "$labels.calls",
+          "format": "array",
+          "params": [
+            {
+              "key": "$call",
+              "value": "$locals.calls"
+            }
+          ]
+        },
+        {
+          "format": "call",
+          "checks": [
+            {
+              "key": "$locals.call",
+              "value": "$locals.call"
+            }
+          ],
+          "params": [
+            {
+              "key": "to",
+              "value": "$locals.call.to"
+            },
+            {
+              "key": "data",
+              "value": "$locals.call.data"
+            },
+            {
+              "key": "value",
+              "value": "0"
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {
+              "key": "calls",
+              "value": "Calls"
+            },
+            {
+              "key": "call",
+              "value": "Call"
+            },
+            {
+              "key": "aggregate",
+              "value": "Mutlicall"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

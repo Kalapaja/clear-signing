@@ -1,0 +1,19 @@
+[package]
+name = "clear-signing-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+hex = "0.4"
+tokio = { version = "1.0", features = ["full"] }
+alloy-core = { version = "1.5", features = ["serde"] }
+
+[dependencies.clear-signing]
+path = "../clear-signing"
+
+[dependencies.clear-signing-format]
+path = "../clear-signing-format"

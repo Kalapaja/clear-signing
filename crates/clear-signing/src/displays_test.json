@@ -1,0 +1,399 @@
+{
+  "$schema": "../../../schemas/display.schema.json",
+  "displays": [
+    {
+      "address": "0x0000000000000000000000000000000000000004",
+      "abi": "function simpleCall(uint256 val) payable",
+      "title": "Inner",
+      "fields": [
+        {
+          "title": "Val",
+          "format": "uint",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.val"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000000",
+      "abi": "function transfer(address to, uint256 value)",
+      "title": "ERC20",
+      "fields": [
+        {
+          "title": "Sender",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$msg.sender"
+            }
+          ]
+        },
+        {
+          "title": "Receiver",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.to"
+            }
+          ]
+        },
+        {
+          "title": "Amount",
+          "format": "tokenAmount",
+          "params": [
+            {
+              "key": "token",
+              "value": "$msg.to"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.value"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "abi": "function complexCall(address addr, uint256 uint_val, int256 int_val, bool bool_val, string string_val, bytes bytes_val, uint256 percentage_val, uint256 basis_val, uint256 duration_val, uint256 bitmask_val) payable",
+      "title": "Complex",
+      "description": "Test all formats",
+      "fields": [
+        {
+          "title": "Addr Title",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.addr"
+            }
+          ]
+        },
+        {
+          "title": "$labels.uint_title",
+          "format": "uint",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.uint_val"
+            }
+          ]
+        },
+        {
+          "title": "Int",
+          "format": "int",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.int_val"
+            }
+          ]
+        },
+        {
+          "title": "Bool",
+          "format": "boolean",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.bool_val"
+            }
+          ]
+        },
+        {
+          "title": "String",
+          "format": "string",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.string_val"
+            }
+          ]
+        },
+        {
+          "title": "Bytes",
+          "format": "bytes",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.bytes_val"
+            }
+          ]
+        },
+        {
+          "title": "Percent",
+          "format": "percentage",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.percentage_val"
+            },
+            {
+              "key": "basis",
+              "value": "$locals.basis_val"
+            }
+          ]
+        },
+        {
+          "title": "Duration",
+          "format": "duration",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.duration_val"
+            }
+          ]
+        },
+        {
+          "title": "Datetime",
+          "format": "datetime",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.duration_val"
+            }
+          ]
+        },
+        {
+          "title": "Bitmask",
+          "format": "bitmask",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.bitmask_val"
+            },
+            {
+              "key": "#0",
+              "value": "Bit0"
+            },
+            {
+              "key": "#2",
+              "value": "Bit2"
+            },
+            {
+              "key": "#3",
+              "value": "$labels.bit_3_label"
+            }
+          ]
+        },
+        {
+          "title": "Token",
+          "format": "token",
+          "params": [
+            {
+              "key": "value",
+              "value": "0x0000000000000000000000000000000000000003"
+            }
+          ]
+        },
+        {
+          "title": "Contract",
+          "format": "contract",
+          "params": [
+            {
+              "key": "value",
+              "value": "0x0000000000000000000000000000000000000002"
+            }
+          ]
+        },
+        {
+          "title": "TokenAmt",
+          "format": "tokenAmount",
+          "params": [
+            {
+              "key": "token",
+              "value": "0x0000000000000000000000000000000000000003"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.uint_val"
+            }
+          ]
+        },
+        {
+          "title": "NativeAmt",
+          "format": "nativeAmount",
+          "params": [
+            {
+              "key": "amount",
+              "value": "$locals.uint_val"
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {
+              "key": "uint_title",
+              "value": "Uint Title"
+            },
+            {
+              "key": "bit_3_label",
+              "value": "Bit3 Label"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "abi": "function nestedCall(address call_target, bytes call_data, uint256 call_value, address erc20_target, bytes erc20_data) payable",
+      "title": "Nested",
+      "description": "Testing Nested Calls",
+      "fields": [
+        {
+          "title": "Call",
+          "format": "call",
+          "params": [
+            {
+              "key": "to",
+              "value": "$locals.call_target"
+            },
+            {
+              "key": "data",
+              "value": "$locals.call_data"
+            },
+            {
+              "key": "value",
+              "value": "$locals.call_value"
+            }
+          ]
+        },
+        {
+          "title": "ERC20",
+          "format": "call",
+          "params": [
+            {
+              "key": "to",
+              "value": "$locals.erc20_target"
+            },
+            {
+              "key": "data",
+              "value": "$locals.erc20_data"
+            },
+            {
+              "key": "value",
+              "value": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "abi": "function matchCall(uint256 val) payable",
+      "title": "Match Test",
+      "description": "Testing Format::Match",
+      "fields": [
+        {
+          "title": "Branch 1",
+          "format": "match",
+          "params": [
+            {
+              "key": "$check",
+              "value": "100"
+            }
+          ]
+        },
+        {
+          "title": "Proxy Result",
+          "format": "uint",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.check"
+            }
+          ],
+          "checks": [
+            {
+              "key": "$locals.check",
+              "value": "100"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "abi": "function arrayCall(uint256[] nums) payable",
+      "title": "Array",
+      "description": "Test array format",
+      "fields": [
+        {
+          "title": "Items",
+          "format": "array",
+          "params": [
+            {
+              "key": "$val",
+              "value": "$locals.nums"
+            }
+          ]
+        },
+        {
+          "title": "Item",
+          "format": "uint",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.val"
+            }
+          ],
+          "checks": [
+            {
+              "key": "$locals.val",
+              "value": "$locals.val"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0xcA11bde05977b3631167028862bE2a173976CA11",
+      "abi": "function aggregate((address target, bytes data)[] calls)",
+      "title": "Multicall3",
+      "fields": [
+        {
+          "title": "Call",
+          "format": "array",
+          "params": [
+            {
+              "key": "$item",
+              "value": "$locals.calls"
+            }
+          ]
+        },
+        {
+          "title": "Call",
+          "format": "call",
+          "params": [
+            {
+              "key": "to",
+              "value": "$locals.item.target"
+            },
+            {
+              "key": "data",
+              "value": "$locals.item.data"
+            },
+            {
+              "key": "value",
+              "value": "0"
+            }
+          ],
+          "checks": [
+            {
+              "key": "$locals.item",
+              "value": "$locals.item"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

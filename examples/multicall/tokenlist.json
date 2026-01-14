@@ -1,0 +1,21 @@
+{
+  "$schema": "https://uniswap.org/tokenlist.schema.json",
+  "name": "Multicall Tokens",
+  "timestamp": "2026-01-10T14:55:00Z",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "tokens": [
+    {
+      "chainId": 1,
+      "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "name": "Tether USD",
+      "symbol": "USDT",
+      "decimals": 6,
+      "logoURI": ""
+    }
+  ]
+}
+

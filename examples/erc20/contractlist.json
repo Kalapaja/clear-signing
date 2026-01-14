@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/contractlist.schema.json",
+  "name": "ERC20 Contracts",
+  "timestamp": "2026-01-10T14:50:00Z",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "contracts": [
+    {
+      "chainId": 1,
+      "address": "0x0000000000000000000000000000000000000001",
+      "name": "User 1"
+    },
+    {
+      "chainId": 1,
+      "address": "0x0000000000000000000000000000000000001234",
+      "name": "User 2"
+    }
+  ]
+}

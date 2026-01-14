@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/contractlist.schema.json",
+  "name": "ERC20 Contracts",
+  "timestamp": "2026-01-10T14:50:00Z",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "contracts": [
+    {
+      "chainId": 31337,
+      "address": "0xec5ab17cc35221cdf54eaeb0868ea82d4d75d9bf",
+      "name": "Clear Call Router"
+    },
+    {
+      "chainId": 31337,
+      "address": "0x056451BBCEbbb1A764b52A7FB1E90Ac07536daC5",
+      "name": "User 1"
+    }
+  ]
+}

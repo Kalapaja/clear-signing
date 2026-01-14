@@ -1,0 +1,125 @@
+{
+  "$schema": "../../schemas/display.schema.json",
+  "displays": [
+    {
+      "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "abi": "function transfer(address receiver, uint256 amount)",
+      "title": "Transfer",
+      "fields": [
+        {
+          "title": "$labels.sender",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$msg.sender"
+            }
+          ]
+        },
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [
+            {
+              "key": "token",
+              "value": "$msg.to"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.amount"
+            }
+          ]
+        },
+        {
+          "title": "$labels.receiver",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.receiver"
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {
+              "key": "receiver",
+              "value": "Receiver"
+            },
+            {
+              "key": "amount",
+              "value": "Amount"
+            },
+            {
+              "key": "sender",
+              "value": "Sender"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "title": "Approve",
+      "abi": "function approve(address spender, uint256 amount)",
+      "fields": [
+        {
+          "title": "$labels.sender",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$msg.sender"
+            }
+          ]
+        },
+        {
+          "title": "$labels.spender",
+          "format": "contract",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.spender"
+            }
+          ]
+        },
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [
+            {
+              "key": "token",
+              "value": "$msg.to"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.amount"
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {
+              "key": "spender",
+              "value": "Spender"
+            },
+            {
+              "key": "amount",
+              "value": "Amount"
+            },
+            {
+              "key": "sender",
+              "value": "Sender"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

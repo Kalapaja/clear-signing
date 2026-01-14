@@ -1,0 +1,333 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/nailkhaf/clear-signing/main/schemas/display.schema.json",
+  "title": "Clear Signing Display Specification",
+  "description": "Schema for validating the 'displays' array in Clear Signing RPC requests.",
+  "type": "object",
+  "required": [ "displays" ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "displays": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Display"
+      }
+    }
+  },
+  "definitions": {
+    "Display": {
+      "type": "object",
+      "required": [ "address", "abi", "fields" ],
+      "properties": {
+        "address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "The address of the contract that will verify the signature"
+        },
+        "abi": {
+          "type": "string",
+          "description": "Solidity function signature (e.g., 'transfer(address receiver, uint256 amount)')"
+        },
+        "title": {
+          "type": "string",
+          "description": "Primary intent title, can be a literal or a reference to $labels (e.g., '$labels.transfer')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional detailed description of the intent"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Field"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Labels"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Field": {
+      "type": "object",
+      "required": [ "format", "params" ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title for the individual field"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description for the field"
+        },
+        "format": {
+          "type": "string",
+          "description": "The display type (e.g., 'tokenTransfer', 'datetime', 'boolean', 'call')",
+          "anyOf": [
+            {
+              "enum": [
+                "boolean",
+                "percentage",
+                "duration",
+                "datetime",
+                "match",
+                "bitmask",
+                "string",
+                "bytes",
+                "int",
+                "uint",
+                "address",
+                "token",
+                "contract",
+                "nativeAmount",
+                "tokenAmount",
+                "call",
+                "array"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9]+(\\[\\])+$"
+            }
+          ]
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Entry"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Entry"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "format": { "const": "nativeAmount" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "amount" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "percentage" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "tokenAmount" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "allOf": [
+                  { "anyOf": [
+                    { "contains": { "type": "object", "properties": { "key": { "const": "token" } } } },
+                    { "contains": { "type": "object", "properties": { "key": { "const": "asset" } } } }
+                  ]},
+                  { "anyOf": [
+                    { "contains": { "type": "object", "properties": { "key": { "const": "amount" } } } },
+                    { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } }
+                  ]}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "call" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "allOf": [
+                  { "anyOf": [
+                    { "contains": { "type": "object", "properties": { "key": { "const": "target" } } } },
+                    { "contains": { "type": "object", "properties": { "key": { "const": "to" } } } }
+                  ]},
+                  { "contains": { "type": "object", "properties": { "key": { "const": "data" } } } },
+                  { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "boolean" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "bitmask" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "match" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "array" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "duration" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "datetime" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "int" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "uint" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "enum": ["address", "token", "contract", "string", "bytes"] } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "type": "string", "pattern": "\\]$" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "type": "string", "pattern": "^\\$" } } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Labels": {
+      "type": "object",
+      "required": [ "locale", "items" ],
+      "properties": {
+        "locale": {
+          "type": "string",
+          "description": "ISO 639-1 language code (e.g., 'en', 'fr')"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Entry"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Entry": {
+      "type": "object",
+      "required": [ "key", "value" ],
+      "properties": {
+        "key": { "$ref": "#/definitions/Key" },
+        "value": { "$ref": "#/definitions/Value" }
+      },
+      "additionalProperties": false
+    },
+    "Key": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^[#$][\\w_.\\[:\\]]*",
+          "description": "A reference starting with $ or #"
+        },
+        {
+          "description": "A literal key"
+        }
+      ]
+    },
+    "Value": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^[#$][\\w_.\\[:\\]]*",
+          "description": "A reference to a context variable (e.g., $msg.data.amount, $locals.val)"
+        },
+        {
+          "description": "A literal value"
+        }
+      ]
+    }
+  }
+}

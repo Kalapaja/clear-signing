@@ -1,0 +1,14 @@
+{
+  "name": "clear-signing",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "schemas"
+  ],
+  "scripts": {
+    "test": "npm test -w schemas",
+    "validate": "npm run validate -w schemas",
+    "validate:contracts": "npm run validate:contracts -w schemas",
+    "validate:tokens": "npm run validate:tokens -w schemas"
+  }
+}

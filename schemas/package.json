@@ -1,0 +1,16 @@
+{
+  "name": "clear-signing-schema",
+  "version": "1.0.0",
+  "description": "Validation for Clear Signing display specifications",
+  "main": "index.js",
+  "scripts": {
+    "validate": "ajv validate -s display.schema.json -d \"../crates/**/displays.json\" -d \"../crates/clear-signing/src/displays_test.json\"",
+    "validate:contracts": "ajv validate -s contractlist.schema.json -d \"../crates/**/contractlist.json\" --strict=false",
+    "validate:tokens": "ajv validate -s tokenlist.schema.json -d \"../crates/**/tokenlist.json\" --strict=false",
+    "test": "npm run validate && npm run validate:contracts && npm run validate:tokens"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-cli": "^5.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+"$schema": "../../schemas/contractlist.schema.json",
+  "name": "Uniswap Contracts",
+  "timestamp": "2026-01-10T14:50:00Z",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "contracts": [
+    {
+      "chainId": 1,
+      "address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af",
+      "name": "Uniswap V4: Universal Router"
+    },
+    {
+      "chainId": 1,
+      "address": "0x63B616328343C80Bfcc134658e44B1Fa7B883b49",
+      "name": "User"
+    },
+    {
+      "chainId": 1,
+      "address": "0xEB3CBBD933E1E405221E5865a857531073b7e9C7",
+      "name": "User"
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "$schema": "../../schemas/display.schema.json",
+  "displays": [
+    {
+      "address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af",
+      "title": "Execute Swap",
+      "abi": "function execute(bytes commands, bytes[] inputs, uint256 deadline)",
+      "fields": [
+        {
+          "format": "array",
+          "checks": [],
+          "params": [
+            {
+              "key": "$command",
+              "value": "$locals.commands"
+            },
+            {
+              "key": "$input",
+              "value": "$locals.inputs"
+            }
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {
+              "key": "$locals.command",
+              "value": "0x08"
+            }
+          ],
+          "params": [
+            {
+              "key": "$recipient",
+              "value": "$locals.input[12:32]"
+            },
+            {
+              "key": "$amountIn",
+              "value": "$locals.input[32:64]"
+            },
+            {
+              "key": "$amountOutMin",
+              "value": "$locals.input[64:96]"
+            },
+            {
+              "key": "$tokenIn",
+              "value": "$locals.input[204:224]"
+            },
+            {
+              "key": "$tokenOut",
+              "value": "$locals.input[-20:]"
+            }
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {
+              "key": "$locals.command",
+              "value": "0x00"
+            }
+          ],
+          "params": [
+            {
+              "key": "$recipient",
+              "value": "$locals.input[12:32]"
+            },
+            {
+              "key": "$amountIn",
+              "value": "$locals.input[32:64]"
+            },
+            {
+              "key": "$amountOutMin",
+              "value": "$locals.input[64:96]"
+            },
+            {
+              "key": "$tokenIn",
+              "value": "$locals.input[192:212]"
+            },
+            {
+              "key": "$tokenOut",
+              "value": "$locals.input[-41:-21]"
+            }
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {
+              "key": "$locals.command",
+              "value": "0x0c"
+            }
+          ],
+          "params": [
+            {
+              "key": "$recipient",
+              "value": "$locals.input[12:32]"
+            },
+            {
+              "key": "$unwrapEth",
+              "value": "$locals.input[32:64]"
+            }
+          ]
+        },
+        {
+          "title": "Token In",
+          "format": "tokenAmount",
+          "checks": [
+            {
+              "key": "$locals.tokenIn",
+              "value": "$locals.tokenIn"
+            },
+            {
+              "key": "$locals.amountIn",
+              "value": "$locals.amountIn"
+            }
+          ],
+          "params": [
+            {
+              "key": "token",
+              "value": "$locals.tokenIn"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.amountIn"
+            }
+          ]
+        },
+        {
+          "title": "Token Out Minimum",
+          "format": "tokenAmount",
+          "checks": [
+            {
+              "key": "$locals.tokenOut",
+              "value": "$locals.tokenOut"
+            },
+            {
+              "key": "$locals.amountOutMin",
+              "value": "$locals.amountOutMin"
+            }
+          ],
+          "params": [
+            {
+              "key": "token",
+              "value": "$locals.tokenOut"
+            },
+            {
+              "key": "amount",
+              "value": "$locals.amountOutMin"
+            }
+          ]
+        },
+        {
+          "title": "Unwrap ETH",
+          "format": "nativeAmount",
+          "checks": [
+            {
+              "key": "$locals.unwrapEth",
+              "value": "$locals.unwrapEth"
+            }
+          ],
+          "params": [
+            {
+              "key": "amount",
+              "value": "$locals.unwrapEth"
+            }
+          ]
+        },
+        {
+          "title": "Recipient",
+          "format": "address",
+          "checks": [
+            {
+              "key": "$locals.recipient",
+              "value": "$locals.recipient"
+            }
+          ],
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.recipient"
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": []
+        }
+      ]
+    }
+  ]
+}
