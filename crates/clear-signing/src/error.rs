@@ -17,6 +17,7 @@ pub enum ParseError {
     DisplayNotFound { selector: Selector },
     UnknownFormat(String),
     SmthWentWrong(String),
+    ParamNotFound(String),
     LabelNotFound { locale: String, label: Label },
     ReferenceNotFound(String),
 }
@@ -48,6 +49,9 @@ impl core::fmt::Display for ParseError {
             ParseError::ReferenceNotFound(msg) => write!(f, "Reference not found: {}", msg),
             ParseError::DisplayNotFound { selector } => {
                 write!(f, "Display not found: {:?}", selector)
+            },
+            ParseError::ParamNotFound(msg) => {
+                write!(f, "Param not found: {}", msg)
             }
         }
     }

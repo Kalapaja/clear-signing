@@ -25,9 +25,7 @@ sol! {
         #[serde(default)]
         Labels[] labels;
     }
-}
 
-sol! {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     struct Field {
         #[serde(default)]
@@ -39,17 +37,13 @@ sol! {
         Entry[] checks;
         Entry[] params;
     }
-}
 
-sol! {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     struct Labels {
         string locale;
         Entry[] items;
     }
-}
 
-sol! {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     struct Entry {
         string key;

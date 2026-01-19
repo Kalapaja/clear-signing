@@ -4,9 +4,10 @@ extern crate alloc;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use alloy_core::hex;
 use alloy_core::primitives::utils::format_units;
-use alloy_core::primitives::Address;
-use clear_signing::fields::{ClearCall, DisplayField, Label};
+use alloy_core::primitives::{Address, U256};
+use clear_signing::fields::{ClearCall, Direction, DisplayField, Label};
 use clear_signing::reference::Reference;
 use serde::{Deserialize, Serialize};
 
@@ -111,7 +112,11 @@ pub fn format_clear_call(
     };
 
     if level == 0 {
-        lines.push("🔍 Clear Signed Message!".to_string());
+        if clear_call.clear {
+            lines.push("🔍 Clear Message!".to_string());
+        } else {
+            lines.push("🔍 Message!".to_string());
+        }
         lines.push("---------------------------------------------------".to_string());
     }
 
@@ -131,7 +136,7 @@ pub fn format_clear_call(
         lines.push("".to_string());
         lines.push(format!(
             "{}{}",
-            indent, "!!! This transaction will send ETH to the contract !!!"
+            indent, "!!! This transaction will send ETH !!!"
         ));
         lines.push("".to_string());
     }
@@ -193,7 +198,7 @@ fn format_field(
                 }
             }
             for value in values {
-                format_field(value, provider, level + 1, lines, labels, detailed, locale);
+                format_field(value, provider, level, lines, labels, detailed, locale);
             }
         }
         DisplayField::Array {
@@ -211,10 +216,7 @@ fn format_field(
                     lines.push(format!("{}{}", indent, desc));
                 }
             }
-            for (i, item) in values.iter().enumerate() {
-                if i != 0 {
-                    lines.push("".into());
-                }
+            for item in values {
                 for value in item {
                     format_field(value, provider, level + 1, lines, labels, detailed, locale);
                 }
@@ -225,6 +227,7 @@ fn format_field(
             description,
             token,
             amount,
+            direction,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
@@ -237,19 +240,31 @@ fn format_field(
                 }
             }
 
-            if *amount == alloy_core::primitives::U256::MAX {
+            let dir_prefix = match direction {
+                Some(Direction::In) => "<-- ",
+                Some(Direction::Out) => "--> ",
+                None => "",
+            };
+
+            if *amount >= U256::from_be_bytes(hex!("8000000000000000000000000000000000000000000000000000000000000000")) {
                 let symbol = provider
                     .get_token(*token)
                     .map(|t| t.symbol)
                     .unwrap_or_else(|| "Unknown Token".to_string());
-                lines.push(format!("{}  Unlimited {}", indent, symbol));
+                lines.push(format!("{}  {}Unlimited {}", indent, dir_prefix, symbol));
             } else if let Some(token_meta) = provider.get_token(*token) {
                 let formatted = format_units(*amount, token_meta.decimals)
                     .unwrap_or_else(|_| amount.to_string());
                 let formatted = trim_formatted_amount(formatted);
-                lines.push(format!("{}  {} {}", indent, formatted, token_meta.symbol));
+                lines.push(format!(
+                    "{}  {}{} {}",
+                    indent, dir_prefix, formatted, token_meta.symbol
+                ));
             } else {
-                lines.push(format!("{}  {} (Unknown Token)", indent, amount));
+                lines.push(format!(
+                    "{}  {}{} (Unknown Token)",
+                    indent, dir_prefix, amount
+                ));
             }
         }
         DisplayField::NativeAmount {
@@ -635,6 +650,7 @@ mod tests {
             title: Reference::Literal("Swap Tokens".to_string()),
             description: Reference::Literal("Swapping ETH for DAI".to_string()),
             payable: true,
+            clear: true,
             labels: vec![],
             fields: vec![
                 DisplayField::NativeAmount {
@@ -647,6 +663,14 @@ mod tests {
                     description: Reference::Literal("Expected amount of DAI".to_string()),
                     token: TOKEN_ADDR,
                     amount: U256::from(2000_000000000000000000u128), // 2000 DAI
+                    direction: Some(Direction::Out),
+                },
+                DisplayField::TokenAmount {
+                    title: Reference::Literal("Amount No Dir".to_string()),
+                    description: Reference::Literal("".to_string()),
+                    token: TOKEN_ADDR,
+                    amount: U256::from(1000_000000000000000000u128), // 1000 DAI
+                    direction: None,
                 },
                 DisplayField::Token {
                     title: Reference::Literal("Token Out".to_string()),
@@ -732,6 +756,7 @@ mod tests {
                     title: Reference::Literal("Sub-call".to_string()),
                     description: Reference::Literal("Inner transaction details".to_string()),
                     call: ClearCall {
+                        clear: false,
                         title: Reference::Literal("Approval".to_string()),
                         description: Reference::Literal("Approve DAI for router".to_string()),
                         payable: false,
@@ -741,6 +766,7 @@ mod tests {
                             description: Reference::Literal("".to_string()),
                             token: TOKEN_ADDR,
                             amount: U256::MAX,
+                            direction: Some(Direction::In),
                         }],
                     },
                 },
@@ -765,19 +791,21 @@ mod tests {
 
         let formatted = format_clear_call(&clear_call, &provider, 0, false, None);
         let expected_lines = vec![
-            "🔍 Clear Signed Message!",
+            "🔍 Clear Message!",
             "---------------------------------------------------",
             "===Swap Tokens===",
             "Swapping ETH for DAI",
             "",
-            "!!! This transaction will send ETH to the contract !!!",
+            "!!! This transaction will send ETH !!!",
             "",
             "Amount In",
             "Amount of ETH to swap",
             "  1 ETH",
             "Amount Out",
             "Expected amount of DAI",
-            "  2000 TST",
+            "  --> 2000 TST",
+            "Amount No Dir",
+            "  1000 TST",
             "Token Out",
             "  Test Token (TST)",
             "Router",
@@ -794,7 +822,6 @@ mod tests {
             "Array description",
             "  Item 1",
             "    Value 1",
-            "",
             "  Item 2",
             "    Value 2",
             "Options",
@@ -814,17 +841,17 @@ mod tests {
             "  ===Approval===",
             "  Approve DAI for router",
             "  Allowance",
-            "    Unlimited TST",
+            "    <-- Unlimited TST",
             "Match Group",
             "Group description",
-            "  Inner Field 1",
-            "    Inner Value 1",
-            "  Inner Field 2",
-            "    Inner Value 2",
+            "Inner Field 1",
+            "  Inner Value 1",
+            "Inner Field 2",
+            "  Inner Value 2",
             "---------------------------------------------------",
         ];
         let expected = expected_lines.join("\n");
 
         assert_eq!(formatted, expected);
-    }
+    } 
 }

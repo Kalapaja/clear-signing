@@ -10,34 +10,22 @@
           "title": "$labels.sender",
           "format": "address",
           "params": [
-            {
-              "key": "value",
-              "value": "$msg.sender"
-            }
+            {"key": "value", "value": "$msg.sender"}
           ]
         },
         {
           "title": "$labels.amount",
           "format": "tokenAmount",
           "params": [
-            {
-              "key": "token",
-              "value": "$msg.to"
-            },
-            {
-              "key": "amount",
-              "value": "$locals.amount"
-            }
+            {"key": "token", "value": "$msg.to"},
+            {"key": "amount", "value": "$locals.amount"}
           ]
         },
         {
           "title": "$labels.receiver",
           "format": "address",
           "params": [
-            {
-              "key": "value",
-              "value": "$locals.receiver"
-            }
+            {"key": "value", "value": "$locals.receiver"}
           ]
         }
       ],
@@ -45,18 +33,9 @@
         {
           "locale": "en",
           "items": [
-            {
-              "key": "receiver",
-              "value": "Receiver"
-            },
-            {
-              "key": "amount",
-              "value": "Amount"
-            },
-            {
-              "key": "sender",
-              "value": "Sender"
-            }
+            {"key": "receiver", "value": "Receiver"},
+            {"key": "amount", "value": "Amount"},
+            {"key": "sender", "value": "Sender"}
           ]
         }
       ]
@@ -70,34 +49,22 @@
           "title": "$labels.sender",
           "format": "address",
           "params": [
-            {
-              "key": "value",
-              "value": "$msg.sender"
-            }
+            {"key": "value", "value": "$msg.sender"}
           ]
         },
         {
           "title": "$labels.spender",
           "format": "contract",
           "params": [
-            {
-              "key": "value",
-              "value": "$locals.spender"
-            }
+            {"key": "value", "value": "$locals.spender"}
           ]
         },
         {
           "title": "$labels.amount",
           "format": "tokenAmount",
           "params": [
-            {
-              "key": "token",
-              "value": "$msg.to"
-            },
-            {
-              "key": "amount",
-              "value": "$locals.amount"
-            }
+            {"key": "token", "value": "$msg.to"},
+            {"key": "amount", "value": "$locals.amount"}
           ]
         }
       ],
@@ -105,18 +72,9 @@
         {
           "locale": "en",
           "items": [
-            {
-              "key": "spender",
-              "value": "Spender"
-            },
-            {
-              "key": "amount",
-              "value": "Amount"
-            },
-            {
-              "key": "sender",
-              "value": "Sender"
-            }
+            {"key": "spender", "value": "Spender"},
+            {"key": "amount", "value": "Amount"},
+            {"key": "sender", "value": "Sender"}
           ]
         }
       ]

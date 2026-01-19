@@ -16,14 +16,8 @@
             "description": "$labels.sending_description",
             "format": "tokenAmount",
             "params": [
-              {
-                "key": "token",
-                "value": "$locals.path[0]"
-              },
-              {
-                "key": "amount",
-                "value": "$locals.amountIn"
-              }
+              {"key": "token", "value": "$locals.path[0]"},
+              {"key": "amount", "value": "$locals.amountIn"}
             ]
           },
           {
@@ -31,14 +25,8 @@
             "description": "$labels.receiving_min_description",
             "format": "tokenAmount",
             "params": [
-              {
-                "key": "token",
-                "value": "$locals.path[-1]"
-              },
-              {
-                "key": "amount",
-                "value": "$locals.amountOutMin"
-              }
+              {"key": "token", "value": "$locals.path[-1]"},
+              {"key": "amount", "value": "$locals.amountOutMin"}
             ]
           },
           {
@@ -46,10 +34,7 @@
             "description": "$labels.recipient_description",
             "format": "address",
             "params": [
-              {
-                "key": "value",
-                "value": "$locals.to"
-              }
+              {"key": "value", "value": "$locals.to"}
             ]
           },
           {
@@ -57,10 +42,7 @@
             "description": "$labels.deadline_description",
             "format": "datetime",
             "params": [
-              {
-                "key": "value",
-                "value": "$locals.deadline"
-              }
+              {"key": "value", "value": "$locals.deadline"}
             ]
           }
         ],
@@ -68,46 +50,16 @@
           {
             "locale": "en",
             "items": [
-              {
-                "key": "swap",
-                "value": "Swap Tokens"
-              },
-              {
-                "key": "swap_description",
-                "value": "Exchange one token for another at the current market rate"
-              },
-              {
-                "key": "sending",
-                "value": "You're Sending"
-              },
-              {
-                "key": "sending_description",
-                "value": "Exact amount of tokens you're swapping"
-              },
-              {
-                "key": "receiving_min",
-                "value": "You're Receiving (minimum)"
-              },
-              {
-                "key": "receiving_min_description",
-                "value": "Minimum amount you'll receive - protects against price slippage"
-              },
-              {
-                "key": "recipient",
-                "value": "Recipient"
-              },
-              {
-                "key": "recipient_description",
-                "value": "Address that will receive the output tokens"
-              },
-              {
-                "key": "deadline",
-                "value": "Deadline"
-              },
-              {
-                "key": "deadline_description",
-                "value": "Transaction must complete before this time"
-              }
+              {"key": "swap", "value": "Swap Tokens"},
+              {"key": "swap_description", "value": "Exchange one token for another at the current market rate"},
+              {"key": "sending", "value": "You're Sending"},
+              {"key": "sending_description", "value": "Exact amount of tokens you're swapping"},
+              {"key": "receiving_min", "value": "You're Receiving (minimum)"},
+              {"key": "receiving_min_description", "value": "Minimum amount you'll receive - protects against price slippage"},
+              {"key": "recipient", "value": "Recipient"},
+              {"key": "recipient_description", "value": "Address that will receive the output tokens"},
+              {"key": "deadline", "value": "Deadline"},
+              {"key": "deadline_description", "value": "Transaction must complete before this time"}
             ]
           }
         ]

@@ -394,6 +394,134 @@
           ]
         }
       ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "abi": "function abiCall(bytes data) payable",
+      "title": "Abi Test",
+      "description": "Testing Format::Match with abi",
+      "fields": [
+        {
+          "title": "Decoded",
+          "format": "match",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.data"
+            },
+            {
+              "key": "abi",
+              "value": "(address recipient, uint256 amount)"
+            }
+          ]
+        },
+        {
+          "title": "Recipient",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.recipient"
+            }
+          ],
+          "checks": [
+            {
+              "key": "$locals.recipient",
+              "value": "$locals.recipient"
+            }
+          ]
+        },
+        {
+          "title": "Amount",
+          "format": "uint",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.amount"
+            }
+          ],
+          "checks": [
+            {
+              "key": "$locals.amount",
+              "value": "$locals.amount"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "abi": "function abiCall(bytes data) payable",
+      "title": "Abi Test New Locals",
+      "description": "Testing Format::Match with abi with new locals from parent",
+      "fields": [
+        {
+          "title": "Decoded",
+          "format": "match",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.data"
+            },
+            {
+              "key": "abi",
+              "value": "(address recipient, uint256 amount)"
+            },
+            {
+              "key": "$sender_copy",
+              "value": "$msg.sender"
+            }
+          ]
+        },
+        {
+          "title": "Sender Copy",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.sender_copy"
+            }
+            ],
+          "checks": [
+            {
+              "key": "$locals.sender_copy",
+              "value": "$locals.sender_copy"
+            }
+          ]
+        },
+        {
+          "title": "Decoded Recipient",
+          "format": "address",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.recipient"
+            }
+          ],
+          "checks": [
+            {
+              "key": "$locals.recipient",
+              "value": "$locals.recipient"
+            }
+          ]
+        },
+        {
+          "title": "Decoded Amount",
+          "format": "uint",
+          "params": [
+            {
+              "key": "value",
+              "value": "$locals.amount"
+            }
+          ],
+          "checks": [
+            {
+              "key": "$locals.amount",
+              "value": "$locals.amount"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -4,3 +4,4 @@ cache
 artifacts
 target
 clear-signing.iml
+.output.txt

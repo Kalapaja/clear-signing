@@ -3,182 +3,427 @@
   "displays": [
     {
       "address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af",
-      "title": "Execute Swap",
-      "abi": "function execute(bytes commands, bytes[] inputs, uint256 deadline)",
+      "title": "Swap",
+      "abi": "function execute(bytes commands, bytes[] inputs, uint256 deadline) payable",
       "fields": [
         {
+          "title": "Account",
+          "format": "address",
+          "params": [
+            {"key": "value", "value": "$msg.sender"}
+          ]
+        },
+        {
           "format": "array",
-          "checks": [],
           "params": [
+            {"key": "$command", "value": "$locals.commands"},
+            {"key": "$input", "value": "$locals.inputs"}
+          ]
+        },
+        {
+          "title": "V2 SWAP EXACT IN",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.command", "value": "0x08"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v2_swap_exact_in"},
+            {"key": "value", "value": "$locals.input"},
             {
-              "key": "$command",
-              "value": "$locals.commands"
-            },
-            {
-              "key": "$input",
-              "value": "$locals.inputs"
+              "key": "abi",
+              "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, address[] path, bool payerIsUser)"
             }
           ]
         },
         {
           "format": "match",
           "checks": [
-            {
-              "key": "$locals.command",
-              "value": "0x08"
-            }
+            {"key": "$locals.match", "value": "v2_swap_exact_in"}
           ],
           "params": [
+            {"key": "$amountIn", "value": "$locals.amountIn"},
+            {"key": "$tokenIn", "value": "$locals.path[0]"}
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v2_swap_exact_in"}
+          ],
+          "params": [
+            {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
+            {"key": "$tokenOut", "value": "$locals.path[-1]"}
+          ]
+        },
+        {
+          "title": "V2 SWAP EXACT OUT",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.command", "value": "0x09"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v2_swap_exact_out"},
+            {"key": "value", "value": "$locals.input"},
             {
-              "key": "$recipient",
-              "value": "$locals.input[12:32]"
-            },
-            {
-              "key": "$amountIn",
-              "value": "$locals.input[32:64]"
-            },
-            {
-              "key": "$amountOutMin",
-              "value": "$locals.input[64:96]"
-            },
-            {
-              "key": "$tokenIn",
-              "value": "$locals.input[204:224]"
-            },
-            {
-              "key": "$tokenOut",
-              "value": "$locals.input[-20:]"
+              "key": "abi",
+              "value": "(address recipient, uint256 amountOut, uint256 amountInMax, address[] path, bool payerIsUser)"
             }
           ]
         },
         {
           "format": "match",
           "checks": [
-            {
-              "key": "$locals.command",
-              "value": "0x00"
-            }
+            {"key": "$locals.match", "value": "v2_swap_exact_out"}
           ],
           "params": [
+            {"key": "$amountInMax", "value": "$locals.amountInMax"},
+            {"key": "$tokenIn", "value": "$locals.path[0]"}
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v2_swap_exact_out"}
+          ],
+          "params": [
+            {"key": "$amountOut", "value": "$locals.amountOut"},
+            {"key": "$tokenOut", "value": "$locals.path[-1]"}
+          ]
+        },
+        {
+          "title": "V3 SWAP EXACT IN",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.command", "value": "0x00"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v3_swap_exact_in"},
+            {"key": "value", "value": "$locals.input"},
             {
-              "key": "$recipient",
-              "value": "$locals.input[12:32]"
-            },
-            {
-              "key": "$amountIn",
-              "value": "$locals.input[32:64]"
-            },
-            {
-              "key": "$amountOutMin",
-              "value": "$locals.input[64:96]"
-            },
-            {
-              "key": "$tokenIn",
-              "value": "$locals.input[192:212]"
-            },
-            {
-              "key": "$tokenOut",
-              "value": "$locals.input[-41:-21]"
+              "key": "abi",
+              "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, bytes pathBytes, bool payerIsUser)"
             }
           ]
         },
         {
           "format": "match",
           "checks": [
-            {
-              "key": "$locals.command",
-              "value": "0x0c"
-            }
+            {"key": "$locals.match", "value": "v3_swap_exact_in"}
           ],
           "params": [
+            {"key": "$amountIn", "value": "$locals.amountIn"},
+            {"key": "$tokenIn", "value": "$locals.pathBytes[:20]"}
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v3_swap_exact_in"}
+          ],
+          "params": [
+            {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
+            {"key": "$tokenOut", "value": "$locals.pathBytes[-20:]"}
+          ]
+        },
+        {
+          "title": "V3 SWAP EXACT OUT",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.command", "value": "0x01"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v3_swap_exact_out"},
+            {"key": "value", "value": "$locals.input"},
             {
-              "key": "$recipient",
-              "value": "$locals.input[12:32]"
-            },
-            {
-              "key": "$unwrapEth",
-              "value": "$locals.input[32:64]"
+              "key": "abi",
+              "value": "(address recipient, uint256 amountOut, uint256 amountInMax, bytes pathBytes, bool payerIsUser)"
             }
           ]
         },
         {
-          "title": "Token In",
-          "format": "tokenAmount",
+          "format": "match",
           "checks": [
-            {
-              "key": "$locals.tokenIn",
-              "value": "$locals.tokenIn"
-            },
-            {
-              "key": "$locals.amountIn",
-              "value": "$locals.amountIn"
-            }
+            {"key": "$locals.match", "value": "v3_swap_exact_out"}
           ],
           "params": [
-            {
-              "key": "token",
-              "value": "$locals.tokenIn"
-            },
-            {
-              "key": "amount",
-              "value": "$locals.amountIn"
-            }
+            {"key": "$amountInMax", "value": "$locals.amountInMax"},
+            {"key": "$tokenIn", "value": "$locals.pathBytes[:20]"}
           ]
         },
         {
-          "title": "Token Out Minimum",
-          "format": "tokenAmount",
+          "format": "match",
           "checks": [
-            {
-              "key": "$locals.tokenOut",
-              "value": "$locals.tokenOut"
-            },
-            {
-              "key": "$locals.amountOutMin",
-              "value": "$locals.amountOutMin"
-            }
+            {"key": "$locals.match", "value": "v3_swap_exact_out"}
           ],
           "params": [
-            {
-              "key": "token",
-              "value": "$locals.tokenOut"
-            },
-            {
-              "key": "amount",
-              "value": "$locals.amountOutMin"
-            }
+            {"key": "$amountOut", "value": "$locals.amountOut"},
+            {"key": "$tokenOut", "value": "$locals.pathBytes[-20:]"}
           ]
         },
         {
           "title": "Unwrap ETH",
-          "format": "nativeAmount",
+          "format": "match",
           "checks": [
-            {
-              "key": "$locals.unwrapEth",
-              "value": "$locals.unwrapEth"
-            }
+            {"key": "$locals.command", "value": "0x0c"}
           ],
           "params": [
+            {"key": "$match", "value": "unwrap_eth"},
+            {"key": "value", "value": "$locals.input"},
+            {"key": "abi", "value": "(address recipient, uint256 amountOutMin)"}
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "unwrap_eth"}
+          ],
+          "params": [
+            {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
+            {"key": "$tokenOut", "value": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"}
+          ]
+        },
+        {
+          "title": "Wrap ETH",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.command", "value": "0x0b"}
+          ],
+          "params": [
+            {"key": "$match", "value": "wrap_eth"},
+            {"key": "value", "value": "$locals.input"},
+            {"key": "abi", "value": "(address recipient, uint256 amountIn)"},
+            {"key": "$tokenIn", "value": "0x0000000000000000000000000000000000000000"}
+          ]
+        },
+        {
+          "title": "Execute Sub Plan",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.command", "value": "0x21"}
+          ],
+          "params": [
+            {"key": "value", "value": "$locals.input"},
+            {"key": "abi", "value": "(bytes commands, bytes[] inputs)"},
+            {"key": "$commands", "value": "$locals.commands"},
+            {"key": "$inputs", "value": "$locals.inputs"}
+          ]
+        },
+        {
+          "title": "V4 Swap",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.command", "value": "0x10"}
+          ],
+          "params": [
+            {"key": "value", "value": "$locals.input"},
+            {"key": "abi", "value": "(bytes actions, bytes[] params)"}
+          ]
+        },
+        {
+          "format": "array",
+          "checks": [
+            {"key": "$locals.actions", "value": "$locals.actions"},
+            {"key": "$locals.params", "value": "$locals.params"}
+          ],
+          "params": [
+            {"key": "$action", "value": "$locals.actions"},
+            {"key": "$param", "value": "$locals.params"}
+          ]
+        },
+        {
+          "title": "V4 SWAP EXACT IN",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.action", "value": "0x07"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v4_swap_exact_in"},
+            {"key": "value", "value": "$locals.param"},
             {
-              "key": "amount",
-              "value": "$locals.unwrapEth"
+              "key": "abi",
+              "value": "((address tokenIn, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountIn, uint256 amountOutMin) swap)"
             }
           ]
         },
         {
-          "title": "Recipient",
-          "format": "address",
+          "format": "match",
           "checks": [
-            {
-              "key": "$locals.recipient",
-              "value": "$locals.recipient"
-            }
+            {"key": "$locals.match", "value": "v4_swap_exact_in"}
           ],
           "params": [
+            {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
+            {"key": "$tokenOut", "value": "$locals.swap.pathKeys[-1].token"},
+            {"key": "$tokenIn", "value": "$locals.swap.tokenIn"},
+            {"key": "$amountIn", "value": "$locals.swap.amountIn"}
+          ]
+        },
+        {
+          "title": "V4 SWAP EXACT IN SINGLE",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.action", "value": "0x06"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v4_swap_exact_in_single"},
+            {"key": "value", "value": "$locals.param"},
             {
-              "key": "value",
-              "value": "$locals.recipient"
+              "key": "abi",
+              "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, bytes) swap)"
             }
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v4_swap_exact_in_single"},
+            {"key": "$locals.swap.zeroForOne", "value": "true"}
+          ],
+          "params": [
+            {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
+            {"key": "$amountIn", "value": "$locals.swap.amountIn"},
+            {"key": "$tokenOut", "value": "$locals.swap.pool.token1"},
+            {"key": "$tokenIn", "value": "$locals.swap.pool.token0"}
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v4_swap_exact_in_single"},
+            {"key": "$locals.swap.zeroForOne", "value": "false"}
+          ],
+          "params": [
+            {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
+            {"key": "$amountIn", "value": "$locals.swap.amountIn"},
+            {"key": "$tokenOut", "value": "$locals.swap.pool.token0"},
+            {"key": "$tokenIn", "value": "$locals.swap.pool.token1"}
+          ]
+        },
+        {
+          "title": "V4 SWAP EXACT OUT",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.action", "value": "0x09"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v4_swap_exact_out"},
+            {"key": "value", "value": "$locals.param"},
+            {
+              "key": "abi",
+              "value": "((address tokenOut, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountOut, uint256 amountInMax) swap)"
+            }
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v4_swap_exact_out"}
+          ],
+          "params": [
+            {"key": "$amountOut", "value": "$locals.swap.amountOut"},
+            {"key": "$tokenOut", "value": "$locals.swap.pathKeys[-1].token"},
+            {"key": "$tokenIn", "value": "$locals.swap.tokenIn"},
+            {"key": "$amountInMax", "value": "$locals.swap.amountInMax"}
+          ]
+        },
+        {
+          "title": "V4 SWAP EXACT OUT SINGLE",
+          "format": "match",
+          "checks": [
+            {"key": "$locals.action", "value": "0x08"}
+          ],
+          "params": [
+            {"key": "$match", "value": "v4_swap_exact_out_single"},
+            {"key": "value", "value": "$locals.param"},
+            {
+              "key": "abi",
+              "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountOut, uint256 amountInMax, bytes) swap)"
+            }
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v4_swap_exact_out_single"},
+            {"key": "$locals.swap.zeroForOne", "value": "true"}
+          ],
+          "params": [
+            {"key": "$amountOut", "value": "$locals.swap.amountOut"},
+            {"key": "$amountInMax", "value": "$locals.swap.amountInMax"},
+            {"key": "$tokenOut", "value": "$locals.swap.pool.token1"},
+            {"key": "$tokenIn", "value": "$locals.swap.pool.token0"}
+          ]
+        },
+        {
+          "format": "match",
+          "checks": [
+            {"key": "$locals.match", "value": "v4_swap_exact_out_single"},
+            {"key": "$locals.swap.zeroForOne", "value": "false"}
+          ],
+          "params": [
+            {"key": "$amountOut", "value": "$locals.swap.amountOut"},
+            {"key": "$amountInMax", "value": "$locals.swap.amountInMax"},
+            {"key": "$tokenOut", "value": "$locals.swap.pool.token0"},
+            {"key": "$tokenIn", "value": "$locals.swap.pool.token1"}
+          ]
+        },
+
+        {
+          "title": "Send",
+          "format": "tokenAmount",
+          "checks": [
+            {"key": "$locals.tokenIn", "value": "$locals.tokenIn"},
+            {"key": "$locals.amountIn", "value": "$locals.amountIn"}
+          ],
+          "params": [
+            {"key": "token", "value": "$locals.tokenIn"},
+            {"key": "amount", "value": "$locals.amountIn"},
+            {"key": "direction", "value": "out"}
+          ]
+        },
+        {
+          "title": "Send maximum",
+          "format": "tokenAmount",
+          "checks": [
+            {"key": "$locals.tokenIn", "value": "$locals.tokenIn"},
+            {"key": "$locals.amountInMax", "value": "$locals.amountInMax"}
+          ],
+          "params": [
+            {"key": "token", "value": "$locals.tokenIn"},
+            {"key": "amount", "value": "$locals.amountInMax"},
+            {"key": "direction", "value": "out"}
+          ]
+        },
+        {
+          "title": "Receive",
+          "format": "tokenAmount",
+          "checks": [
+            {"key": "$locals.tokenOut", "value": "$locals.tokenOut"},
+            {"key": "$locals.amountOut", "value": "$locals.amountOut"}
+          ],
+          "params": [
+            {"key": "token", "value": "$locals.tokenOut"},
+            {"key": "amount", "value": "$locals.amountOut"},
+            {"key": "direction", "value": "in"}
+          ]
+        },
+        {
+          "title": "Receive minimum",
+          "format": "tokenAmount",
+          "checks": [
+            {"key": "$locals.tokenOut", "value": "$locals.tokenOut"},
+            {"key": "$locals.amountOutMin", "value": "$locals.amountOutMin"}
+          ],
+          "params": [
+            {"key": "token", "value": "$locals.tokenOut"},
+            {"key": "amount", "value": "$locals.amountOutMin"},
+            {"key": "direction", "value": "in"}
+          ]
+        },
+        {
+          "title": "Deadline",
+          "format": "datetime",
+          "params": [
+            {"key": "value", "value": "$locals.deadline"}
           ]
         }
       ],

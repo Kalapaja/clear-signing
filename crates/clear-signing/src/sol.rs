@@ -8,17 +8,17 @@ use alloc::{
 use alloy_core::{
     dyn_abi::{DynSolType, DynSolValue, Word},
     json_abi::StateMutability,
-    primitives::{keccak256, Address, Function, Selector, I256, U256},
+    primitives::{Address, Function, I256, Selector, U256, keccak256},
 };
 
 use nom::{
-    branch::alt, bytes::complete::{tag, take_while, take_while1},
+    IResult, Parser,
+    branch::alt,
+    bytes::complete::{tag, take_while, take_while1},
     character::complete::{char, digit1, multispace0},
-    combinator::{map, map_res, opt, recognize, value},
+    combinator::{all_consuming, map, map_res, opt, recognize, value},
     multi::{many0, separated_list0},
     sequence::{delimited, pair, preceded},
-    IResult,
-    Parser,
 };
 
 use crate::error::ParseError;
@@ -69,6 +69,11 @@ impl SolType {
                 format!("({})", types.join(","))
             }
         }
+    }
+
+    pub fn parse(input: &str) -> Result<Self, ParseError> {
+        let (_, sol_type) = all_consuming(parse_tuple).parse(input)?;
+        Ok(sol_type)
     }
 }
 
@@ -220,6 +225,16 @@ impl SolValue {
             SolValue::Literal(string) => Ok(string.parse()?),
             _ => Err(ParseError::SmthWentWrong(format!(
                 "Type mismatch: expected uint, got {:?}",
+                self
+            ))),
+        }
+    }
+
+    pub fn as_literal(&self) -> Result<String, ParseError> {
+        match self {
+            SolValue::Literal(string) => Ok(string.clone()),
+            _ => Err(ParseError::SmthWentWrong(format!(
+                "Type mismatch: expected literal, got {:?}",
                 self
             ))),
         }
@@ -403,14 +418,9 @@ impl SolFunction {
 
         let (input, _) = ws::<_, nom::error::Error<&str>, _>(tag("function")).parse(input)?;
 
-        let (input, functin_name) = ws(identifier).parse(input)?;
+        let (input, function_name) = ws(identifier).parse(input)?;
 
-        let (input, params) = delimited(
-            char('('),
-            ws(separated_list0(char(','), ws(parse_param))),
-            char(')'),
-        )
-        .parse(input)?;
+        let (input, tuple) = parse_tuple(input)?;
 
         let (input, state_mutability) = parse_state_mutability(input)?;
 
@@ -422,8 +432,8 @@ impl SolFunction {
         }
 
         Ok(SolFunction {
-            name: functin_name.to_string(),
-            tuple: SolType::Tuple(params),
+            name: function_name.to_string(),
+            tuple,
             state_mutability,
         })
     }
@@ -490,6 +500,18 @@ fn parse_state_mutability(input: &str) -> IResult<&str, StateMutability> {
     .parse(input)
 }
 
+fn parse_tuple(input: &str) -> IResult<&str, SolType> {
+    map(
+        delimited(
+            char('('),
+            ws(separated_list0(char(','), ws(parse_param))),
+            char(')'),
+        ),
+        SolType::Tuple,
+    )
+    .parse(input)
+}
+
 fn parse_base_type(input: &str) -> IResult<&str, SolType> {
     alt((
         value(SolType::Bool, tag("bool")),
@@ -504,14 +526,7 @@ fn parse_base_type(input: &str) -> IResult<&str, SolType> {
         map(preceded(tag("int"), opt(parse_usize)), |sz| {
             SolType::Int(sz.unwrap_or(256))
         }),
-        map(
-            delimited(
-                char('('),
-                ws(separated_list0(char(','), ws(parse_param))),
-                char(')'),
-            ),
-            SolType::Tuple,
-        ),
+        parse_tuple,
     ))
     .parse(input)
 }
@@ -659,6 +674,44 @@ mod tests {
         let sig = "function foo(uint256)";
         let func = SolFunction::parse(sig).unwrap();
         assert_eq!(func.state_mutability, StateMutability::NonPayable);
+    }
+
+    #[test]
+    fn test_sol_type_parse_tuple() {
+        let input = "(address recipient, uint256 amount)";
+        let sol_type = SolType::parse(input).unwrap();
+        if let SolType::Tuple(params) = sol_type {
+            assert_eq!(params.len(), 2);
+            assert_eq!(params[0].0.as_deref(), Some("recipient"));
+            assert!(matches!(params[0].1, SolType::Address));
+            assert_eq!(params[1].0.as_deref(), Some("amount"));
+            assert!(matches!(params[1].1, SolType::Uint(256)));
+        } else {
+            panic!("Expected Tuple");
+        }
+
+        // Must fail without root ()
+        assert!(SolType::parse("uint256 amount").is_err());
+    }
+
+    #[test]
+    fn test_sol_type_parse_nested_tuple() {
+        let input = "(address to, (uint256 amount, string memo) detail)";
+        let sol_type = SolType::parse(input).unwrap();
+        if let SolType::Tuple(params) = sol_type {
+            assert_eq!(params.len(), 2);
+            assert_eq!(params[0].0.as_deref(), Some("to"));
+            if let SolType::Tuple(inner_params) = &params[1].1 {
+                assert_eq!(params[1].0.as_deref(), Some("detail"));
+                assert_eq!(inner_params.len(), 2);
+                assert_eq!(inner_params[0].0.as_deref(), Some("amount"));
+                assert_eq!(inner_params[1].0.as_deref(), Some("memo"));
+            } else {
+                panic!("Expected nested Tuple");
+            }
+        } else {
+            panic!("Expected Tuple");
+        }
     }
 
     #[test]

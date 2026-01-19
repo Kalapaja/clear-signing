@@ -25,9 +25,7 @@ library Display {
             abi.encode(
                 Display.ENTRY_TYPEHASH,
                 keccak256(bytes(key)),
-                keccak256(
-                    bytes(value)
-                )
+                keccak256(bytes(value))
             )
         );
     }

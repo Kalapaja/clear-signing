@@ -12,8 +12,15 @@ pub struct ClearCall {
     pub title: Label,
     pub description: Label,
     pub payable: bool,
+    pub clear: bool,
     pub fields: Vec<DisplayField>,
     pub labels: Vec<Labels>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum Direction {
+    In,
+    Out,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -48,6 +55,7 @@ pub enum DisplayField {
         description: Label,
         token: Address,
         amount: U256,
+        direction: Option<Direction>,
     },
     NativeAmount {
         title: Label,

@@ -35,6 +35,55 @@
       "name": "Andy",
       "symbol": "ANDY",
       "decimals": 18
+    },
+    {
+      "chainId": 1,
+      "address": "0x09395a2A58DB45db0da254c7EAa5AC469D8bDc85",
+      "name": "SubQueryToken",
+      "symbol": "SQT",
+      "decimals": 18
+    },
+    {
+      "chainId": 1,
+      "address": "0x776A7e1711eafD10A9404994093bB985F3101711",
+      "name": "PenXChain",
+      "symbol": "PENX",
+      "decimals": 18
+    },
+    {
+      "chainId": 1,
+      "address": "0x0000000000000000000000000000000000000000",
+      "name": "Ether",
+      "symbol": "ETH",
+      "decimals": 18
+    },
+    {
+      "chainId": 1,
+      "address": "0x888888888887715FB9D9F84175Af9e6cCE46807e",
+      "name": "Elevate",
+      "symbol": "ELEVATE",
+      "decimals": 8
+    },
+    {
+      "chainId": 1,
+      "address": "0x55431c43Ca3aC6F14Ca0F89BDB40dEd71DF8dec3",
+      "name": "Incendio",
+      "symbol": "INCENDIO",
+      "decimals": 18
+    },
+    {
+      "chainId": 1,
+      "address": "0x221657776846890989a759BA2973e427DfF5C9bB",
+      "name": "REPv2",
+      "symbol": "REPv2",
+      "decimals": 18
+    },
+    {
+      "chainId": 1,
+      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "name": "USDC",
+      "symbol": "USDC",
+      "decimals": 6
     }
   ]
 }

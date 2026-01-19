@@ -456,11 +456,18 @@ Wallets **MUST** support these standard higher-level types:
 **Control Flow Types**
 These types interpret the data structure and control the rendering of subsequent fields:
 
-- **`match`**: Acts as a **conditional branch**. It defines a scope where subsequent fields are only rendered if their
-  `checks` pass against the value mapped in `match`. Use parameters starting with `$` (e.g., `$param`) to map values
-  into the scope's `$locals`.
+- **`match`**: Acts as a **conditional branch**. It supports mapping values into the scope's `$locals` using:
+    - **Named Parameters**: Parameters starting with `$` (e.g., `$param`) map values or literals into the scope's
+      `$locals`.
+    - **ABI Decoding**: By providing **`abi`** (signature) and **`value`** (bytes) parameters, `match` decodes the bytes
+      and maps the resulting fields into `$locals`.
 - **`array`**: Acts as a **loop**. Subsequent fields that reference the scoped variable (e.g., `$item`) are rendered
   repeatedly for each element in the array. The `$msg` context remains unchanged.
+
+**Conditional Rendering (`checks`)**
+Every field can define a list of **`checks`** (key-value pairs) that MUST all pass against the current context for the
+field to be displayed. In scoped contexts (`match` or `array`), only fields with explicit `checks` are evaluated and
+rendered; fields without `checks` are ignored.
 
 **Safety Rule**: If a wallet fails to resolve an address marked as `token` or `contract` to a known, verified entity, *
 *execution MUST stop**. This prevents phishing by ensuring users never sign interactions with "Unknown Contracts" when a
@@ -500,8 +507,9 @@ The wallet processes the display specification in a deterministic sequence to ge
         - **Top-Level**: Initialized by decoding the function arguments from calldata (`$msg.data`) according to the
           `abi`. (e.g., `transfer(address to, uint256 amount)` -> `$locals.to`, `$locals.amount`).
         - **Scoped Contexts**: When entering a `match` or `array` scope, a **new** `$locals` object is created. It
-          contains **only** the parameters explicitly mapped in the field definition (starting with `$`). It does **not
-          ** inherit variables from the parent scope.
+          contains **only** the parameters explicitly mapped in the field definition (starting with `$` or decoded via
+          `abi`).
+          It does **not** inherit variables from the parent scope.
     - **Resolution Failure**: If a referenced path (e.g., `$locals.missingParam`) does not exist in the context,
       execution **MUST stop** effectively rejecting the display.
 
@@ -812,10 +820,12 @@ interactions and improving integration with existing Ethereum standards.
   redundant `address` field from the `Display` specification.
 - **EIP-712 Envelope**: Implementing support for signing the entire EIP-712 message as an envelope, ensuring that the
   clear signing guarantees extend to complex structured data beyond simple contract calls.
-- **ABI Format**: Introducing the `abi` format to allow parsing arbitrary bytes into structured data, enabling the
-  visualization of encoded payloads.
 - **Delegatecall Format**: Introducing the `delegatecall` format, similar to `call`, but specifically designed to
   preserve the `msg.sender` and `msg.value` context for accurate rendering of proxy-like interactions.
+- **Proof of Clear Call**: The dApp may initially send a transaction with a zeroed `displayHash`. The wallet then
+  resolves the corresponding display specification, calculates its cryptographic hash, and injects it into the
+  transaction before signing. This ensures that the user's intent is verified and that the transaction is only valid if
+  the wallet's clear-signing interpretation matches the contract's expectations.
 
 ## 10. Conclusion
 

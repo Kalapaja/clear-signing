@@ -1,5 +1,5 @@
 {
-"$schema": "../../schemas/contractlist.schema.json",
+  "$schema": "../../schemas/contractlist.schema.json",
   "name": "Uniswap Contracts",
   "timestamp": "2026-01-10T14:50:00Z",
   "version": {
