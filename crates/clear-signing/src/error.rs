@@ -16,6 +16,7 @@ pub enum ParseError {
     FunctionNotWriteable,
     DisplayNotFound { selector: Selector },
     UnknownFormat(String),
+    UnknownOperator(String),
     SmthWentWrong(String),
     ParamNotFound(String),
     LabelNotFound { locale: String, label: Label },
@@ -41,6 +42,7 @@ impl core::fmt::Display for ParseError {
                 write!(f, "Function is not writeable")
             }
             ParseError::UnknownFormat(format) => write!(f, "Unknown format: {}", format),
+            ParseError::UnknownOperator(op) => write!(f, "Unknown operator: {}", op),
             ParseError::SmthWentWrong(msg) => write!(f, "Smth went wrong: {}", msg),
             ParseError::UnknownToken(token) => write!(f, "Unknown token: {:?}", token),
             ParseError::LabelNotFound { locale, label } => {

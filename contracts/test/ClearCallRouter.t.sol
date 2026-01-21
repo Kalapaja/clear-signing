@@ -203,13 +203,13 @@ contract ClearCallRouterTest is Test {
     }
 
     function test_DisplayHashMatchesBaseline() public pure {
-        // The baseline hash was calculated using the JS script calculateDisplayHash.ts
+        // The baseline hash was calculated using the updated EIP-712 structure with Check[][] for checks field
         // verifyingContract (router) was set to address(0) for the baseline calculation.
         // We must ensure the router used for hashing here is also address(0).
         bytes32 calculatedHash = SwapExactTokensForTokensDisplayHash.getSwapExactTokensForTokenDisplayHash(ClearCallRouter(address(0)));
-        bytes32 baselineHash = 0xdaa45daf054e359c6d69b3748a104161f839a71786cf5cb05dfe7bc8d687a9ac;
-        
-        assertEq(calculatedHash, baselineHash, "Display hash should match JS calculated baseline");
+        bytes32 expectedHash = 0x25c50e3e98bab7800dee0c9e0f40fbed2bf1d064f7ccff33a7fb0d1a62b35f7c;
+
+        assertEq(calculatedHash, expectedHash, "Display hash should match updated EIP-712 structure");
     }
 
     function test_Gas_DirectCall() public {

@@ -5,3 +5,4 @@ artifacts
 target
 clear-signing.iml
 .output.txt
+.claude

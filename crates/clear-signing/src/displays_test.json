@@ -311,12 +311,7 @@
               "value": "$locals.check"
             }
           ],
-          "checks": [
-            {
-              "key": "$locals.check",
-              "value": "100"
-            }
-          ]
+          "checks": [[{"left": "$locals.check", "right": "100"}]]
         }
       ]
     },
@@ -345,12 +340,7 @@
               "value": "$locals.val"
             }
           ],
-          "checks": [
-            {
-              "key": "$locals.val",
-              "value": "$locals.val"
-            }
-          ]
+          "checks": [[{"left": "$locals.val", "right": "$locals.val"}]]
         }
       ]
     },
@@ -386,12 +376,7 @@
               "value": "0"
             }
           ],
-          "checks": [
-            {
-              "key": "$locals.item",
-              "value": "$locals.item"
-            }
-          ]
+          "checks": [[{"left": "$locals.item", "right": "$locals.item"}]]
         }
       ]
     },
@@ -424,12 +409,7 @@
               "value": "$locals.recipient"
             }
           ],
-          "checks": [
-            {
-              "key": "$locals.recipient",
-              "value": "$locals.recipient"
-            }
-          ]
+          "checks": [[{"left": "$locals.recipient", "right": "$locals.recipient"}]]
         },
         {
           "title": "Amount",
@@ -440,12 +420,7 @@
               "value": "$locals.amount"
             }
           ],
-          "checks": [
-            {
-              "key": "$locals.amount",
-              "value": "$locals.amount"
-            }
-          ]
+          "checks": [[{"left": "$locals.amount", "right": "$locals.amount"}]]
         }
       ]
     },
@@ -481,13 +456,8 @@
               "key": "value",
               "value": "$locals.sender_copy"
             }
-            ],
-          "checks": [
-            {
-              "key": "$locals.sender_copy",
-              "value": "$locals.sender_copy"
-            }
-          ]
+          ],
+          "checks": [[{"left": "$locals.sender_copy", "right": "$locals.sender_copy"}]]
         },
         {
           "title": "Decoded Recipient",
@@ -498,12 +468,7 @@
               "value": "$locals.recipient"
             }
           ],
-          "checks": [
-            {
-              "key": "$locals.recipient",
-              "value": "$locals.recipient"
-            }
-          ]
+          "checks": [[{"left": "$locals.recipient", "right": "$locals.recipient"}]]
         },
         {
           "title": "Decoded Amount",
@@ -515,10 +480,12 @@
             }
           ],
           "checks": [
-            {
-              "key": "$locals.amount",
-              "value": "$locals.amount"
-            }
+            [
+              {
+                "left": "$locals.amount",
+                "right": "$locals.amount"
+              }
+            ]
           ]
         }
       ]

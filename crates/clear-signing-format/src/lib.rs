@@ -101,7 +101,7 @@ pub fn format_clear_call(
 
     let resolve = |label: &Label| -> String {
         label
-            .resolve(&clear_call.labels, None)
+            .resolve(&clear_call.labels, locale)
             .unwrap_or_else(|_| match label {
                 Reference::Literal(s) => s.clone(),
                 Reference::Identifier {
@@ -112,11 +112,6 @@ pub fn format_clear_call(
     };
 
     if level == 0 {
-        if clear_call.clear {
-            lines.push("🔍 Clear Message!".to_string());
-        } else {
-            lines.push("🔍 Message!".to_string());
-        }
         lines.push("---------------------------------------------------".to_string());
     }
 
@@ -125,7 +120,7 @@ pub fn format_clear_call(
         lines.push(format!("{}==={}===", indent, title));
     }
 
-    if !detailed {
+    if detailed {
         let desc = resolve(&clear_call.description);
         if !desc.is_empty() {
             lines.push(format!("{}{}", indent, desc));
@@ -160,6 +155,10 @@ pub fn format_clear_call(
     lines.join("\n")
 }
 
+fn format_title(title: &str, indent: &str) -> String {
+    format!("{}{}", indent, title)
+}
+
 fn format_field(
     field: &DisplayField,
     provider: &impl MetadataProvider,
@@ -172,13 +171,15 @@ fn format_field(
     let indent = "  ".repeat(level);
 
     let resolve = |label: &Label| -> String {
-        label.resolve(labels, None).unwrap_or_else(|_| match label {
-            Reference::Literal(s) => s.clone(),
-            Reference::Identifier {
-                identifier: _,
-                reference,
-            } => reference.clone(),
-        })
+        label
+            .resolve(labels, locale)
+            .unwrap_or_else(|_| match label {
+                Reference::Literal(s) => s.clone(),
+                Reference::Identifier {
+                    identifier: _,
+                    reference,
+                } => reference.clone(),
+            })
     };
 
     match field {
@@ -189,9 +190,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -208,9 +209,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -231,9 +232,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -246,7 +247,11 @@ fn format_field(
                 None => "",
             };
 
-            if *amount >= U256::from_be_bytes(hex!("8000000000000000000000000000000000000000000000000000000000000000")) {
+            if *amount
+                >= U256::from_be_bytes(hex!(
+                    "8000000000000000000000000000000000000000000000000000000000000000"
+                ))
+            {
                 let symbol = provider
                     .get_token(*token)
                     .map(|t| t.symbol)
@@ -271,27 +276,44 @@ fn format_field(
             title,
             description,
             amount,
+            direction,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
                 }
             }
 
-            if *amount == alloy_core::primitives::U256::MAX {
+            let dir_prefix = match direction {
+                Some(Direction::In) => "<-- ",
+                Some(Direction::Out) => "--> ",
+                None => "",
+            };
+
+            if *amount
+                >= U256::from_be_bytes(hex!(
+                    "8000000000000000000000000000000000000000000000000000000000000000"
+                ))
+            {
                 let native_meta = provider.get_native_token();
-                lines.push(format!("{}  Unlimited {}", indent, native_meta.symbol));
+                lines.push(format!(
+                    "{}  {}Unlimited {}",
+                    indent, dir_prefix, native_meta.symbol
+                ));
             } else {
                 let native_meta = provider.get_native_token();
                 let formatted = format_units(*amount, native_meta.decimals)
                     .unwrap_or_else(|_| amount.to_string());
                 let formatted = trim_formatted_amount(formatted);
-                lines.push(format!("{}  {} {}", indent, formatted, native_meta.symbol));
+                lines.push(format!(
+                    "{}  {}{} {}",
+                    indent, dir_prefix, formatted, native_meta.symbol
+                ));
             }
         }
         DisplayField::Boolean {
@@ -301,9 +323,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -318,9 +340,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -339,9 +361,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -363,9 +385,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -384,9 +406,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -408,9 +430,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -430,9 +452,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -459,9 +481,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -482,9 +504,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -500,9 +522,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -517,9 +539,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -534,9 +556,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -551,9 +573,9 @@ fn format_field(
         } => {
             let title = resolve(title);
             if !title.is_empty() {
-                lines.push(format!("{}{}", indent, title));
+                lines.push(format_title(&title, &indent));
             }
-            if !detailed {
+            if detailed {
                 let desc = resolve(description);
                 if !desc.is_empty() {
                     lines.push(format!("{}{}", indent, desc));
@@ -581,7 +603,7 @@ fn trim_formatted_amount(s: String) -> String {
 mod tests {
     use super::*;
     use alloc::vec;
-    use alloy_core::primitives::{address, U256};
+    use alloy_core::primitives::{U256, address};
 
     const TOKEN_ADDR: Address = address!("0000000000000000000000000000000000000111");
     const CONTRACT_ADDR: Address = address!("0000000000000000000000000000000000000222");
@@ -657,6 +679,7 @@ mod tests {
                     title: Reference::Literal("Amount In".to_string()),
                     description: Reference::Literal("Amount of ETH to swap".to_string()),
                     amount: U256::from(1_000_000_000_000_000_000u64), // 1 ETH
+                    direction: None,
                 },
                 DisplayField::TokenAmount {
                     title: Reference::Literal("Amount Out".to_string()),
@@ -789,9 +812,8 @@ mod tests {
             ],
         };
 
-        let formatted = format_clear_call(&clear_call, &provider, 0, false, None);
+        let formatted = format_clear_call(&clear_call, &provider, 0, true, None);
         let expected_lines = vec![
-            "🔍 Clear Message!",
             "---------------------------------------------------",
             "===Swap Tokens===",
             "Swapping ETH for DAI",
@@ -853,5 +875,5 @@ mod tests {
         let expected = expected_lines.join("\n");
 
         assert_eq!(formatted, expected);
-    } 
+    }
 }

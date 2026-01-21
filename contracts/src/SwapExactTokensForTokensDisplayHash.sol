@@ -17,7 +17,7 @@ library SwapExactTokensForTokensDisplayHash {
                     "$labels.sending",
                     "$labels.sending_description",
                     "tokenAmount",
-                    "",
+                    hex"",  // Empty Check[][] array
                     abi.encode(
                         Display.entry("token", "$locals.path[0]"),
                         Display.entry("amount", "$locals.amountIn")
@@ -28,7 +28,7 @@ library SwapExactTokensForTokensDisplayHash {
                     "$labels.receiving_min",
                     "$labels.receiving_min_description",
                     "tokenAmount",
-                    "",
+                    hex"",  // Empty Check[][] array
                     abi.encode(
                         Display.entry("token", "$locals.path[-1]"),
                         Display.entry("amount", "$locals.amountOutMin")
@@ -39,7 +39,7 @@ library SwapExactTokensForTokensDisplayHash {
                     "$labels.recipient",
                     "$labels.recipient_description",
                     "address",
-                    "",
+                    hex"",  // Empty Check[][] array
                     abi.encode(Display.entry("value", "$locals.to"))
                 ),
                 // Field 4: Deadline
@@ -47,7 +47,7 @@ library SwapExactTokensForTokensDisplayHash {
                     "$labels.deadline",
                     "$labels.deadline_description",
                     "datetime",
-                    "",
+                    hex"",  // Empty Check[][] array
                     abi.encode(Display.entry("value", "$locals.deadline"))
                 )
             ),

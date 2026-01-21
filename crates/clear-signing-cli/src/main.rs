@@ -15,6 +15,14 @@ use provider::{ClearSigningProvider, ProviderRegistry};
 struct Cli {
     /// Path to the folder containing configuration files
     folder: PathBuf,
+
+    /// Enable detailed output (shows descriptions for all fields)
+    #[arg(short, long)]
+    detailed: bool,
+
+    /// Set locale for formatting (e.g., "en")
+    #[arg(short, long)]
+    locale: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -30,6 +38,8 @@ struct Transaction {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let folder = cli.folder;
+    let detailed = cli.detailed;
+    let locale = cli.locale.as_deref();
     let path = PathBuf::from("../../examples");
 
     // Load JSON files
@@ -87,7 +97,7 @@ fn main() -> Result<()> {
     let transactions: Vec<Transaction> = serde_json::from_str(&txs_str)?;
 
     for (i, tx) in transactions.into_iter().enumerate() {
-        println!("--- Transaction #{} ---", i + 1);
+        println!("Transaction #{}", i + 1);
         let result = (|| -> Result<()> {
             let message = Message {
                 sender: tx.sender,
@@ -105,7 +115,7 @@ fn main() -> Result<()> {
                 .map_err(|e| anyhow::anyhow!(e))?;
 
             // Format output
-            let formatted = format_clear_call(&clear_call, &provider, 0, false, None);
+            let formatted = format_clear_call(&clear_call, &provider, 0, detailed, locale);
 
             println!("{}", formatted);
             Ok(())

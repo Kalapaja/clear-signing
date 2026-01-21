@@ -102,8 +102,12 @@
         },
         "checks": {
           "type": "array",
+          "description": "2D array: OR of AND groups. Each group is ANDed, groups are ORed",
           "items": {
-            "$ref": "#/definitions/Entry"
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Check"
+            }
           }
         }
       },
@@ -302,6 +306,27 @@
       "properties": {
         "key": { "$ref": "#/definitions/Key" },
         "value": { "$ref": "#/definitions/Value" }
+      },
+      "additionalProperties": false
+    },
+    "Check": {
+      "type": "object",
+      "required": [ "left" ],
+      "properties": {
+        "left": {
+          "type": "string",
+          "description": "Left operand (reference or literal)"
+        },
+        "op": {
+          "type": "string",
+          "enum": ["eq", "ne"],
+          "default": "eq",
+          "description": "Comparison operator: eq (equals), ne (not equals), empty defaults to eq"
+        },
+        "right": {
+          "type": "string",
+          "description": "Right operand (reference or literal)"
+        }
       },
       "additionalProperties": false
     },

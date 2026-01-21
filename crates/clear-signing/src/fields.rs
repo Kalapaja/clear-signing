@@ -1,6 +1,7 @@
 use crate::display::Labels;
 use crate::error::ParseError;
 use crate::reference::Reference;
+use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloy_core::primitives::{Address, Bytes, I256, U256};
@@ -21,6 +22,19 @@ pub struct ClearCall {
 pub enum Direction {
     In,
     Out,
+}
+
+impl Direction {
+    pub fn from_str(direction: &str) -> Result<Self, ParseError> {
+        match direction {
+            "in" => Ok(Direction::In),
+            "out" => Ok(Direction::Out),
+            _ => Err(ParseError::SmthWentWrong(format!(
+                "Unknown direction: {}",
+                direction
+            ))),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -61,6 +75,7 @@ pub enum DisplayField {
         title: Label,
         description: Label,
         amount: U256,
+        direction: Option<Direction>,
     },
     Boolean {
         title: Label,

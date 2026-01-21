@@ -1,6 +1,6 @@
 {
   "$schema": "../../schemas/contractlist.schema.json",
-  "name": "ERC20 Contracts",
+  "name": "Local Contracts",
   "timestamp": "2026-01-10T14:50:00Z",
   "version": {
     "major": 1,

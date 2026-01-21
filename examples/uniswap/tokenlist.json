@@ -52,13 +52,6 @@
     },
     {
       "chainId": 1,
-      "address": "0x0000000000000000000000000000000000000000",
-      "name": "Ether",
-      "symbol": "ETH",
-      "decimals": 18
-    },
-    {
-      "chainId": 1,
       "address": "0x888888888887715FB9D9F84175Af9e6cCE46807e",
       "name": "Elevate",
       "symbol": "ELEVATE",

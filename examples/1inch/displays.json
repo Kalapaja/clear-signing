@@ -1,0 +1,103 @@
+{
+  "$schema": "../../schemas/display.schema.json",
+  "displays": [
+    {
+      "address": "0x111111125421cA6dc452d289314280a0f8842A65",
+      "abi": "function swap(address executor, (address srcToken, address dstToken, address srcReceiver, address dstReceiver, uint256 amount, uint256 minReturnAmount, uint256 flags) desc, bytes data)",
+      "title": "$labels.swap_title",
+      "description": "$labels.swap_description",
+      "fields": [
+        {
+          "title": "$labels.you_send",
+          "description": "$labels.desc_you_send",
+          "format": "tokenAmount",
+          "params": [
+            {"key": "token", "value": "$locals.desc.srcToken"},
+            {"key": "amount", "value": "$locals.desc.amount"},
+            {"key": "direction", "value": "out"}
+          ]
+        },
+        {
+          "title": "$labels.you_receive_minimum",
+          "description": "$labels.desc_you_receive_minimum",
+          "format": "tokenAmount",
+          "params": [
+            {"key": "token", "value": "$locals.desc.dstToken"},
+            {"key": "amount", "value": "$locals.desc.minReturnAmount"},
+            {"key": "direction", "value": "in"}
+          ]
+        },
+        {
+          "title": "$labels.recipient",
+          "description": "$labels.desc_recipient",
+          "format": "address",
+          "params": [
+            {"key": "value", "value": "$locals.desc.dstReceiver"}
+          ]
+        },
+        {
+          "title": "$labels.swap_options",
+          "description": "$labels.desc_swap_options",
+          "format": "bitmask",
+          "params": [
+            {"key": "value", "value": "$locals.desc.flags"},
+            {"key": "#0", "value": "$labels.partial_fill_enabled"}
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {"key": "swap_title", "value": "1inch Swap"},
+            {"key": "swap_description", "value": "Exchange one token for another using the 1inch aggregation protocol"},
+            {"key": "you_send", "value": "You Send"},
+            {"key": "you_receive_minimum", "value": "You Receive (Minimum)"},
+            {"key": "recipient", "value": "Recipient"},
+            {"key": "swap_options", "value": "Swap Options"},
+            {"key": "partial_fill_enabled", "value": "Partial fill allowed"},
+            {"key": "desc_you_send", "value": "The exact amount you will send from your wallet"},
+            {"key": "desc_you_receive_minimum", "value": "The minimum amount you will receive. You may receive more if the exchange rate improves"},
+            {"key": "desc_recipient", "value": "The wallet address that will receive the swapped tokens"},
+            {"key": "desc_swap_options", "value": "Additional swap execution settings"},
+            {"key": "desc_partial_fill", "value": "If enabled, the swap can be partially filled if the full amount cannot be executed"}
+          ]
+        },
+        {
+          "locale": "es",
+          "items": [
+            {"key": "swap_title", "value": "Intercambio 1inch"},
+            {"key": "swap_description", "value": "Intercambia un token por otro usando el protocolo de agregación 1inch"},
+            {"key": "you_send", "value": "Envías"},
+            {"key": "you_receive_minimum", "value": "Recibes (Mínimo)"},
+            {"key": "recipient", "value": "Destinatario"},
+            {"key": "swap_options", "value": "Opciones de Intercambio"},
+            {"key": "partial_fill_enabled", "value": "Llenado parcial permitido"},
+            {"key": "desc_you_send", "value": "La cantidad exacta que enviarás desde tu billetera"},
+            {"key": "desc_you_receive_minimum", "value": "La cantidad mínima que recibirás. Puedes recibir más si mejora el tipo de cambio"},
+            {"key": "desc_recipient", "value": "La dirección de billetera que recibirá los tokens intercambiados"},
+            {"key": "desc_swap_options", "value": "Configuraciones adicionales de ejecución del intercambio"},
+            {"key": "desc_partial_fill", "value": "Si está habilitado, el intercambio puede llenarse parcialmente si no se puede ejecutar la cantidad completa"}
+          ]
+        },
+        {
+          "locale": "ru",
+          "items": [
+            {"key": "swap_title", "value": "Обмен 1inch"},
+            {"key": "swap_description", "value": "Обменяйте один токен на другой, используя протокол агрегации 1inch"},
+            {"key": "you_send", "value": "Вы отправляете"},
+            {"key": "you_receive_minimum", "value": "Вы получаете (Минимум)"},
+            {"key": "recipient", "value": "Получатель"},
+            {"key": "swap_options", "value": "Параметры обмена"},
+            {"key": "partial_fill_enabled", "value": "Частичное исполнение разрешено"},
+            {"key": "desc_you_send", "value": "Точная сумма, которую вы отправите из своего кошелька"},
+            {"key": "desc_you_receive_minimum", "value": "Минимальная сумма, которую вы получите. Вы можете получить больше, если обменный курс улучшится"},
+            {"key": "desc_recipient", "value": "Адрес кошелька, который получит обменянные токены"},
+            {"key": "desc_swap_options", "value": "Дополнительные настройки выполнения обмена"},
+            {"key": "desc_partial_fill", "value": "Если включено, обмен может быть частично исполнен, если невозможно выполнить полную сумму"}
+          ]
+        }
+      ]
+    }
+  ]
+}

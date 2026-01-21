@@ -21,13 +21,11 @@
           ]
         },
         {
-          "title": "V2 SWAP EXACT IN",
+          "description": "V2 SWAP EXACT IN",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x08"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x08"}]],
           "params": [
-            {"key": "$match", "value": "v2_swap_exact_in"},
+            {"key": "$case", "value": "v2_swap_exact_in"},
             {"key": "value", "value": "$locals.input"},
             {
               "key": "abi",
@@ -38,7 +36,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v2_swap_exact_in"}
+            [
+              {"left": "$locals.case", "right": "v2_swap_exact_in"},
+              {"left": "$locals.payerIsUser", "right": "true"}
+            ]
           ],
           "params": [
             {"key": "$amountIn", "value": "$locals.amountIn"},
@@ -48,7 +49,14 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v2_swap_exact_in"}
+            [
+              {"left": "$locals.case", "right": "v2_swap_exact_in"},
+              {"left": "$locals.recipient", "right": "$msg.sender"}
+            ],
+            [
+              {"left": "$locals.case", "right": "v2_swap_exact_in"},
+              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
+            ]
           ],
           "params": [
             {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
@@ -56,13 +64,11 @@
           ]
         },
         {
-          "title": "V2 SWAP EXACT OUT",
+          "description": "V2 SWAP EXACT OUT",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x09"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x09"}]],
           "params": [
-            {"key": "$match", "value": "v2_swap_exact_out"},
+            {"key": "$case", "value": "v2_swap_exact_out"},
             {"key": "value", "value": "$locals.input"},
             {
               "key": "abi",
@@ -73,7 +79,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v2_swap_exact_out"}
+            [
+              {"left": "$locals.case", "right": "v2_swap_exact_out"},
+              {"left": "$locals.payerIsUser", "right": "true"}
+            ]
           ],
           "params": [
             {"key": "$amountInMax", "value": "$locals.amountInMax"},
@@ -83,7 +92,14 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v2_swap_exact_out"}
+            [
+              {"left": "$locals.case", "right": "v2_swap_exact_out"},
+              {"left": "$locals.recipient", "right": "$msg.sender"}
+            ],
+            [
+              {"left": "$locals.case", "right": "v2_swap_exact_out"},
+              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
+            ]
           ],
           "params": [
             {"key": "$amountOut", "value": "$locals.amountOut"},
@@ -91,13 +107,11 @@
           ]
         },
         {
-          "title": "V3 SWAP EXACT IN",
+          "description": "V3 SWAP EXACT IN",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x00"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x00"}]],
           "params": [
-            {"key": "$match", "value": "v3_swap_exact_in"},
+            {"key": "$case", "value": "v3_swap_exact_in"},
             {"key": "value", "value": "$locals.input"},
             {
               "key": "abi",
@@ -108,7 +122,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v3_swap_exact_in"}
+            [
+              {"left": "$locals.case", "right": "v3_swap_exact_in"},
+              {"left": "$locals.payerIsUser", "right": "true"}
+            ]
           ],
           "params": [
             {"key": "$amountIn", "value": "$locals.amountIn"},
@@ -118,7 +135,14 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v3_swap_exact_in"}
+            [
+              {"left": "$locals.case", "right": "v3_swap_exact_in"},
+              {"left": "$locals.recipient", "right": "$msg.sender"}
+            ],
+            [
+              {"left": "$locals.case", "right": "v3_swap_exact_in"},
+              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
+            ]
           ],
           "params": [
             {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
@@ -126,13 +150,11 @@
           ]
         },
         {
-          "title": "V3 SWAP EXACT OUT",
+          "description": "V3 SWAP EXACT OUT",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x01"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x01"}]],
           "params": [
-            {"key": "$match", "value": "v3_swap_exact_out"},
+            {"key": "$case", "value": "v3_swap_exact_out"},
             {"key": "value", "value": "$locals.input"},
             {
               "key": "abi",
@@ -143,7 +165,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v3_swap_exact_out"}
+            [
+              {"left": "$locals.case", "right": "v3_swap_exact_out"},
+              {"left": "$locals.payerIsUser", "right": "true"}
+            ]
           ],
           "params": [
             {"key": "$amountInMax", "value": "$locals.amountInMax"},
@@ -153,7 +178,14 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v3_swap_exact_out"}
+            [
+              {"left": "$locals.case", "right": "v3_swap_exact_out"},
+              {"left": "$locals.recipient", "right": "$msg.sender"}
+            ],
+            [
+              {"left": "$locals.case", "right": "v3_swap_exact_out"},
+              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
+            ]
           ],
           "params": [
             {"key": "$amountOut", "value": "$locals.amountOut"},
@@ -161,13 +193,11 @@
           ]
         },
         {
-          "title": "Unwrap ETH",
+          "description": "Unwrap ETH",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x0c"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x0c"}]],
           "params": [
-            {"key": "$match", "value": "unwrap_eth"},
+            {"key": "$case", "value": "unwrap_eth"},
             {"key": "value", "value": "$locals.input"},
             {"key": "abi", "value": "(address recipient, uint256 amountOutMin)"}
           ]
@@ -175,7 +205,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "unwrap_eth"}
+            [
+              {"left": "$locals.case", "right": "unwrap_eth"},
+              {"left": "$locals.recipient", "right": "$msg.sender"}
+            ]
           ],
           "params": [
             {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
@@ -183,24 +216,20 @@
           ]
         },
         {
-          "title": "Wrap ETH",
+          "description": "Wrap ETH",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x0b"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x0b"}]],
           "params": [
-            {"key": "$match", "value": "wrap_eth"},
+            {"key": "$case", "value": "wrap_eth"},
             {"key": "value", "value": "$locals.input"},
             {"key": "abi", "value": "(address recipient, uint256 amountIn)"},
-            {"key": "$tokenIn", "value": "0x0000000000000000000000000000000000000000"}
+            {"key": "$tokenIn", "value": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}
           ]
         },
         {
-          "title": "Execute Sub Plan",
+          "description": "Execute Sub Plan",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x21"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x21"}]],
           "params": [
             {"key": "value", "value": "$locals.input"},
             {"key": "abi", "value": "(bytes commands, bytes[] inputs)"},
@@ -209,11 +238,9 @@
           ]
         },
         {
-          "title": "V4 Swap",
+          "description": "V4 Swap",
           "format": "match",
-          "checks": [
-            {"key": "$locals.command", "value": "0x10"}
-          ],
+          "checks": [[{"left": "$locals.command", "right": "0x10"}]],
           "params": [
             {"key": "value", "value": "$locals.input"},
             {"key": "abi", "value": "(bytes actions, bytes[] params)"}
@@ -222,8 +249,10 @@
         {
           "format": "array",
           "checks": [
-            {"key": "$locals.actions", "value": "$locals.actions"},
-            {"key": "$locals.params", "value": "$locals.params"}
+            [
+              {"left": "$locals.actions", "right": "$locals.actions"},
+              {"left": "$locals.params", "right": "$locals.params"}
+            ]
           ],
           "params": [
             {"key": "$action", "value": "$locals.actions"},
@@ -231,13 +260,11 @@
           ]
         },
         {
-          "title": "V4 SWAP EXACT IN",
+          "description": "V4 SWAP EXACT IN",
           "format": "match",
-          "checks": [
-            {"key": "$locals.action", "value": "0x07"}
-          ],
+          "checks": [[{"left": "$locals.action", "right": "0x07"}]],
           "params": [
-            {"key": "$match", "value": "v4_swap_exact_in"},
+            {"key": "$case", "value": "v4_swap_exact_in"},
             {"key": "value", "value": "$locals.param"},
             {
               "key": "abi",
@@ -247,9 +274,7 @@
         },
         {
           "format": "match",
-          "checks": [
-            {"key": "$locals.match", "value": "v4_swap_exact_in"}
-          ],
+          "checks": [[{"left": "$locals.case", "right": "v4_swap_exact_in"}]],
           "params": [
             {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
             {"key": "$tokenOut", "value": "$locals.swap.pathKeys[-1].token"},
@@ -258,13 +283,11 @@
           ]
         },
         {
-          "title": "V4 SWAP EXACT IN SINGLE",
+          "description": "V4 SWAP EXACT IN SINGLE",
           "format": "match",
-          "checks": [
-            {"key": "$locals.action", "value": "0x06"}
-          ],
+          "checks": [[{"left": "$locals.action", "right": "0x06"}]],
           "params": [
-            {"key": "$match", "value": "v4_swap_exact_in_single"},
+            {"key": "$case", "value": "v4_swap_exact_in_single"},
             {"key": "value", "value": "$locals.param"},
             {
               "key": "abi",
@@ -275,8 +298,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v4_swap_exact_in_single"},
-            {"key": "$locals.swap.zeroForOne", "value": "true"}
+            [
+              {"left": "$locals.case", "right": "v4_swap_exact_in_single"},
+              {"left": "$locals.swap.zeroForOne", "right": "true"}
+            ]
           ],
           "params": [
             {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
@@ -288,8 +313,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v4_swap_exact_in_single"},
-            {"key": "$locals.swap.zeroForOne", "value": "false"}
+            [
+              {"left": "$locals.case", "right": "v4_swap_exact_in_single"},
+              {"left": "$locals.swap.zeroForOne", "right": "false"}
+            ]
           ],
           "params": [
             {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
@@ -299,13 +326,11 @@
           ]
         },
         {
-          "title": "V4 SWAP EXACT OUT",
+          "description": "V4 SWAP EXACT OUT",
           "format": "match",
-          "checks": [
-            {"key": "$locals.action", "value": "0x09"}
-          ],
+          "checks": [[{"left": "$locals.action", "right": "0x09"}]],
           "params": [
-            {"key": "$match", "value": "v4_swap_exact_out"},
+            {"key": "$case", "value": "v4_swap_exact_out"},
             {"key": "value", "value": "$locals.param"},
             {
               "key": "abi",
@@ -315,9 +340,7 @@
         },
         {
           "format": "match",
-          "checks": [
-            {"key": "$locals.match", "value": "v4_swap_exact_out"}
-          ],
+          "checks": [[{"left": "$locals.case", "right": "v4_swap_exact_out"}]],
           "params": [
             {"key": "$amountOut", "value": "$locals.swap.amountOut"},
             {"key": "$tokenOut", "value": "$locals.swap.pathKeys[-1].token"},
@@ -326,13 +349,11 @@
           ]
         },
         {
-          "title": "V4 SWAP EXACT OUT SINGLE",
+          "description": "V4 SWAP EXACT OUT SINGLE",
           "format": "match",
-          "checks": [
-            {"key": "$locals.action", "value": "0x08"}
-          ],
+          "checks": [[{"left": "$locals.action", "right": "0x08"}]],
           "params": [
-            {"key": "$match", "value": "v4_swap_exact_out_single"},
+            {"key": "$case", "value": "v4_swap_exact_out_single"},
             {"key": "value", "value": "$locals.param"},
             {
               "key": "abi",
@@ -343,8 +364,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v4_swap_exact_out_single"},
-            {"key": "$locals.swap.zeroForOne", "value": "true"}
+            [
+              {"left": "$locals.case", "right": "v4_swap_exact_out_single"},
+              {"left": "$locals.swap.zeroForOne", "right": "true"}
+            ]
           ],
           "params": [
             {"key": "$amountOut", "value": "$locals.swap.amountOut"},
@@ -356,8 +379,10 @@
         {
           "format": "match",
           "checks": [
-            {"key": "$locals.match", "value": "v4_swap_exact_out_single"},
-            {"key": "$locals.swap.zeroForOne", "value": "false"}
+            [
+              {"left": "$locals.case", "right": "v4_swap_exact_out_single"},
+              {"left": "$locals.swap.zeroForOne", "right": "false"}
+            ]
           ],
           "params": [
             {"key": "$amountOut", "value": "$locals.swap.amountOut"},
@@ -366,13 +391,14 @@
             {"key": "$tokenIn", "value": "$locals.swap.pool.token1"}
           ]
         },
-
         {
           "title": "Send",
           "format": "tokenAmount",
           "checks": [
-            {"key": "$locals.tokenIn", "value": "$locals.tokenIn"},
-            {"key": "$locals.amountIn", "value": "$locals.amountIn"}
+            [
+              {"left": "$locals.tokenIn"},
+              {"left": "$locals.amountIn"}
+            ]
           ],
           "params": [
             {"key": "token", "value": "$locals.tokenIn"},
@@ -384,8 +410,10 @@
           "title": "Send maximum",
           "format": "tokenAmount",
           "checks": [
-            {"key": "$locals.tokenIn", "value": "$locals.tokenIn"},
-            {"key": "$locals.amountInMax", "value": "$locals.amountInMax"}
+            [
+              {"left": "$locals.tokenIn"},
+              {"left": "$locals.amountInMax"}
+            ]
           ],
           "params": [
             {"key": "token", "value": "$locals.tokenIn"},
@@ -397,8 +425,10 @@
           "title": "Receive",
           "format": "tokenAmount",
           "checks": [
-            {"key": "$locals.tokenOut", "value": "$locals.tokenOut"},
-            {"key": "$locals.amountOut", "value": "$locals.amountOut"}
+            [
+              {"left": "$locals.tokenOut"},
+              {"left": "$locals.amountOut"}
+            ]
           ],
           "params": [
             {"key": "token", "value": "$locals.tokenOut"},
@@ -410,8 +440,10 @@
           "title": "Receive minimum",
           "format": "tokenAmount",
           "checks": [
-            {"key": "$locals.tokenOut", "value": "$locals.tokenOut"},
-            {"key": "$locals.amountOutMin", "value": "$locals.amountOutMin"}
+            [
+              {"left": "$locals.tokenOut"},
+              {"left": "$locals.amountOutMin"}
+            ]
           ],
           "params": [
             {"key": "token", "value": "$locals.tokenOut"},

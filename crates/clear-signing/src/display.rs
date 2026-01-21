@@ -34,7 +34,7 @@ sol! {
         string description;
         string format;
         #[serde(default)]
-        Entry[] checks;
+        Check[][] checks;
         Entry[] params;
     }
 
@@ -48,6 +48,15 @@ sol! {
     struct Entry {
         string key;
         string value;
+    }
+
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct Check {
+        string left;
+        #[serde(default)]
+        string op;
+        #[serde(default)]
+        string right;
     }
 }
 

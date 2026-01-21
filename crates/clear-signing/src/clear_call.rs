@@ -1,4 +1,4 @@
-use crate::display::{Display, Format};
+use crate::display::{Check, Display, Format};
 use crate::error::ParseError;
 use crate::error::ParseError::{DisplayNotFound, ParamNotFound, SmthWentWrong};
 use crate::fields::{ClearCall, Direction, DisplayField, Label};
@@ -11,10 +11,42 @@ use alloc::vec::Vec;
 use alloc::{format, vec};
 use alloy_core::dyn_abi::DynSolType;
 use alloy_core::json_abi::StateMutability;
-use alloy_core::primitives::{Address, FixedBytes, U256};
+use alloy_core::primitives::{Address, FixedBytes, U256, address};
 use alloy_core::sol;
 use alloy_core::sol_types::SolCall;
 use core::time::Duration;
+
+/// Maximum recursion depth for nested calls to prevent stack overflow
+const MAX_RECURSION_DEPTH: usize = 16;
+
+/// Comparison operators for check evaluation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CheckOperator {
+    /// Equal (==)
+    Eq,
+    /// Not equal (!=)
+    Ne,
+}
+
+impl CheckOperator {
+    /// Parse operator from string, defaulting to Eq if empty
+    fn from_str(s: &str) -> Result<Self, ParseError> {
+        match s {
+            "" | "eq" => Ok(CheckOperator::Eq),
+            "ne" => Ok(CheckOperator::Ne),
+            _ => Err(ParseError::UnknownOperator(s.to_string())),
+        }
+    }
+
+    /// Evaluate the operator against two values
+    fn evaluate(&self, left: &SolValue, right: &SolValue) -> Result<bool, ParseError> {
+        let matches = left.matches(right)?;
+        Ok(match self {
+            CheckOperator::Eq => matches,
+            CheckOperator::Ne => !matches,
+        })
+    }
+}
 
 sol! {
     function clearCall(bytes32 displayHash, bytes call) payable returns (bytes);
@@ -35,7 +67,7 @@ impl ClearCallContext {
         registry: &impl Registry,
         level: usize,
     ) -> Result<ClearCall, ParseError> {
-        if level > 10 {
+        if level > MAX_RECURSION_DEPTH {
             return Err(ParseError::RecursionLimitExceeded);
         }
 
@@ -155,7 +187,7 @@ impl ClearCallContext {
         level: usize,
         matching: bool,
     ) -> Result<Vec<DisplayField>, ParseError> {
-        if level > 10 {
+        if level > MAX_RECURSION_DEPTH {
             return Err(ParseError::RecursionLimitExceeded);
         }
 
@@ -166,26 +198,13 @@ impl ClearCallContext {
             let title = display.get_label(&field.title)?;
             let description = display.get_label(&field.description)?;
 
-            if field.checks.is_empty() {
-                if matching {
-                    continue 'fields;
-                }
-            } else {
-                for m in &field.checks {
-                    let v1 = resolve_value(&m.key, message, locals);
+            // Evaluate checks: in matching mode, skip if no checks; otherwise evaluate
+            if matching && field.checks.is_empty() {
+                continue 'fields;
+            }
 
-                    if let Err(ParseError::ReferenceNotFound(_)) = v1 {
-                        continue 'fields;
-                    };
-
-                    let v2 = resolve_value(&m.value, message, locals);
-
-                    let matched = v1?.matches(&v2?)?;
-
-                    if !matched {
-                        continue 'fields;
-                    }
-                }
+            if !field.checks.is_empty() && !evaluate_checks(&field.checks, message, locals)? {
+                continue 'fields; // Skip field if checks don't pass
             }
 
             match Format::from(&field.format)? {
@@ -204,40 +223,55 @@ impl ClearCallContext {
                         resolve_param_value(&params, "amount", message, locals)?.as_uint()?;
                     let token =
                         resolve_param_value(&params, "token", message, locals)?.as_address()?;
-                    let direction = resolve_param_value(&params, "direction", message, locals);
+                    let direction =
+                        resolve_optional_param_value(&params, "direction", message, locals);
 
-                    let direction = match direction {
-                        Ok(direction) => match direction.as_literal()?.as_str() {
-                            "in" => Some(Direction::In),
-                            "out" => Some(Direction::Out),
-                            _ => {
-                                return Err(SmthWentWrong("Invalid direction".to_string().clone()));
-                            }
-                        },
-                        Err(ParamNotFound(_)) => None,
-                        Err(e) => return Err(e)?,
+                    let direction = if let Some(direction) = direction {
+                        Some(Direction::from_str(direction?.as_literal()?.as_str())?)
+                    } else {
+                        None
                     };
 
-                    if !registry.is_well_known_token(&token) {
+                    let natives = vec![
+                        address!("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"),
+                        address!("0x0000000000000000000000000000000000000000"),
+                    ];
+                    if natives.contains(&token) {
+                        fields.push(DisplayField::NativeAmount {
+                            title,
+                            description,
+                            amount,
+                            direction,
+                        })
+                    } else if registry.is_well_known_token(&token) {
+                        fields.push(DisplayField::TokenAmount {
+                            title,
+                            description,
+                            token,
+                            amount,
+                            direction,
+                        })
+                    } else {
                         return Err(ParseError::UnknownToken(token));
                     }
-
-                    fields.push(DisplayField::TokenAmount {
-                        title,
-                        description,
-                        token,
-                        amount,
-                        direction,
-                    });
                 }
                 Format::NativeAmount => {
                     let amount =
                         resolve_param_value(&params, "amount", message, locals)?.as_uint()?;
+                    let direction =
+                        resolve_optional_param_value(&params, "direction", message, locals);
+
+                    let direction = if let Some(direction) = direction {
+                        Some(Direction::from_str(direction?.as_literal()?.as_str())?)
+                    } else {
+                        None
+                    };
 
                     fields.push(DisplayField::NativeAmount {
                         title,
                         description,
                         amount,
+                        direction,
                     });
                 }
                 Format::Contract => {
@@ -440,7 +474,6 @@ impl ClearCallContext {
                         values.push(item_fields);
                     }
 
-
                     fields.push(DisplayField::Array {
                         title,
                         description,
@@ -456,6 +489,61 @@ impl ClearCallContext {
 
         Ok(fields)
     }
+}
+
+/// Evaluate a 2D checks array with OR-of-AND logic
+///
+/// Returns true if at least one check group passes (where all checks in the group must pass)
+///
+/// **Note**: Caller should check if checks array is empty before calling this function
+fn evaluate_checks(
+    checks: &[Vec<Check>],
+    message: &Message,
+    locals: &SolValue,
+) -> Result<bool, ParseError> {
+    // OR logic: at least one group must pass
+    for check_group in checks {
+        // AND logic: all checks in this group must pass
+        if evaluate_check_group(check_group, message, locals)? {
+            return Ok(true); // Short-circuit on first passing group
+        }
+    }
+
+    Ok(false) // No groups passed
+}
+
+/// Evaluate a single check group (all checks must pass - AND logic)
+fn evaluate_check_group(
+    check_group: &[Check],
+    message: &Message,
+    locals: &SolValue,
+) -> Result<bool, ParseError> {
+    for check in check_group {
+        // Resolve left operand
+        let left_val = resolve_value(&check.left, message, locals);
+
+        // Handle ReferenceNotFound - treat as check failure
+        if let Err(ParseError::ReferenceNotFound(_)) = left_val {
+            return Ok(false);
+        }
+
+        // Resolve right operand
+        let right_val = if check.right.is_empty() {
+            left_val.clone()
+        } else {
+            resolve_value(&check.right, message, locals)
+        };
+
+        // Parse and apply operator
+        let op = CheckOperator::from_str(&check.op)?;
+        let matched = op.evaluate(&left_val?, &right_val?)?;
+
+        if !matched {
+            return Ok(false); // Check failed
+        }
+    }
+
+    Ok(true) // All checks passed
 }
 
 fn entries_to_map(entries: &[crate::display::Entry]) -> Result<BTreeMap<&str, &str>, ParseError> {

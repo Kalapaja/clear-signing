@@ -93,9 +93,7 @@
         },
         {
           "format": "call",
-          "checks": [
-            {"key": "$locals.call", "value": "$locals.call"}
-          ],
+          "checks": [[{"left": "$locals.call", "right": "$locals.call"}]],
           "params": [
             {"key": "to", "value": "$locals.call.to"},
             {"key": "data", "value": "$locals.call.data"},

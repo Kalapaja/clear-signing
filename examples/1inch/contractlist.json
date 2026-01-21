@@ -10,13 +10,12 @@
   "contracts": [
     {
       "chainId": 1,
-      "address": "0x0000000000000000000000000000000000000001",
-      "name": "User 1"
-    },
-    {
+      "address": "0x111111125421cA6dc452d289314280a0f8842A65",
+      "name": "1inch: Aggregation Router V6"
+    }, {
       "chainId": 1,
-      "address": "0x0000000000000000000000000000000000001234",
-      "name": "User 2"
+      "address": "0xeDD53Bf3feFA7c481E9f5eFD3af56152db8016D8",
+      "name": "User wallet"
     }
   ]
 }

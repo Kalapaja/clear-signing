@@ -17,9 +17,10 @@ context before they commit to a transaction.
 - [5. Contract-Side Display Verification](#5-contract-side-display-verification)
 - [6. Stateless Wallet Requests](#6-stateless-wallet-requests)
 - [7. Interaction Flow](#7-interaction-flow)
-- [8. Limitations](#8-limitations)
-- [9. Roadmap](#9-roadmap)
-- [10. Conclusion](#10-conclusion)
+- [8. Backward Compatibility with Non-Upgradeable Contracts](#8-backward-compatibility-with-non-upgradeable-contracts)
+- [9. Limitations](#9-limitations)
+- [10. Roadmap](#10-roadmap)
+- [11. Conclusion](#11-conclusion)
 
 ## 1. State of the Art Review
 
@@ -205,7 +206,9 @@ While this architecture improves transaction safety, it explicitly does **NOT** 
   free to choose the method that best fits their security model (e.g., HTTPS for hot wallets, firmware embedding for
   cold wallets, decentralized storage for censorship resistance).
 - **Legacy Compatibility**: Trustless verification requires the implementation of the Clear Signing contract interface.
-  Supporting legacy contracts that cannot be upgraded or wrapped is a NON-GOAL for the *trustless* layer.
+  Supporting legacy contracts that cannot be upgraded or wrapped is a NON-GOAL for the *trustless* layer. Section 8
+  describes an alternative approach that relaxes this constraint at the cost of introducing additional trust
+  assumptions.
 - **Execution Path Analysis**: The system relies on verifying the inputs, the target address identity, and the
   immutability of the code. Deconstructing the full execution path (e.g., internal calls between contracts) is NOT
   REQUIRED. Developers define the display interface for their own contracts, but cannot define it for others.
@@ -377,7 +380,8 @@ structure is compatible with **EIP-712 `hashStruct`** algorithm.
 - **`Field`**: Defines a single parameter to be displayed. It includes the title key, the formatter type, parameters
   mapping, and visibility checks.
 - **`Labels`**: A collection of localized strings.
-- **`Entry`**: A simple key-value pair for parameters, checks, and label items.
+- **`Check`**: Defines a conditional check with `left`, `op` (`eq` or `ne`), and `right` operands.
+- **`Entry`**: A simple key-value pair for parameters and label items.
 
 **Example Structure:**
 
@@ -465,9 +469,23 @@ These types interpret the data structure and control the rendering of subsequent
   repeatedly for each element in the array. The `$msg` context remains unchanged.
 
 **Conditional Rendering (`checks`)**
-Every field can define a list of **`checks`** (key-value pairs) that MUST all pass against the current context for the
-field to be displayed. In scoped contexts (`match` or `array`), only fields with explicit `checks` are evaluated and
-rendered; fields without `checks` are ignored.
+Every field can define **`checks`**, which is a 2D array of check objects. The evaluation follows an **OR-of-ANDs**
+logic:
+
+- The first dimension (array of groups) is evaluated using the **OR** operator. At least one group must pass for the
+  field to be displayed.
+- The second dimension (array of checks within a group) is evaluated using the **AND** operator. All checks within a
+  group must pass for the group to be considered successful.
+
+Each **`Check`** consists of:
+
+- **`left`**: The left operand (literal or reference).
+- **`op`**: The operator, either **`eq`** (equals, default) or **`ne`** (not equals).
+- **`right`**: The right operand (literal or reference). If omitted, it is compared against the `left` operand itself (
+  effectively checking if the reference exists).
+
+In scoped contexts (`match` or `array`), only fields with explicit `checks` are evaluated and rendered; fields without
+`checks` are ignored.
 
 **Safety Rule**: If a wallet fails to resolve an address marked as `token` or `contract` to a known, verified entity, *
 *execution MUST stop**. This prevents phishing by ensuring users never sign interactions with "Unknown Contracts" when a
@@ -491,10 +509,10 @@ The wallet processes the display specification in a deterministic sequence to ge
 2. **Field Processing**:
     - Field processing accepts the `$msg` and `$locals` contexts and returns a list of formatted fields to display.
     - The wallet iterates through the `fields` array defined in the display spec.
-    - **Conditional Filtering (`checks`)**: The `checks` array controls field visibility.
+    - **Conditional Filtering (`checks`)**: The `checks` 2D array controls field visibility using **OR-of-ANDs** logic.
         - Fields with empty `checks` are displayed by default.
-        - Fields with non-empty `checks` are evaluated against the current context. All checks must pass for the field
-          to be displayed.
+        - Fields with non-empty `checks` are evaluated against the current context. A field is displayed if at least one
+          group of checks (where all checks in the group pass) evaluates to true.
 
 3. **Variable Resolution Rules**:
     - **$msg**: The transaction context. It remains **constant** throughout the entire display rendering (including
@@ -516,7 +534,7 @@ The wallet processes the display specification in a deterministic sequence to ge
 4. **Nested Call Processing (`call`)**:
     - When a field is of type `call` (e.g., in Account Abstraction or Multisigs), the wallet enters a **Recursive Call
       **.
-    - **Recursion Limit**: Wallets **MUST** enforce a maximum recursion depth of **10** to prevent Stack Overflow or
+    - **Recursion Limit**: Wallets **MUST** enforce a maximum recursion depth of **16** to prevent Stack Overflow or
       Denial of Service attacks.
     - A new, ephemeral `$msg` context is created for the inner call from calling parameters.
     - The wallet looks up the display specification for this inner call matching `$msg.to` to `display.address`,
@@ -564,11 +582,12 @@ displayHash = hashStruct(Display)
 To ensure interoperability, the following type strings **MUST** be used for EIP-712 `hashStruct` calculation:
 
 - **`Display`**:
-  `Display(address address,string abi,string title,string description,Field[] fields,Labels[] labels)Entry(string key,string value)Field(string title,string description,string format,Entry[] checks,Entry[] params)Labels(string locale,Entry[] items)`
+  `Display(address address,string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params)Labels(string locale,Entry[] items)`
 - **`Field`**:
-  `Field(string title,string description,string format,Entry[] checks,Entry[] params)Entry(string key,string value)`
+  `Field(string title,string description,string format,Check[][] checks,Entry[] params)Check(string left,string op,string right)Entry(string key,string value)`
 - **`Labels`**: `Labels(string locale,Entry[] items)Entry(string key,string value)`
 - **`Entry`**: `Entry(string key,string value)`
+- **`Check`**: `Check(string left,string op,string right)`
 
 **Example Calculation (Solidity)**:
 Contracts verify the display hash by reconstructing the expected structure on-chain (typically in the constructor or at
@@ -736,34 +755,86 @@ sequenceDiagram
     Contract->>Contract: Verify displayHash matches & Execute
 ```
 
-## 8. Limitations
+## 8. Backward Compatibility with Non-Upgradeable Contracts
 
-### 8.1 Backward Compatibility
+While Section 2.2 identifies legacy compatibility as a non-goal for the trustless verification layer, this section
+describes an alternative approach that relaxes this constraint. The `clearCall` pattern requires contract-side support,
+making it incompatible with existing deployed contracts. For legacy contracts that cannot be upgraded, a
+**DisplayRegistry** approach might be introduced to bridge this gap, trading trustless verification for broader
+compatibility.
 
-The most robust security features—specifically **Display Hash Verification** and the `clearCall` pattern—require active
-support from the smart contract side. Existing, already-deployed contracts cannot benefit from these on-chain guarantees
-without being redeployed or wrapped in a compatible proxy.
+### 8.1 DisplayRegistry Pattern
 
-**Mitigation (Standard Tokens)**: Wallets **MAY** bypass `clearCall` verification for standard token contracts (e.g.,
-ERC-20) if two conditions are met:
+A per-chain on-chain registry maintains verified mappings of `(contract, selector) → displayHash`. Unlike `clearCall`
+where the contract verifies itself, the registry acts as an external authority maintained by a DAO or multisig.
+
+**Critical Security Requirement**: Registry contracts MUST be deployed in advance and their addresses MUST be embedded
+into wallet firmware. Wallets cannot dynamically discover or fetch registry addresses, as this would introduce attack
+vectors. If a wallet does not have the registry address pre-configured, it cannot verify legacy contracts using this
+pattern.
+
+```solidity
+interface IDisplayRegistry {
+    /// @notice Verifies display hash, reverts if invalid
+    function verifyClearCall(address contractAddress, bytes4 selector, bytes32 displayHash) external view;
+}
+```
+
+### 8.2 Integration Patterns
+
+**Wallet Request Flow**:
+1. Wallet receives transaction from dApp with display specification (calldata is NOT `clearCall()` wrapped)
+2. Wallet parses display specification and calculates `displayHash`
+3. Wallet adds constraint checks to verify display hash against registry
+4. Wallet bundles constraint checks with the main call
+
+**Smart Contract Wallets**: Can bundle the registry verification with the main call atomically. The clear-signing
+library prepares a list of calls `(address, bytes)[]` for the wallet to execute:
+
+1. **Constraint Checks**: One or more calls to `DisplayRegistry.verifyClearCall(contract, selector, displayHash)` (reverts if invalid)
+2. **Main Call**: The actual legacy contract interaction
+
+The constraint checks are executed first. If the display hash doesn't match the registry, the transaction reverts before
+the main call executes.
+
+For ERC-4337 wallets, the verification can alternatively occur during the validation phase if sufficient gas is
+available.
+
+**EOAs**: Cannot bundle calls on-chain. Wallets can use Flashbots conditional bundles to achieve atomic execution
+off-chain, but this breaks the air-gapped property and introduces privacy/censorship risks.
+
+### 8.3 Limitations
+
+- **Trust Model**: Introduces dependency on registry governance (DAO/multisig)
+- **Account Restriction**: Secure usage requires smart contract wallets
+- **Governance Risk**: Registry compromise affects all registered contracts
+- Wallets MUST differentiate registry-verified transactions from full `clearCall` verification in UX
+
+## 9. Limitations
+
+### 9.1 Standard Token Exception
+
+While Section 8 describes a general backward compatibility approach for legacy contracts, wallets **MAY** implement a
+streamlined exception for standard token contracts (e.g., ERC-20, ERC-721) that bypasses both `clearCall` and
+DisplayRegistry verification if two conditions are met:
 
 1. The contract adheres to a well-known standard interface.
 2. The contract's identity is verified via a trusted local registry (e.g., Token Lists).
 
 In this specific case, trust is derived from the immutable behavior of the standard interface combined with the
-registry's social consensus, rather than an on-chain cryptographic binding. Wallets **MUST** embed display
+registry's social consensus, rather than on-chain cryptographic binding. Wallets **MUST** embed display
 specifications for these standard interfaces directly into their firmware.
 
-### 8.2 Security Considerations
+### 9.2 Security Considerations
 
-#### 8.2.1 Trust Model
+#### 9.2.1 Trust Model
 
 This architecture relies on a hybrid trust model:
 
 - **Social Trust**: For address identity verification via **Contract Lists**.
 - **Cryptographic Trust**: For calldata interpretation via **Display Hash Verification** on-chain.
 
-#### 8.2.2 Attack Vectors
+#### 9.2.2 Attack Vectors
 
 - **Identity Hijacking**: If the ownership or admin keys of a verified contract are compromised, attackers can modify
   the contract's behavior while its identity remains marked as "Verified" in community-maintained lists.
@@ -771,12 +842,12 @@ This architecture relies on a hybrid trust model:
   reflected in decentralized contract lists. During this window, users may still see the contract as reputable.
 - **Phishing via Unverified Lists**: Users MUST be warned when using lists from unverified or low-reputation sources.
 
-#### 8.2.3 Display Determinism
+#### 9.2.3 Display Determinism
 
 Wallets **MUST** ensure that the visual representation of a transaction is deterministic based on the provided `Display`
 specification. Any ambiguity in the rendering process could be exploited for phishing.
 
-#### 8.2.4 Privacy
+#### 9.2.4 Privacy
 
 While Clear Signing improves security, it introduces new privacy considerations:
 
@@ -787,20 +858,20 @@ While Clear Signing improves security, it introduces new privacy considerations:
 - **On-Chain Footprint**: Using `clearCall` makes it explicit on-chain that a user used a specific display
   specification. While the spec itself is off-chain, the `displayHash` is permanent.
 
-### 8.3 Operational Trade-offs
+### 9.3 Operational Trade-offs
 
-#### 8.3.1 Gas Overhead
+#### 9.3.1 Gas Overhead
 
 Implementing on-chain verification like `clearCall` adds computational steps (hashing, conditional checks), which
 increases the gas cost per transaction (adds about ~2k gas). Note that execution cost can be optimized using bytes
 compaction for the `call` argument and by using internal calls instead of `delegatecall`.
 
-#### 8.3.2 Developer Dependency
+#### 9.3.2 Developer Dependency
 
 The effectiveness of the technical layer is entirely dependent on smart contract developers correctly defining,
 maintaining, and committing to their display specifications.
 
-#### 8.3.3 Block Explorer Display
+#### 9.3.3 Block Explorer Display
 
 - **ABI-Based Decoding**: Block explorers like Etherscan decode transactions using the contract's ABI, not the display
   specification. When viewing `clearCall` transactions on-chain, users see the wrapper function signature
@@ -809,7 +880,7 @@ maintaining, and committing to their display specifications.
 - **Explorer Support**: Block explorers MUST implement support for `clearCall` unwrapping to maintain transparency for
   post-execution audits.
 
-## 9. Roadmap
+## 10. Roadmap
 
 The Clear Signing architecture is an evolving standard. Future work will focus on expanding the scope of verifiable
 interactions and improving integration with existing Ethereum standards.
@@ -827,7 +898,7 @@ interactions and improving integration with existing Ethereum standards.
   transaction before signing. This ensures that the user's intent is verified and that the transaction is only valid if
   the wallet's clear-signing interpretation matches the contract's expectations.
 
-## 10. Conclusion
+## 11. Conclusion
 
 The Clear Signing architecture defines a mechanism for verifying transaction data at the protocol layer. By
 cryptographically binding the display specification to the on-chain execution, the system allows the user's intent to be

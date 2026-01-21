@@ -35,6 +35,7 @@ This repository is organized into several modules:
     - `erc20`: Examples for standard token transfers and approvals.
     - `uniswap`: Examples for Uniswap Universal Router.
     - `multicall`: Examples for Mutlticall3.
+    - `1inch`: Examples for 1inch.
 
 ## Getting Started
 
@@ -56,4 +57,5 @@ You can run the provided examples of parsing using the `clear-signing-cli`.
    cargo run -- clearcall
    cargo run -- multicall
    cargo run -- uniswap
+   cargo run -- 1inch
    ```
