@@ -1,6 +1,4 @@
 use crate::error::ParseError;
-use crate::reference::Reference;
-use alloc::string::ToString;
 use alloy_core::primitives::B256;
 use alloy_core::sol;
 use alloy_core::sol_types::SolStruct;
@@ -74,41 +72,6 @@ impl Display {
             && self.labels.iter().all(|labels| labels.items.len() < 256)
     }
 
-    pub fn get_label(&self, label: &str) -> Result<Label, ParseError> {
-        let reference = Reference::parse(label)?;
-
-        let label = match &reference {
-            Reference::Literal(_) => return Ok(reference),
-            Reference::Identifier { identifier, .. } => {
-                if &identifier.container != "labels" {
-                    return Err(ParseError::SmthWentWrong(
-                        "Invalid label container {} ".to_string(),
-                    ));
-                };
-
-                identifier.only_segments()?
-            }
-        };
-
-        for labels in &self.labels {
-            let locale = &labels.locale;
-
-            let found = labels
-                .items
-                .iter()
-                .map(|entry| &entry.key)
-                .any(|key| key == &label);
-
-            if !found {
-                return Err(ParseError::LabelNotFound {
-                    locale: locale.to_string(),
-                    label: reference,
-                });
-            }
-        }
-
-        Ok(reference)
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

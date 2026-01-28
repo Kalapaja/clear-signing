@@ -38,17 +38,21 @@ impl<'a> Registry for ProviderRegistry<'a> {
         &self,
         address: &Address,
         selector: &FixedBytes<4>,
-    ) -> Option<&Display> {
-        self.provider.displays.iter().find(|d| {
-            if d.address != *address && d.address != Address::ZERO {
-                return false;
-            }
-            if let Ok(func) = SolFunction::parse(&d.abi) {
-                func.selector() == *selector
-            } else {
-                false
-            }
-        })
+    ) -> Option<Display> {
+        self.provider
+            .displays
+            .iter()
+            .find(|d| {
+                if d.address != *address && d.address != Address::ZERO {
+                    return false;
+                }
+                if let Ok(func) = SolFunction::parse(&d.abi) {
+                    func.selector() == *selector
+                } else {
+                    false
+                }
+            })
+            .map(|d| d.clone())
     }
 }
 

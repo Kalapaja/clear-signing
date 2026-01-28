@@ -1,8 +1,7 @@
 use crate::display::Labels;
 use crate::error::ParseError;
-use crate::reference::Reference;
 use alloc::format;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
 use alloy_core::primitives::{Address, Bytes, I256, U256};
 use core::time::Duration;
@@ -38,6 +37,7 @@ impl Direction {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum DisplayField {
     Call {
         title: Label,
@@ -130,36 +130,4 @@ pub enum DisplayField {
     },
 }
 
-pub type Label = Reference;
-
-impl Label {
-    pub fn resolve(
-        &self,
-        labels_dict: &[Labels],
-        locale: Option<&str>,
-    ) -> Result<String, ParseError> {
-        match self {
-            Reference::Literal(s) => Ok(s.clone()),
-            Reference::Identifier { identifier, .. } => {
-                let label = identifier.only_segments()?;
-
-                let target_labels = if let Some(l) = locale {
-                    labels_dict.iter().find(|labels| labels.locale == l)
-                } else {
-                    labels_dict.first()
-                };
-
-                if let Some(labels) = target_labels
-                    && let Some(entry) = labels.items.iter().find(|entry| entry.key == label)
-                {
-                    return Ok(entry.value.clone());
-                }
-
-                Err(ParseError::LabelNotFound {
-                    locale: locale.unwrap_or("default").to_string(),
-                    label: self.clone(),
-                })
-            }
-        }
-    }
-}
+pub type Label = String;

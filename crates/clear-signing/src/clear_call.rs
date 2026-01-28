@@ -64,7 +64,7 @@ impl ClearCallContext {
     pub fn parse_clear_call(
         &self,
         message: Message,
-        registry: &impl Registry,
+        registry: &dyn Registry,
         level: usize,
     ) -> Result<ClearCall, ParseError> {
         if level > MAX_RECURSION_DEPTH {
@@ -89,7 +89,7 @@ impl ClearCallContext {
         &self,
         message: Message,
         display_hash: Option<FixedBytes<32>>,
-        registry: &impl Registry,
+        registry: &dyn Registry,
         level: usize,
     ) -> Result<ClearCall, ParseError> {
         let display = if let Some(hash) = display_hash {
@@ -110,7 +110,8 @@ impl ClearCallContext {
                             .map(|t| t.selector() == selector)
                             .unwrap_or(false)
                 })
-                .ok_or(DisplayNotFound { selector })?;
+                .ok_or(DisplayNotFound { address: message.to, selector })?
+                .clone();
 
             if !display.validate() {
                 return Err(SmthWentWrong("Display validation failed".to_string()));
@@ -126,7 +127,7 @@ impl ClearCallContext {
 
             let well_known_display = registry
                 .get_well_known_display(&message.to, &selector)
-                .ok_or(DisplayNotFound { selector })?;
+                .ok_or(DisplayNotFound { address: message.to, selector })?;
 
             if !well_known_display.validate() {
                 return Err(SmthWentWrong("Display validation failed".to_string()));
@@ -165,11 +166,11 @@ impl ClearCallContext {
 
         let locals = function_call.decode(&message.data)?;
 
-        let fields = self.process_fields(&message, display, &locals, registry, level, false)?;
+        let fields = self.process_fields(&message, &display, &locals, registry, level, false)?;
 
         Ok(ClearCall {
-            title: display.get_label(&display.title)?,
-            description: display.get_label(&display.description)?,
+            title: display.title.clone(),
+            description: display.description.clone(),
             payable: function_call.state_mutability == StateMutability::Payable
                 && message.value != U256::ZERO,
             clear: display_hash.is_some(),
@@ -183,7 +184,7 @@ impl ClearCallContext {
         message: &Message,
         display: &Display,
         locals: &SolValue,
-        registry: &impl Registry,
+        registry: &dyn Registry,
         level: usize,
         matching: bool,
     ) -> Result<Vec<DisplayField>, ParseError> {
@@ -195,8 +196,8 @@ impl ClearCallContext {
 
         'fields: for field in &display.fields {
             let params = entries_to_map(&field.params)?;
-            let title = display.get_label(&field.title)?;
-            let description = display.get_label(&field.description)?;
+            let title = field.title.clone();
+            let description = field.description.clone();
 
             // Evaluate checks: in matching mode, skip if no checks; otherwise evaluate
             if matching && field.checks.is_empty() {
@@ -407,7 +408,7 @@ impl ClearCallContext {
                     for entry in bit_indexes {
                         let bit_index = entry.0.parse()?;
                         if value.bit(bit_index) {
-                            values.push(display.get_label(entry.1)?);
+                            values.push(entry.1.to_string());
                         }
                     }
 
@@ -809,15 +810,15 @@ mod tests {
         // 0: Addr (Literal title)
         match &result.fields[0] {
             DisplayField::Address { title, value, .. } => {
-                assert_eq!(title.resolve(&result.labels, None).unwrap(), "Addr Title");
+                assert_eq!(title, "Addr Title");
                 assert_eq!(*value, f.param_addr);
             }
             _ => panic!(),
         }
-        // 1: Uint (Label resolution)
+        // 1: Uint (Literal title)
         match &result.fields[1] {
             DisplayField::Uint { title, value, .. } => {
-                assert_eq!(title.resolve(&result.labels, None).unwrap(), "Uint Title");
+                assert_eq!(title, "Uint Title");
                 assert_eq!(*value, uint!(123_U256));
             }
             _ => panic!(),
@@ -864,11 +865,8 @@ mod tests {
         match &result.fields[9] {
             DisplayField::Bitmask { values, .. } => {
                 assert_eq!(values.len(), 2);
-                assert_eq!(values[0].resolve(&[], None).unwrap(), "Bit0");
-                assert_eq!(
-                    values[1].resolve(&result.labels, None).unwrap(),
-                    "Bit3 Label"
-                );
+                assert_eq!(values[0], "Bit0");
+                assert_eq!(values[1], "Bit3 Label");
             }
             _ => panic!(),
         }
@@ -958,7 +956,7 @@ mod tests {
         // 0: Call (Wrapped)
         match &result.fields[0] {
             DisplayField::Call { call, .. } => {
-                assert_eq!(call.title.resolve(&call.labels, None).unwrap(), "Inner");
+                assert_eq!(call.title, "Inner");
                 match &call.fields[0] {
                     DisplayField::Uint { value, .. } => assert_eq!(*value, uint!(42_U256)),
                     _ => panic!(),
@@ -969,7 +967,7 @@ mod tests {
         // 1: ERC20 (Unwrapped from Registry)
         match &result.fields[1] {
             DisplayField::Call { call, .. } => {
-                assert_eq!(call.title.resolve(&call.labels, None).unwrap(), "ERC20");
+                assert_eq!(call.title, "ERC20");
                 assert_eq!(call.fields.len(), 3);
                 // Sender: $msg.sender (which is message.sender = display_addr in this context)
                 match &call.fields[0] {
@@ -1272,7 +1270,7 @@ mod tests {
                     assert_eq!(item_fields.len(), 1);
                     match &item_fields[0] {
                         DisplayField::Call { call, .. } => {
-                            assert_eq!(call.title.resolve(&call.labels, None).unwrap(), "ERC20");
+                            assert_eq!(call.title, "ERC20");
                             assert_eq!(call.fields.len(), 3);
 
                             // Field 0: Sender

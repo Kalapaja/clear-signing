@@ -3,8 +3,8 @@ use alloc::format;
 use alloc::string::String;
 use alloy_core::dyn_abi::parser;
 use alloy_core::hex::FromHexError;
-use alloy_core::primitives::{ruint, Address, Selector};
-use nom::{error, Err};
+use alloy_core::primitives::{Address, Selector, ruint};
+use nom::{Err, error};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -14,7 +14,7 @@ pub enum ParseError {
     DisplayHashMismatch,
     FunctionNotPayable,
     FunctionNotWriteable,
-    DisplayNotFound { selector: Selector },
+    DisplayNotFound { address: Address, selector: Selector },
     UnknownFormat(String),
     UnknownOperator(String),
     SmthWentWrong(String),
@@ -26,32 +26,22 @@ pub enum ParseError {
 impl core::fmt::Display for ParseError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ParseError::RecursionLimitExceeded => {
-                write!(f, "Max recursion depth exceeded")
-            }
-            ParseError::UnknownContract(addr) => {
-                write!(f, "Unknown contract or token: {}", addr)
-            }
-            ParseError::DisplayHashMismatch => {
-                write!(f, "Display hash mismatch",)
-            }
-            ParseError::FunctionNotPayable => {
-                write!(f, "Function is not payable")
-            }
-            ParseError::FunctionNotWriteable => {
-                write!(f, "Function is not writeable")
-            }
+            ParseError::RecursionLimitExceeded => write!(f, "Max recursion depth exceeded"),
+            ParseError::UnknownContract(addr) => write!(f, "Unknown contract: {}", addr),
+            ParseError::DisplayHashMismatch => write!(f, "Display hash mismatch",),
+            ParseError::FunctionNotPayable => write!(f, "Function is not payable"),
+            ParseError::FunctionNotWriteable => write!(f, "Function is not writeable"),
             ParseError::UnknownFormat(format) => write!(f, "Unknown format: {}", format),
             ParseError::UnknownOperator(op) => write!(f, "Unknown operator: {}", op),
             ParseError::SmthWentWrong(msg) => write!(f, "Smth went wrong: {}", msg),
             ParseError::UnknownToken(token) => write!(f, "Unknown token: {:?}", token),
+            ParseError::ReferenceNotFound(msg) => write!(f, "Reference not found: {}", msg),
             ParseError::LabelNotFound { locale, label } => {
                 write!(f, "Label no found {} {:?}", locale, label)
             }
-            ParseError::ReferenceNotFound(msg) => write!(f, "Reference not found: {}", msg),
-            ParseError::DisplayNotFound { selector } => {
-                write!(f, "Display not found: {:?}", selector)
-            },
+            ParseError::DisplayNotFound { address, selector } => {
+                write!(f, "Display not found: {:?} at address {}", selector, address)
+            }
             ParseError::ParamNotFound(msg) => {
                 write!(f, "Param not found: {}", msg)
             }

@@ -76,7 +76,7 @@
           ]
         },
         {
-          "title": "$labels.uint_title",
+          "title": "Uint Title",
           "format": "uint",
           "params": [
             {
@@ -177,7 +177,7 @@
             },
             {
               "key": "#3",
-              "value": "$labels.bit_3_label"
+              "value": "Bit3 Label"
             }
           ]
         },

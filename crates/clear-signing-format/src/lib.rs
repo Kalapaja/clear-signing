@@ -4,11 +4,12 @@ extern crate alloc;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use core::ops::Not;
 use alloy_core::hex;
 use alloy_core::primitives::utils::format_units;
 use alloy_core::primitives::{Address, U256};
+use clear_signing::display::Labels;
 use clear_signing::fields::{ClearCall, Direction, DisplayField, Label};
-use clear_signing::reference::Reference;
 use serde::{Deserialize, Serialize};
 
 /// ERC-20 token metadata
@@ -100,19 +101,11 @@ pub fn format_clear_call(
     let indent = "  ".repeat(level);
 
     let resolve = |label: &Label| -> String {
-        label
-            .resolve(&clear_call.labels, locale)
-            .unwrap_or_else(|_| match label {
-                Reference::Literal(s) => s.clone(),
-                Reference::Identifier {
-                    identifier: _,
-                    reference,
-                } => reference.clone(),
-            })
+        resolve_label(label, &clear_call.labels, locale)
     };
 
     if level == 0 {
-        lines.push("---------------------------------------------------".to_string());
+        lines.push("------------------------------".to_string());
     }
 
     let title = resolve(&clear_call.title);
@@ -127,12 +120,20 @@ pub fn format_clear_call(
         }
     }
 
-    if clear_call.payable {
+    if clear_call.payable || clear_call.clear.not() {
         lines.push("".to_string());
-        lines.push(format!(
-            "{}{}",
-            indent, "!!! This transaction will send ETH !!!"
-        ));
+        if clear_call.clear.not() {
+            lines.push(format!(
+                "{}{}",
+                indent, "--- Local display spec ---"
+            ));
+        }
+        if clear_call.payable {
+            lines.push(format!(
+                "{}{}",
+                indent, "!!! This call sends ETH !!!"
+            ));
+        }
         lines.push("".to_string());
     }
 
@@ -149,14 +150,10 @@ pub fn format_clear_call(
     }
 
     if level == 0 {
-        lines.push("---------------------------------------------------".to_string());
+        lines.push("------------------------------".to_string());
     }
 
     lines.join("\n")
-}
-
-fn format_title(title: &str, indent: &str) -> String {
-    format!("{}{}", indent, title)
 }
 
 fn format_field(
@@ -164,22 +161,14 @@ fn format_field(
     provider: &impl MetadataProvider,
     level: usize,
     lines: &mut Vec<String>,
-    labels: &[clear_signing::display::Labels],
+    labels: &[Labels],
     detailed: bool,
     locale: Option<&str>,
 ) {
     let indent = "  ".repeat(level);
 
     let resolve = |label: &Label| -> String {
-        label
-            .resolve(labels, locale)
-            .unwrap_or_else(|_| match label {
-                Reference::Literal(s) => s.clone(),
-                Reference::Identifier {
-                    identifier: _,
-                    reference,
-                } => reference.clone(),
-            })
+        resolve_label(label, labels, locale)
     };
 
     match field {
@@ -586,6 +575,10 @@ fn format_field(
     }
 }
 
+fn format_title(title: &str, indent: &str) -> String {
+    format!("{}{}", indent, title)
+}
+
 fn trim_formatted_amount(s: String) -> String {
     if s.contains('.') {
         let trimmed = s.trim_end_matches('0');
@@ -597,6 +590,27 @@ fn trim_formatted_amount(s: String) -> String {
     } else {
         s
     }
+}
+
+fn resolve_label(label: &str, labels: &[Labels], locale: Option<&str>) -> String {
+    let key = match label.strip_prefix("$labels.") {
+        Some(key) if !key.is_empty() => key,
+        _ => return label.to_string(),
+    };
+
+    let target_labels = if let Some(locale) = locale {
+        labels.iter().find(|entry| entry.locale == locale)
+    } else {
+        labels.first()
+    };
+
+    if let Some(target) = target_labels
+        && let Some(entry) = target.items.iter().find(|entry| entry.key == key)
+    {
+        return entry.value.clone();
+    }
+
+    label.to_string()
 }
 
 #[cfg(test)]
@@ -660,6 +674,7 @@ mod tests {
             }
         }
     }
+
     #[test]
     fn test_format_clear_call() {
         use clear_signing::fields::{ClearCall, DisplayField};
@@ -669,124 +684,124 @@ mod tests {
 
         // Construct a sample ClearCall with ALL variants
         let clear_call = ClearCall {
-            title: Reference::Literal("Swap Tokens".to_string()),
-            description: Reference::Literal("Swapping ETH for DAI".to_string()),
+            title: "Swap Tokens".to_string(),
+            description: "Swapping ETH for DAI".to_string(),
             payable: true,
             clear: true,
             labels: vec![],
             fields: vec![
                 DisplayField::NativeAmount {
-                    title: Reference::Literal("Amount In".to_string()),
-                    description: Reference::Literal("Amount of ETH to swap".to_string()),
+                    title: "Amount In".to_string(),
+                    description: "Amount of ETH to swap".to_string(),
                     amount: U256::from(1_000_000_000_000_000_000u64), // 1 ETH
                     direction: None,
                 },
                 DisplayField::TokenAmount {
-                    title: Reference::Literal("Amount Out".to_string()),
-                    description: Reference::Literal("Expected amount of DAI".to_string()),
+                    title: "Amount Out".to_string(),
+                    description: "Expected amount of DAI".to_string(),
                     token: TOKEN_ADDR,
                     amount: U256::from(2000_000000000000000000u128), // 2000 DAI
                     direction: Some(Direction::Out),
                 },
                 DisplayField::TokenAmount {
-                    title: Reference::Literal("Amount No Dir".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Amount No Dir".to_string(),
+                    description: "".to_string(),
                     token: TOKEN_ADDR,
                     amount: U256::from(1000_000000000000000000u128), // 1000 DAI
                     direction: None,
                 },
                 DisplayField::Token {
-                    title: Reference::Literal("Token Out".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Token Out".to_string(),
+                    description: "".to_string(),
                     token: TOKEN_ADDR,
                 },
                 DisplayField::Contract {
-                    title: Reference::Literal("Router".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Router".to_string(),
+                    description: "".to_string(),
                     contract: CONTRACT_ADDR,
                 },
                 DisplayField::Boolean {
-                    title: Reference::Literal("Use Wrappers".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Use Wrappers".to_string(),
+                    description: "".to_string(),
                     value: true,
                 },
                 DisplayField::Percentage {
-                    title: Reference::Literal("Slippage".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Slippage".to_string(),
+                    description: "".to_string(),
                     value: U256::from(50),
                     basis: U256::from(10000),
                 },
                 DisplayField::Duration {
-                    title: Reference::Literal("Timeout".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Timeout".to_string(),
+                    description: "".to_string(),
                     value: Duration::from_secs(3665), // 1h 1m 5s
                 },
                 DisplayField::Datetime {
-                    title: Reference::Literal("Deadline".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Deadline".to_string(),
+                    description: "".to_string(),
                     value: Duration::from_secs(1736328584),
                 },
                 DisplayField::Array {
-                    title: Reference::Literal("Array".to_string()),
-                    description: Reference::Literal("Array description".to_string()),
+                    title: "Array".to_string(),
+                    description: "Array description".to_string(),
                     values: vec![
                         vec![DisplayField::String {
-                            title: Reference::Literal("Item 1".to_string()),
-                            description: Reference::Literal("".to_string()),
+                            title: "Item 1".to_string(),
+                            description: "".to_string(),
                             value: "Value 1".to_string(),
                         }],
                         vec![DisplayField::String {
-                            title: Reference::Literal("Item 2".to_string()),
-                            description: Reference::Literal("".to_string()),
+                            title: "Item 2".to_string(),
+                            description: "".to_string(),
                             value: "Value 2".to_string(),
                         }],
                     ],
                 },
                 DisplayField::Bitmask {
-                    title: Reference::Literal("Options".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Options".to_string(),
+                    description: "".to_string(),
                     values: vec![
-                        Reference::Literal("Permit".to_string()),
-                        Reference::Literal("Wrap".to_string()),
+                        "Permit".to_string(),
+                        "Wrap".to_string(),
                     ],
                 },
                 DisplayField::String {
-                    title: Reference::Literal("Memo".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Memo".to_string(),
+                    description: "".to_string(),
                     value: "Hello Gemini".to_string(),
                 },
                 DisplayField::Bytes {
-                    title: Reference::Literal("Extra Data".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Extra Data".to_string(),
+                    description: "".to_string(),
                     value: vec![0xde, 0xad, 0xbe, 0xef].into(),
                 },
                 DisplayField::Int {
-                    title: Reference::Literal("Profit/Loss".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Profit/Loss".to_string(),
+                    description: "".to_string(),
                     value: (-100_i128).try_into().unwrap(),
                 },
                 DisplayField::Uint {
-                    title: Reference::Literal("Nonce".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Nonce".to_string(),
+                    description: "".to_string(),
                     value: U256::from(42),
                 },
                 DisplayField::Address {
-                    title: Reference::Literal("Recipient".to_string()),
-                    description: Reference::Literal("".to_string()),
+                    title: "Recipient".to_string(),
+                    description: "".to_string(),
                     value: RECIPIENT_ADDR,
                 },
                 DisplayField::Call {
-                    title: Reference::Literal("Sub-call".to_string()),
-                    description: Reference::Literal("Inner transaction details".to_string()),
+                    title: "Sub-call".to_string(),
+                    description: "Inner transaction details".to_string(),
                     call: ClearCall {
                         clear: false,
-                        title: Reference::Literal("Approval".to_string()),
-                        description: Reference::Literal("Approve DAI for router".to_string()),
+                        title: "Approval".to_string(),
+                        description: "Approve DAI for router".to_string(),
                         payable: false,
                         labels: vec![],
                         fields: vec![DisplayField::TokenAmount {
-                            title: Reference::Literal("Allowance".to_string()),
-                            description: Reference::Literal("".to_string()),
+                            title: "Allowance".to_string(),
+                            description: "".to_string(),
                             token: TOKEN_ADDR,
                             amount: U256::MAX,
                             direction: Some(Direction::In),
@@ -794,17 +809,17 @@ mod tests {
                     },
                 },
                 DisplayField::Match {
-                    title: Reference::Literal("Match Group".to_string()),
-                    description: Reference::Literal("Group description".to_string()),
+                    title: "Match Group".to_string(),
+                    description: "Group description".to_string(),
                     values: vec![
                         DisplayField::String {
-                            title: Reference::Literal("Inner Field 1".to_string()),
-                            description: Reference::Literal("".to_string()),
+                            title: "Inner Field 1".to_string(),
+                            description: "".to_string(),
                             value: "Inner Value 1".to_string(),
                         },
                         DisplayField::String {
-                            title: Reference::Literal("Inner Field 2".to_string()),
-                            description: Reference::Literal("".to_string()),
+                            title: "Inner Field 2".to_string(),
+                            description: "".to_string(),
                             value: "Inner Value 2".to_string(),
                         },
                     ],
@@ -814,11 +829,11 @@ mod tests {
 
         let formatted = format_clear_call(&clear_call, &provider, 0, true, None);
         let expected_lines = vec![
-            "---------------------------------------------------",
+            "------------------------------",
             "===Swap Tokens===",
             "Swapping ETH for DAI",
             "",
-            "!!! This transaction will send ETH !!!",
+            "!!! This call sends ETH !!!",
             "",
             "Amount In",
             "Amount of ETH to swap",
@@ -862,6 +877,9 @@ mod tests {
             "Inner transaction details",
             "  ===Approval===",
             "  Approve DAI for router",
+            "",
+            "  --- Local display spec ---",
+            "",
             "  Allowance",
             "    <-- Unlimited TST",
             "Match Group",
@@ -870,7 +888,7 @@ mod tests {
             "  Inner Value 1",
             "Inner Field 2",
             "  Inner Value 2",
-            "---------------------------------------------------",
+            "------------------------------",
         ];
         let expected = expected_lines.join("\n");
 

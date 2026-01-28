@@ -12,7 +12,7 @@ pub trait Registry {
         &self,
         address: &Address,
         selector: &FixedBytes<4>,
-    ) -> Option<&Display>;
+    ) -> Option<Display>;
 }
 
 pub struct LocalRegistry {
@@ -57,9 +57,10 @@ impl Registry for LocalRegistry {
         &self,
         address: &Address,
         selector: &FixedBytes<4>,
-    ) -> Option<&Display> {
+    ) -> Option<Display> {
         self.well_known_displays
             .get(&(*address, *selector))
             .or_else(|| self.well_known_displays.get(&(Address::ZERO, *selector)))
+            .map(|d| d.clone())
     }
 }
