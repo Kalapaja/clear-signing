@@ -58,8 +58,6 @@ sol! {
     }
 }
 
-use crate::fields::Label;
-
 impl Display {
     pub fn validate(&self) -> bool {
         self.abi.len() < 1024

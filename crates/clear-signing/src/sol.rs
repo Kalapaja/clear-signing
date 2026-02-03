@@ -4,21 +4,17 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-
-use alloy_core::{
-    dyn_abi::{DynSolType, DynSolValue, Word},
-    json_abi::StateMutability,
-    primitives::{Address, Function, I256, Selector, U256, keccak256},
-};
-
+use alloy_core::primitives::{keccak256, Address, Function, Selector, I256, U256};
+use alloy_dyn_abi::parser::StateMutability;
+use alloy_dyn_abi::{DynSolType, DynSolValue, Word};
 use nom::{
-    IResult, Parser,
-    branch::alt,
-    bytes::complete::{tag, take_while, take_while1},
+    branch::alt, bytes::complete::{tag, take_while, take_while1},
     character::complete::{char, digit1, multispace0},
     combinator::{all_consuming, map, map_res, opt, recognize, value},
     multi::{many0, separated_list0},
     sequence::{delimited, pair, preceded},
+    IResult,
+    Parser,
 };
 
 use crate::error::ParseError;

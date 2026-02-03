@@ -4,12 +4,12 @@ extern crate alloc;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use core::ops::Not;
-use alloy_core::hex;
-use alloy_core::primitives::utils::format_units;
-use alloy_core::primitives::{Address, U256};
+use alloy_primitives::hex;
+use alloy_primitives::utils::format_units;
+use alloy_primitives::{Address, U256};
 use clear_signing::display::Labels;
 use clear_signing::fields::{ClearCall, Direction, DisplayField, Label};
+use core::ops::Not;
 use serde::{Deserialize, Serialize};
 
 /// ERC-20 token metadata
@@ -617,7 +617,7 @@ fn resolve_label(label: &str, labels: &[Labels], locale: Option<&str>) -> String
 mod tests {
     use super::*;
     use alloc::vec;
-    use alloy_core::primitives::{U256, address};
+    use alloy_primitives::{address, U256};
 
     const TOKEN_ADDR: Address = address!("0000000000000000000000000000000000000111");
     const CONTRACT_ADDR: Address = address!("0000000000000000000000000000000000000222");

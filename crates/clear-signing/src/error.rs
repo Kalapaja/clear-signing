@@ -1,10 +1,10 @@
 use crate::fields::Label;
 use alloc::format;
 use alloc::string::String;
-use alloy_core::dyn_abi::parser;
 use alloy_core::hex::FromHexError;
-use alloy_core::primitives::{Address, Selector, ruint};
-use nom::{Err, error};
+use alloy_core::primitives::{ruint, Address, Selector};
+use alloy_dyn_abi::parser;
+use nom::{error, Err};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -55,14 +55,14 @@ impl From<alloy_core::sol_types::Error> for ParseError {
     }
 }
 
-impl From<alloy_core::dyn_abi::Error> for ParseError {
-    fn from(e: alloy_core::dyn_abi::Error) -> Self {
+impl From<alloy_dyn_abi::Error> for ParseError {
+    fn from(e: alloy_dyn_abi::Error) -> Self {
         ParseError::SmthWentWrong(format!("Dyn ABI error: {}", e))
     }
 }
 
-impl From<alloy_core::json_abi::Error> for ParseError {
-    fn from(e: alloy_core::json_abi::Error) -> Self {
+impl From<alloy_json_abi::Error> for ParseError {
+    fn from(e: alloy_json_abi::Error) -> Self {
         ParseError::SmthWentWrong(format!("JSON ABI error: {:?}", e))
     }
 }

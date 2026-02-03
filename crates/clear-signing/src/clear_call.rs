@@ -3,17 +3,17 @@ use crate::error::ParseError;
 use crate::error::ParseError::{DisplayNotFound, ParamNotFound, SmthWentWrong};
 use crate::fields::{ClearCall, Direction, DisplayField, Label};
 use crate::registry::Registry;
-use crate::resolver::{Message, resolve_value};
+use crate::resolver::{resolve_value, Message};
 use crate::sol::{SolFunction, SolType, SolValue};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
-use alloy_core::dyn_abi::DynSolType;
-use alloy_core::json_abi::StateMutability;
-use alloy_core::primitives::{Address, FixedBytes, U256, address};
+use alloy_core::primitives::{address, Address, FixedBytes, U256};
 use alloy_core::sol;
 use alloy_core::sol_types::SolCall;
+use alloy_dyn_abi::DynSolType;
+use alloy_json_abi::StateMutability;
 use core::time::Duration;
 
 /// Maximum recursion depth for nested calls to prevent stack overflow
@@ -640,7 +640,7 @@ mod tests {
     use super::*;
     use crate::display::Display;
     use alloc::vec;
-    use alloy_core::primitives::{Address, I256, address, uint};
+    use alloy_core::primitives::{address, uint, Address, I256};
 
     use crate::registry::LocalRegistry;
     use alloc::collections::BTreeMap;

@@ -101,7 +101,6 @@ version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95d9fa2daf21f59aa546d549943f10b5cce1ae59986774019fbedae834ffe01b"
 dependencies = [
- "alloy-json-abi",
  "alloy-sol-macro-input",
  "const-hex",
  "heck",
@@ -120,14 +119,12 @@ version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9396007fe69c26ee118a19f4dee1f5d1d6be186ea75b3881adf16d87f8444686"
 dependencies = [
- "alloy-json-abi",
  "const-hex",
  "dunce",
  "heck",
  "macro-string",
  "proc-macro2",
  "quote",
- "serde_json",
  "syn 2.0.114",
  "syn-solidity",
 ]
@@ -567,6 +564,8 @@ name = "clear-signing"
 version = "0.1.0"
 dependencies = [
  "alloy-core",
+ "alloy-dyn-abi",
+ "alloy-json-abi",
  "nom",
  "serde",
  "serde_json",
@@ -591,7 +590,7 @@ dependencies = [
 name = "clear-signing-format"
 version = "0.1.0"
 dependencies = [
- "alloy-core",
+ "alloy-primitives",
  "chrono",
  "clear-signing",
  "hex",
