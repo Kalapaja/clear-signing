@@ -1,49 +1,57 @@
 # Clear Signing Short Overview
 
 Clear Signing is a transaction-authorization architecture that replaces blind signing with human-readable, verifiable
-context. The contract is the law: execution is valid only if it matches the user-approved display (“display is law”).
-Architecture splits the problem into two layers so wallets can validate both identity and intent without centralized
-gatekeepers
-or live dependencies.
+context. The core principle is "display is law": execution is valid only if it matches the user-approved display.
+The architecture splits the problem into two layers, enabling wallets to validate both identity and intent without
+centralized gatekeepers or live dependencies.
 
 ## Core Idea
 
-The goal is to let smart contract developers define the display format for their calldata so wallets can present
-intent consistently and without trusted intermediaries.
+The goal is to enable smart contract developers to define the display format for their calldata, allowing wallets to
+present user intent consistently without trusted intermediaries.
 
-- **Social layer (Address Verification):** Wallets verify contract identity via decentralized contract lists and
-  community consensus to prevent phishing and impersonation.
-- **Protocol layer (Display Format):** Developers ship a standardized, declarative display spec alongside the ABI so
-  wallets can render and verify user intent locally. The contract enforces that the approved display exactly matches the
-  executed transaction (“display is law”).
+- **Social layer (Address Verification):** Wallets verify contract identity using contract lists inspired by Token Lists
+  to prevent phishing and impersonation. The `contract` and `token` display types reference these well-known
+  registries.
+- **Protocol layer (Display Format):** Developers define a standardized, declarative display specification alongside
+  smart contract code, enabling wallets to render and verify user intent locally. This extends "code is law" with
+  "display is law": the contract enforces that the approved display exactly matches the executed transaction.
 
 ## Goals
 
-- **Phishing protection:** Confirm who the counterparty contract is before signing.
-- **Developer-driven meaning:** Bind human-readable intent to on-chain execution.
-- **Cryptographic binding:** Use the EIP-712 `hashStruct` algorithm so the display spec is cryptographically tied to the
-  contract and can be defined in contract code at compile/deploy time.
-- **Local, offline verification:** Fully interpret transactions without RPC calls or external metadata services.
-- **Stateless transactions:** Embed all required display metadata inside the transaction payload.
+- **Phishing protection:** Confirm the identity of the counterparty contract before signing.
+- **Developer-driven meaning:** Bind the display specification used to render human-readable context to on-chain
+  execution.
+- **Cryptographic binding:** Use the EIP-712 `hashStruct` algorithm to cryptographically tie the display specification
+  to the contract, allowing it to be defined in contract code at compile/deploy time.
+- **Comprehensive display specification:** Support rich display types with composable specifications that can display
+  call graphs (e.g., smart account call -> multisig -> swap, or multicall -> [approve, swap, transfer]).
+- **Local, offline verification:** Fully interpret transactions without RPC calls or external metadata services, making
+  it suitable for air-gapped hardware wallets.
+- **Backward compatibility:** Support well-known interfaces such as ERC-20, ERC-721, ERC-1155, and WETH by embedding
+  their display specifications.
+- **Stateless transactions:** Embed all required display metadata within the transaction request.
 
 ## Non-Goals
 
-- **Contract list delivery:** The architecture defines the contract list format and proposes discovery, but how wallets
-  fetch or embed lists is out of scope.
-- **Legacy compatibility:** The trustless layer does not cover non-upgradeable contracts, but a fallback is possible via
-  an on-chain DisplayRegistry plus constraint checks for smart contract wallets.
-- **Execution path analysis:** Internal call tracing is not required; developers define display only for their
+- **Contract list delivery:** The architecture defines the contract list format and proposes discovery mechanisms, but
+  how wallets fetch or embed lists is out of scope.
+- **Execution path analysis:** Internal call tracing is not required; developers define displays only for their own
   contracts.
-- **Business logic & tokenomics:** This does not validate economic soundness or smart contract code quality.
+- **Business logic and tokenomics:** This architecture does not validate economic soundness or smart contract code
+  quality.
+- **Legacy compatibility:** The trustless layer does not cover non-upgradeable contracts, though a fallback is possible
+  via an on-chain DisplayRegistry with constraint checks for smart contract wallets.
 
 ## High-Level Flow
 
-1. Wallet resolves the contract address against contract lists to confirm identity.
-2. Wallet parses the embedded display spec to render intent locally (e.g., `tokenAmount`, `nativeAmount`, `contract`,
-   `token`, `match`, `array`).
-3. Contract verifies the display spec against calldata to ensure the user approved exactly what executes.
+1. The wallet resolves the contract address against contract lists to confirm identity.
+2. The wallet reads the embedded display specification and renders fields locally (e.g., `tokenAmount`, `nativeAmount`,
+   `contract`, `token`, `match`, `array`).
+3. The wallet verifies the embedded display specification against the corresponding display hash.
+4. The contract verifies the display hash to ensure the user approved exactly what will be executed.
 
 ## Why It Matters
 
-Clear Signing avoids trusted intermediaries, works for air-gapped devices, and provides cryptographic guarantees that
-the visual prompt matches on-chain behavior.
+Clear Signing eliminates the need for trusted intermediaries, operates on air-gapped devices, and provides cryptographic
+guarantees that the visual prompt accurately matches the on-chain execution.
