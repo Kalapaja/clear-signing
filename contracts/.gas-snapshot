@@ -1,0 +1,6 @@
+GasMeasurementTest:test_Gas_Swap_ClearCall_Delegatecall() (gas: 43507)
+GasMeasurementTest:test_Gas_Swap_ClearCall_Internal() (gas: 43419)
+GasMeasurementTest:test_Gas_Swap_DirectCall() (gas: 36152)
+GasMeasurementTest:test_Gas_Transfer_ClearCall_Delegatecall() (gas: 23839)
+GasMeasurementTest:test_Gas_Transfer_ClearCall_Internal() (gas: 23771)
+GasMeasurementTest:test_Gas_Transfer_DirectCall() (gas: 15419)

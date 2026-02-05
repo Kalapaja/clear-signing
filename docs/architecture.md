@@ -73,7 +73,7 @@ publish raw ABIs without adding the necessary documentation tags.
 
 ### 1.4 On-Chain Description Standards
 
-Contracts implement logic to return their own descriptions (e.g., **ERC-719**, **EIP-4430**, **EIP-6384**).
+Contracts implement logic to return their own descriptions (e.g., **EIP-719**, **ERC-4430**, **ERC-6384**).
 
 - **Phishing Protection**: None.
 - **Local Interpretation**: No; it requires on-chain calls to retrieve descriptions defined in smart contracts. The
@@ -851,9 +851,12 @@ While Clear Signing improves security, it introduces new privacy considerations:
 
 #### 9.3.1 Gas Overhead
 
-Implementing on-chain verification like `clearCall` adds computational steps (hashing, conditional checks), which
-increases the gas cost per transaction (adds about ~2k gas). Note that execution cost can be optimized using bytes
-compaction for the `call` argument and by using internal calls instead of `delegatecall`.
+Implementing on-chain verification like `clearCall` adds computational steps (selector checks, display hash checks,
+delegatecall, or internal decoding). In the current measurements:
+- **Transfer**: clear-call overhead is ~8.3k gas
+- **Swap**: clear-call overhead is ~7.3k gas
+
+These figures come from the `GasMeasurement` test and reflect the current implementation.
 
 #### 9.3.2 Developer Dependency
 

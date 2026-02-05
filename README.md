@@ -20,8 +20,10 @@ This repository is organized into several modules:
 - [**contracts/**](./contracts): Experimental Solidity implementation of the Clear Signing protocol.
     - `ClearCallRouter.sol`: A router for executing and verifying clear calls.
     - `Display.sol`: Library for handling and hashing display specifications.
+    - `GasMeasurement.sol`: Gas profiling harness for direct vs clear-call paths.
     - `SwapExactTokensForTokensDisplayHash.sol`: Display specification in Solidity.
     - `swapExactTokenForTokensDisplay.json`: Display specification in JSON.
+    - Gas tests live in `contracts/test/GasMeasurement.t.sol`.
 - [**crates/**](./crates): Rust tools and libraries for working with Clear Signing.
     - `clear-signing`: Core logic for verification and parsing display fields.
     - `clear-signing-format`: Simple string formatter implementation.
@@ -42,6 +44,8 @@ This repository is organized into several modules:
 To learn more about the project, start with the [Architecture Overview](./docs/architecture.md).
 
 Example Clear Signing integration into smart contracts can be found in the [contracts](./contracts) folder.
+
+Gas measurements are captured in `contracts/test/GasMeasurement.t.sol` (run `forge test --match-path contracts/test/GasMeasurement.t.sol`).
 
 ### Running Examples
 
