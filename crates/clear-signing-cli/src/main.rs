@@ -1,4 +1,4 @@
-use alloy_core::primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, Bytes, U256};
 use anyhow::{Context, Result};
 use clap::Parser;
 use clear_signing::display::Display;

@@ -4,8 +4,7 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use alloy_core::primitives::{keccak256, Address, Function, Selector, I256, U256};
-use alloy_dyn_abi::parser::StateMutability;
+use alloy_primitives::{keccak256, Address, Function, Selector, I256, U256};
 use alloy_dyn_abi::{DynSolType, DynSolValue, Word};
 use nom::{
     branch::alt, bytes::complete::{tag, take_while, take_while1},
@@ -45,6 +44,14 @@ pub enum SolType {
     FixedArray(Box<Self>, usize),
     /// Tuple.
     Tuple(Vec<(Option<String>, Self)>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StateMutability {
+    Pure,
+    View,
+    Payable,
+    NonPayable,
 }
 
 impl SolType {
@@ -286,7 +293,9 @@ impl SolValue {
                 Ok(bytes[32 - byte_len..].to_vec())
             }
             SolValue::Literal(string) => {
-                Ok(alloy_core::hex::decode(string.trim_start_matches("0x"))?)
+                Ok(alloy_primitives::hex::decode(
+                    string.trim_start_matches("0x"),
+                )?)
             }
             _ => Err(ParseError::SmthWentWrong(format!(
                 "Type mismatch: expected bytes, got {:?}",

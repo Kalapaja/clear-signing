@@ -1,8 +1,8 @@
 use crate::fields::Label;
 use alloc::format;
 use alloc::string::String;
-use alloy_core::hex::FromHexError;
-use alloy_core::primitives::{ruint, Address, Selector};
+use alloy_primitives::hex::FromHexError;
+use alloy_primitives::{ruint, Address, Selector};
 use alloy_dyn_abi::parser;
 use nom::{error, Err};
 
@@ -49,8 +49,8 @@ impl core::fmt::Display for ParseError {
     }
 }
 
-impl From<alloy_core::sol_types::Error> for ParseError {
-    fn from(e: alloy_core::sol_types::Error) -> Self {
+impl From<alloy_sol_types::Error> for ParseError {
+    fn from(e: alloy_sol_types::Error) -> Self {
         ParseError::SmthWentWrong(format!("ABI decode error: {}", e))
     }
 }
@@ -61,20 +61,14 @@ impl From<alloy_dyn_abi::Error> for ParseError {
     }
 }
 
-impl From<alloy_json_abi::Error> for ParseError {
-    fn from(e: alloy_json_abi::Error) -> Self {
-        ParseError::SmthWentWrong(format!("JSON ABI error: {:?}", e))
-    }
-}
-
 impl From<parser::Error> for ParseError {
     fn from(e: parser::Error) -> Self {
         ParseError::SmthWentWrong(format!("Function parse error: {}", e))
     }
 }
 
-impl From<alloy_core::primitives::ParseSignedError> for ParseError {
-    fn from(e: alloy_core::primitives::ParseSignedError) -> Self {
+impl From<alloy_primitives::ParseSignedError> for ParseError {
+    fn from(e: alloy_primitives::ParseSignedError) -> Self {
         ParseError::SmthWentWrong(format!("ParseSignedError: {}", e))
     }
 }
@@ -109,6 +103,7 @@ impl From<Err<error::Error<&str>>> for ParseError {
     }
 }
 
+#[cfg(feature = "serde_json")]
 impl From<serde_json::Error> for ParseError {
     fn from(e: serde_json::Error) -> Self {
         ParseError::SmthWentWrong(format!("Json error: {}", e))

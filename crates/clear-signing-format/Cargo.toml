@@ -3,9 +3,11 @@ name = "clear-signing-format"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["serde"]
+serde = ["dep:serde", "alloy-primitives/serde", "clear-signing/serde"]
+
 [dependencies]
-clear-signing = { path = "../clear-signing" }
-alloy-primitives = { version = "1.5.2", default-features = false, features = ["serde"] }
-hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
-serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
-chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+clear-signing = { path = "../clear-signing", default-features = false }
+alloy-primitives = { version = "1.5.2", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"], optional = true }

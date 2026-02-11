@@ -10,11 +10,13 @@ use alloy_primitives::{Address, U256};
 use clear_signing::display::Labels;
 use clear_signing::fields::{ClearCall, Direction, DisplayField, Label};
 use core::ops::Not;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// ERC-20 token metadata
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Token {
     /// The chain ID of the network where this token is deployed
     pub chain_id: u64,
@@ -27,13 +29,17 @@ pub struct Token {
     /// Number of decimals (e.g., 18)
     pub decimals: u8,
     /// Optional logo URI
-    #[serde(rename = "logoURI")]
+    #[cfg_attr(feature = "serde", serde(rename = "logoURI"))]
     pub logo_uri: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TokenList {
-    #[serde(rename = "$schema", skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "$schema", skip_serializing_if = "Option::is_none")
+    )]
     pub schema: Option<String>,
     pub name: String,
     pub timestamp: String,
@@ -42,8 +48,9 @@ pub struct TokenList {
 }
 
 /// Smart contract metadata
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct Contract {
     /// The chain ID of the network where this contract is deployed
     pub chain_id: u64,
@@ -53,16 +60,21 @@ pub struct Contract {
     pub name: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version {
     pub major: u32,
     pub minor: u32,
     pub patch: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContractList {
-    #[serde(rename = "$schema", skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "$schema", skip_serializing_if = "Option::is_none")
+    )]
     pub schema: Option<String>,
     pub name: String,
     pub timestamp: String,
@@ -71,7 +83,8 @@ pub struct ContractList {
 }
 
 /// Native token metadata
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeToken {
     /// Token name (e.g., "Ether")
     pub name: String,
@@ -103,10 +116,6 @@ pub fn format_clear_call(
     let resolve = |label: &Label| -> String {
         resolve_label(label, &clear_call.labels, locale)
     };
-
-    if level == 0 {
-        lines.push("------------------------------".to_string());
-    }
 
     let title = resolve(&clear_call.title);
     if !title.is_empty() {
@@ -147,10 +156,6 @@ pub fn format_clear_call(
             detailed,
             locale,
         );
-    }
-
-    if level == 0 {
-        lines.push("------------------------------".to_string());
     }
 
     lines.join("\n")
@@ -338,7 +343,7 @@ fn format_field(
                 }
             }
             if let Some(name) = provider.get_address_name(*value) {
-                lines.push(format!("{}  {} ({})", indent, name, value));
+                lines.push(format!("{}  {}", indent, name));
             } else {
                 lines.push(format!("{}  {}", indent, value));
             }
@@ -478,13 +483,8 @@ fn format_field(
                     lines.push(format!("{}{}", indent, desc));
                 }
             }
-            use chrono::TimeZone;
-            let dt = chrono::Utc
-                .timestamp_opt(value.as_secs() as i64, 0)
-                .single()
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
-                .unwrap_or_else(|| format!("{}s", value.as_secs()));
-            lines.push(format!("{}  {}", indent, dt));
+            let formatted = format_datetime_utc(value.as_secs());
+            lines.push(format!("{}  {}", indent, formatted));
         }
         DisplayField::Bitmask {
             title,
@@ -590,6 +590,55 @@ fn trim_formatted_amount(s: String) -> String {
     } else {
         s
     }
+}
+
+fn format_datetime_utc(timestamp: u64) -> String {
+    // Convert Unix timestamp to UTC date/time components
+    const SECONDS_PER_DAY: u64 = 86400;
+    const SECONDS_PER_HOUR: u64 = 3600;
+    const SECONDS_PER_MINUTE: u64 = 60;
+
+    let days_since_epoch = timestamp / SECONDS_PER_DAY;
+    let seconds_today = timestamp % SECONDS_PER_DAY;
+
+    let hour = seconds_today / SECONDS_PER_HOUR;
+    let minute = (seconds_today % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE;
+
+    // Calculate year, month, day from days since epoch (1970-01-01)
+    let mut year = 1970;
+    let mut days_remaining = days_since_epoch;
+
+    loop {
+        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
+        if days_remaining < days_in_year {
+            break;
+        }
+        days_remaining -= days_in_year;
+        year += 1;
+    }
+
+    let days_in_months = if is_leap_year(year) {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+
+    let mut month = 1;
+    for &days_in_month in &days_in_months {
+        if days_remaining < days_in_month {
+            break;
+        }
+        days_remaining -= days_in_month;
+        month += 1;
+    }
+
+    let day = days_remaining + 1;
+
+    format!("{:04}-{:02}-{:02} {:02}:{:02} UTC", year, month, day, hour, minute)
+}
+
+fn is_leap_year(year: u64) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
 fn resolve_label(label: &str, labels: &[Labels], locale: Option<&str>) -> String {
@@ -829,7 +878,6 @@ mod tests {
 
         let formatted = format_clear_call(&clear_call, &provider, 0, true, None);
         let expected_lines = vec![
-            "------------------------------",
             "===Swap Tokens===",
             "Swapping ETH for DAI",
             "",
@@ -854,7 +902,7 @@ mod tests {
             "Timeout",
             "  1h 1m 5s",
             "Deadline",
-            "  2025-01-08 09:29:44 UTC",
+            "  2025-01-08 09:29 UTC",
             "Array",
             "Array description",
             "  Item 1",
@@ -872,7 +920,7 @@ mod tests {
             "Nonce",
             "  42",
             "Recipient",
-            "  Recipient Name (0x0000000000000000000000000000000000000333)",
+            "  Recipient Name",
             "Sub-call",
             "Inner transaction details",
             "  ===Approval===",
@@ -888,7 +936,6 @@ mod tests {
             "  Inner Value 1",
             "Inner Field 2",
             "  Inner Value 2",
-            "------------------------------",
         ];
         let expected = expected_lines.join("\n");
 

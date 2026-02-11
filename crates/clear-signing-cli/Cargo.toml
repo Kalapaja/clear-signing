@@ -10,7 +10,7 @@ serde_json = "1.0"
 anyhow = "1.0"
 hex = "0.4"
 tokio = { version = "1.0", features = ["full"] }
-alloy-core = { version = "1.5", features = ["serde"] }
+alloy-primitives = { version = "1.5", features = ["serde"] }
 
 [dependencies.clear-signing]
 path = "../clear-signing"

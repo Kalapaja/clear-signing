@@ -11,9 +11,11 @@ use nom::{
     IResult,
     Parser,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Reference {
     Identifier {
         identifier: Identifier,
@@ -22,7 +24,8 @@ pub enum Reference {
     Literal(String),
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub container: String,
     pub members: Vec<Member>,
@@ -48,14 +51,18 @@ impl Identifier {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Segment(pub String);
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Index(pub isize);
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Slice(pub Option<isize>, pub Option<isize>);
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Member {
     Segment(Segment),
     Index(Index),

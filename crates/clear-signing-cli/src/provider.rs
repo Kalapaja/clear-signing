@@ -1,4 +1,4 @@
-use alloy_core::primitives::{Address, FixedBytes};
+use alloy_primitives::{Address, FixedBytes};
 use clear_signing::{display::Display, registry::Registry, sol::SolFunction};
 use clear_signing_format::{Contract, MetadataProvider, NativeToken, Token};
 use serde::{Deserialize, Serialize};

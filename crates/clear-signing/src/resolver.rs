@@ -2,7 +2,7 @@ use crate::error::ParseError;
 use crate::reference::{Index, Member, Reference, Segment, Slice};
 use crate::sol::SolValue;
 use alloc::string::ToString;
-use alloy_core::primitives::{Address, Bytes, FixedBytes, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -244,7 +244,7 @@ fn get_index(index: isize, len: usize) -> Result<usize, ParseError> {
 mod tests {
     use super::*;
     use alloc::vec;
-    use alloy_core::primitives::{address, bytes, uint};
+    use alloy_primitives::{address, bytes, uint};
 
     static SENDER: Address = address!("0000000000000000000000000000000000000001");
     static TARGET: Address = address!("0000000000000000000000000000000000000002");

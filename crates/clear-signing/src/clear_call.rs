@@ -4,16 +4,15 @@ use crate::error::ParseError::{DisplayNotFound, ParamNotFound, SmthWentWrong};
 use crate::fields::{ClearCall, Direction, DisplayField, Label};
 use crate::registry::Registry;
 use crate::resolver::{resolve_value, Message};
-use crate::sol::{SolFunction, SolType, SolValue};
+use crate::sol::{SolFunction, SolType, SolValue, StateMutability};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
-use alloy_core::primitives::{address, Address, FixedBytes, U256};
-use alloy_core::sol;
-use alloy_core::sol_types::SolCall;
+use alloy_primitives::{address, Address, FixedBytes, U256};
+use alloy_sol_types::sol;
+use alloy_sol_types::SolCall;
 use alloy_dyn_abi::DynSolType;
-use alloy_json_abi::StateMutability;
 use core::time::Duration;
 
 /// Maximum recursion depth for nested calls to prevent stack overflow
@@ -635,12 +634,13 @@ fn decode_params_locals(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "serde"))]
+#[cfg(feature = "serde_json")]
 mod tests {
     use super::*;
     use crate::display::Display;
     use alloc::vec;
-    use alloy_core::primitives::{address, uint, Address, I256};
+    use alloy_primitives::{address, uint, Address, I256};
 
     use crate::registry::LocalRegistry;
     use alloc::collections::BTreeMap;

@@ -1,59 +1,66 @@
 use crate::error::ParseError;
-use alloy_core::primitives::B256;
-use alloy_core::sol;
-use alloy_core::sol_types::SolStruct;
+use alloy_primitives::B256;
+use alloy_sol_types::sol;
+use alloy_sol_types::SolStruct;
 use core::clone::Clone;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
 pub struct DisplaySpecFile {
     pub displays: alloc::vec::Vec<Display>,
 }
 
 sol! {
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Debug, PartialEq)]
     struct Display {
         address address;
         string abi;
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         string title;
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         string description;
         Field[] fields;
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         Labels[] labels;
     }
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Debug, PartialEq)]
     struct Field {
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         string title;
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         string description;
         string format;
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         Check[][] checks;
         Entry[] params;
     }
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Debug, PartialEq)]
     struct Labels {
         string locale;
         Entry[] items;
     }
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Debug, PartialEq)]
     struct Entry {
         string key;
         string value;
     }
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Debug, PartialEq)]
     struct Check {
         string left;
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         string op;
-        #[serde(default)]
+        #[cfg_attr(feature = "serde", serde(default))]
         string right;
     }
 }
@@ -72,8 +79,9 @@ impl Display {
 
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum Format {
     TokenAmount,
     NativeAmount,

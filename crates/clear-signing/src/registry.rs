@@ -3,7 +3,7 @@ use crate::error::ParseError;
 use crate::sol::SolFunction;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use alloy_core::primitives::{Address, FixedBytes};
+use alloy_primitives::{Address, FixedBytes};
 
 pub trait Registry {
     fn is_well_known_contract(&self, address: &Address) -> bool;
@@ -22,6 +22,7 @@ pub struct LocalRegistry {
 }
 
 impl LocalRegistry {
+    #[cfg(feature = "serde_json")]
     pub fn new(
         well_known_contracts_json: &str,
         well_known_tokens_json: &str,

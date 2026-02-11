@@ -3,11 +3,13 @@ use crate::error::ParseError;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloy_core::primitives::{Address, Bytes, I256, U256};
+use alloy_primitives::{Address, Bytes, I256, U256};
 use core::time::Duration;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
 pub struct ClearCall {
     pub title: Label,
     pub description: Label,
@@ -17,7 +19,8 @@ pub struct ClearCall {
     pub labels: Vec<Labels>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
 pub enum Direction {
     In,
     Out,
@@ -36,8 +39,9 @@ impl Direction {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "serde", serde(tag = "type"))]
 pub enum DisplayField {
     Call {
         title: Label,
