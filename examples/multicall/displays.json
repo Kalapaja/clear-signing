@@ -89,15 +89,16 @@
           "format": "array",
           "params": [
             {"key": "$call", "value": "$locals.calls"}
-          ]
-        },
-        {
-          "format": "call",
-          "checks": [[{"left": "$locals.call", "right": "$locals.call"}]],
-          "params": [
-            {"key": "to", "value": "$locals.call.to"},
-            {"key": "data", "value": "$locals.call.data"},
-            {"key": "value", "value": "0"}
+          ],
+          "fields": [
+            {
+              "format": "call",
+              "params": [
+                {"key": "to", "value": "$locals.call.to"},
+                {"key": "data", "value": "$locals.call.data"},
+                {"key": "value", "value": "0"}
+              ]
+            }
           ]
         }
       ],

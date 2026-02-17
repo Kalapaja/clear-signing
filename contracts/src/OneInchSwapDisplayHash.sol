@@ -12,45 +12,35 @@ library OneInchSwapDisplayHash {
             "$labels.swap_description",
             abi.encode(
                 // Field 1: You Send
-                Display.field(
+                Display.tokenAmountField(
                     "$labels.you_send",
                     "$labels.desc_you_send",
-                    "tokenAmount",
-                    "",
-                    abi.encode(
-                        Display.entry("token", "$locals.desc.srcToken"),
-                        Display.entry("amount", "$locals.desc.amount"),
-                        Display.entry("direction", "out")
-                    )
+                    hex"",
+                    "$locals.desc.srcToken",
+                    "$locals.desc.amount"
                 ),
                 // Field 2: You Receive (Minimum)
-                Display.field(
+                Display.tokenAmountField(
                     "$labels.you_receive_minimum",
                     "$labels.desc_you_receive_minimum",
-                    "tokenAmount",
-                    "",
-                    abi.encode(
-                        Display.entry("token", "$locals.desc.dstToken"),
-                        Display.entry("amount", "$locals.desc.minReturnAmount"),
-                        Display.entry("direction", "in")
-                    )
+                    hex"",
+                    "$locals.desc.dstToken",
+                    "$locals.desc.minReturnAmount"
                 ),
                 // Field 3: Recipient
-                Display.field(
+                Display.addressField(
                     "$labels.recipient",
                     "$labels.desc_recipient",
-                    "address",
-                    "",
-                    abi.encode(Display.entry("value", "$locals.desc.dstReceiver"))
+                    hex"",
+                    "$locals.desc.dstReceiver"
                 ),
                 // Field 4: Swap Options
-                Display.field(
+                Display.bitmaskField(
                     "$labels.swap_options",
                     "$labels.desc_swap_options",
-                    "bitmask",
-                    "",
-                    abi.encode(
-                        Display.entry("value", "$locals.desc.flags"),
+                    hex"",
+                    "$locals.desc.flags",
+                    abi.encodePacked(
                         Display.entry("#0", "$labels.partial_fill_enabled")
                     )
                 )

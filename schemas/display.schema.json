@@ -109,6 +109,13 @@
               "$ref": "#/definitions/Check"
             }
           }
+        },
+        "fields": {
+          "type": "array",
+          "description": "Nested child fields (recursive). Used for array and match formats to define explicit scope.",
+          "items": {
+            "$ref": "#/definitions/Field"
+          }
         }
       },
       "additionalProperties": false,
@@ -130,7 +137,10 @@
             "properties": {
               "params": {
                 "type": "array",
-                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+                "allOf": [
+                  { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } },
+                  { "contains": { "type": "object", "properties": { "key": { "const": "basis" } } } }
+                ]
               }
             }
           }

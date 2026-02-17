@@ -12,43 +12,35 @@ library SwapExactTokensForTokensDisplayHash {
             "$labels.swap",
             "$labels.swap_description",
             abi.encode(
-            // Field 1: Sending
-                Display.field(
+                // Field 1: Sending
+                Display.tokenAmountField(
                     "$labels.sending",
                     "$labels.sending_description",
-                    "tokenAmount",
-                    hex"",  // Empty Check[][] array
-                    abi.encode(
-                        Display.entry("token", "$locals.path[0]"),
-                        Display.entry("amount", "$locals.amountIn")
-                    )
+                    hex"",
+                    "$locals.path[0]",
+                    "$locals.amountIn"
                 ),
                 // Field 2: Receiving (minimum)
-                Display.field(
+                Display.tokenAmountField(
                     "$labels.receiving_min",
                     "$labels.receiving_min_description",
-                    "tokenAmount",
-                    hex"",  // Empty Check[][] array
-                    abi.encode(
-                        Display.entry("token", "$locals.path[-1]"),
-                        Display.entry("amount", "$locals.amountOutMin")
-                    )
+                    hex"",
+                    "$locals.path[-1]",
+                    "$locals.amountOutMin"
                 ),
                 // Field 3: Recipient
-                Display.field(
+                Display.addressField(
                     "$labels.recipient",
                     "$labels.recipient_description",
-                    "address",
-                    hex"",  // Empty Check[][] array
-                    abi.encode(Display.entry("value", "$locals.to"))
+                    hex"",
+                    "$locals.to"
                 ),
                 // Field 4: Deadline
-                Display.field(
+                Display.datetimeField(
                     "$labels.deadline",
                     "$labels.deadline_description",
-                    "datetime",
-                    hex"",  // Empty Check[][] array
-                    abi.encode(Display.entry("value", "$locals.deadline"))
+                    hex"",
+                    "$locals.deadline"
                 )
             ),
             // Labels

@@ -352,9 +352,10 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
     - **`$labels`**: Accesses localized strings from the `labels` bundles.
 - **Labels & i18n**: User-facing strings are stored in locale-specific bundles and accessed via the global `$labels`
   variable.
-- **Flat Scoping**: For efficiency in hardware wallets and simplicity in EIP-712 hashing, the display format uses a flat
-  list of fields. Control flow types like `match` and `array` define a **Scope** that affects subsequent fields that
-  reference variables defined within that scope.
+- **Explicit Scoping**: The display format uses a recursive structure where some fields MAY contain nested `fields`. 
+  Control flow types like `match` and `array` create new scopes by processing their own `fields` array with a new `$locals`
+  context. This recursive structure naturally aligns with EIP-712's type system while maintaining efficiency for hardware
+  wallets.
 - **Sensitivity to Safety**: Wallets **MUST** reject any display specification that contains unknown fields or
   unsupported `format` types to prevent "downgrade attacks".
 
@@ -362,7 +363,7 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
 
 - **`Display`**: The root object containing the full display specification.
 - **`Field`**: Defines a single parameter to be displayed. It includes the title key, the formatter type, parameters
-  mapping, and visibility checks.
+  mapping, visibility checks, and optionally nested fields for recursive structures.
 - **`Labels`**: A collection of localized strings.
 - **`Check`**: Defines a conditional check with `left`, `op` (`eq` or `ne`), and `right` operands.
 - **`Entry`**: A simple key-value pair for parameters and label items.
@@ -390,7 +391,8 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
           "key": "amount",
           "value": "$locals.amount"
         }
-      ]
+      ],
+      "fields": []
     }
   ],
   "labels": [
@@ -419,7 +421,7 @@ The architecture supports a strict set of display types to ensure consistent, se
 Wallets **MUST** implement standard formatting for these primitives:
 
 - **`boolean`**: `bool` → "Yes" / "No"
-- **`percentage`**: Integer (basis points) → "1.5%"
+- **`percentage`**: Requires `value` (numerator) and `basis` (denominator) → "1.5%" (e.g., value=150, basis=10000)
 - **`duration`**: Integer (seconds) → "2 weeks"
 - **`datetime`**: Unix Timestamp → Locale-specific date/time
 - **`bitmask`**: Integer → List of titles for set bits. Bit labels are defined in `params` using the `#{BIT_INDEX}`
@@ -442,15 +444,17 @@ Wallets **MUST** support these standard higher-level types:
 - **`call`**: (Target + Value + Data) → Decoded nested call. Essential for multisigs and account abstraction.
 
 **Control Flow Types**
-These types interpret the data structure and control the rendering of subsequent fields:
+These types create a new `$locals` scope from their `params` and recursively process their `fields` array. The `$msg`
+context remains unchanged:
 
-- **`match`**: Acts as a **conditional branch**. It supports mapping values into the scope's `$locals` using:
+- **`match`**: Acts as a **conditional branch**. It supports mapping values into a new scope's `$locals` using:
     - **Named Parameters**: Parameters starting with `$` (e.g., `$param`) map values or literals into the scope's
       `$locals`.
     - **ABI Decoding**: By providing **`abi`** (signature) and **`value`** (bytes) parameters, `match` decodes the bytes
       and maps the resulting fields into `$locals`.
-- **`array`**: Acts as a **loop**. Subsequent fields that reference the scoped variable (e.g., `$item`) are rendered
-  repeatedly for each element in the array. The `$msg` context remains unchanged.
+    - The `fields` property defines what fields should be rendered in this scope.
+- **`array`**: Behaves identically to `match`, except it iterates in a loop, creating a new scope for each array
+  element. The `fields` property defines the template that is rendered for each iteration.
 
 **Conditional Rendering (`checks`)**
 Every field can define **`checks`**, which is a 2D array of check objects. The evaluation follows an **OR-of-ANDs**
@@ -468,8 +472,8 @@ Each **`Check`** consists of:
 - **`right`**: The right operand (literal or reference). If omitted, it is compared against the `left` operand itself
   (effectively checking if the reference exists).
 
-In scoped contexts (`match` or `array`), only fields with explicit `checks` are evaluated and rendered; fields without
-`checks` are ignored.
+Fields with empty `checks` are displayed by default. Fields with non-empty `checks` are evaluated against the current
+context and only displayed if at least one check group passes.
 
 **Safety Rule**: If a wallet fails to resolve an address marked as `token` or `contract` to a known, verified entity,
 **execution MUST stop**. This prevents phishing by ensuring users never sign interactions with "Unknown Contracts" when
@@ -491,12 +495,17 @@ The wallet processes the display specification in a deterministic sequence to ge
       `$msg.data`.
 
 2. **Field Processing**:
-    - Field processing accepts the `$msg` and `$locals` contexts and returns a list of formatted fields to display.
-    - The wallet iterates through the `fields` array defined in the display spec.
+    - Field processing accepts the `$msg` and `$locals` contexts and recursively processes a `fields` array to return a
+      list of formatted fields to display.
+    - The wallet iterates through the provided `fields` array (initially from the display spec's top-level `fields`).
     - **Conditional Filtering (`checks`)**: The `checks` 2D array controls field visibility using **OR-of-ANDs** logic.
         - Fields with empty `checks` are displayed by default.
         - Fields with non-empty `checks` are evaluated against the current context. A field is displayed if at least one
           group of checks (where all checks in the group pass) evaluates to true.
+    - **Scoped Processing (`match` and `array`)**: When a field is of type `match` or `array`:
+        - A new `$locals` context is created based on the field's `params`.
+        - The wallet recursively processes the field's `fields` array (not the display's top-level fields).
+        - This creates explicit scoping: only fields defined in `field.fields` are rendered within that scope.
 
 3. **Variable Resolution Rules**:
     - **$msg**: The transaction context. It remains **constant** throughout the entire display rendering (including
@@ -566,9 +575,9 @@ displayHash = hashStruct(Display)
 To ensure interoperability, the following type strings **MUST** be used for EIP-712 `hashStruct` calculation:
 
 - **`Display`**:
-  `Display(address address,string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params)Labels(string locale,Entry[] items)`
+  `Display(address address,string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)`
 - **`Field`**:
-  `Field(string title,string description,string format,Check[][] checks,Entry[] params)Check(string left,string op,string right)Entry(string key,string value)`
+  `Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Check(string left,string op,string right)Entry(string key,string value)`
 - **`Labels`**: `Labels(string locale,Entry[] items)Entry(string key,string value)`
 - **`Entry`**: `Entry(string key,string value)`
 - **`Check`**: `Check(string left,string op,string right)`
@@ -584,15 +593,12 @@ bytes32 TRANSFER_DISPLAY_HASH = Display.display(
     "Transfer",                                    // title
     "Transfer tokens to another address",          // description
     abi.encode(
-        Display.field(
+        Display.tokenAmountField(
             "$labels.amount",                      // title
             "Amount to transfer",                  // description
-            "tokenAmount",                         // format
-            "",                                    // checks
-            abi.encode(                            // params
-                Display.entry("token", "$msg.to"),
-                Display.entry("amount", "$locals.amount")
-            )
+            hex"",                                 // checks (empty)
+            "$msg.to",                             // token
+            "$locals.amount"                       // amount
         )
     ),
     abi.encode(

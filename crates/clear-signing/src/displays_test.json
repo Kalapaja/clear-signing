@@ -300,18 +300,19 @@
               "key": "$check",
               "value": "100"
             }
-          ]
-        },
-        {
-          "title": "Proxy Result",
-          "format": "uint",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.check"
-            }
           ],
-          "checks": [[{"left": "$locals.check", "right": "100"}]]
+          "fields": [
+            {
+              "title": "Proxy Result",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$locals.check"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -329,18 +330,19 @@
               "key": "$val",
               "value": "$locals.nums"
             }
-          ]
-        },
-        {
-          "title": "Item",
-          "format": "uint",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.val"
-            }
           ],
-          "checks": [[{"left": "$locals.val", "right": "$locals.val"}]]
+          "fields": [
+            {
+              "title": "Item",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$locals.val"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -357,26 +359,27 @@
               "key": "$item",
               "value": "$locals.calls"
             }
-          ]
-        },
-        {
-          "title": "Call",
-          "format": "call",
-          "params": [
-            {
-              "key": "to",
-              "value": "$locals.item.target"
-            },
-            {
-              "key": "data",
-              "value": "$locals.item.data"
-            },
-            {
-              "key": "value",
-              "value": "0"
-            }
           ],
-          "checks": [[{"left": "$locals.item", "right": "$locals.item"}]]
+          "fields": [
+            {
+              "title": "Call",
+              "format": "call",
+              "params": [
+                {
+                  "key": "to",
+                  "value": "$locals.item.target"
+                },
+                {
+                  "key": "data",
+                  "value": "$locals.item.data"
+                },
+                {
+                  "key": "value",
+                  "value": "0"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -398,29 +401,29 @@
               "key": "abi",
               "value": "(address recipient, uint256 amount)"
             }
+          ],
+          "fields": [
+            {
+              "title": "Recipient",
+              "format": "address",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$locals.recipient"
+                }
+              ]
+            },
+            {
+              "title": "Amount",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$locals.amount"
+                }
+              ]
+            }
           ]
-        },
-        {
-          "title": "Recipient",
-          "format": "address",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.recipient"
-            }
-          ],
-          "checks": [[{"left": "$locals.recipient", "right": "$locals.recipient"}]]
-        },
-        {
-          "title": "Amount",
-          "format": "uint",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.amount"
-            }
-          ],
-          "checks": [[{"left": "$locals.amount", "right": "$locals.amount"}]]
         }
       ]
     },
@@ -446,46 +449,38 @@
               "key": "$sender_copy",
               "value": "$msg.sender"
             }
-          ]
-        },
-        {
-          "title": "Sender Copy",
-          "format": "address",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.sender_copy"
-            }
           ],
-          "checks": [[{"left": "$locals.sender_copy", "right": "$locals.sender_copy"}]]
-        },
-        {
-          "title": "Decoded Recipient",
-          "format": "address",
-          "params": [
+          "fields": [
             {
-              "key": "value",
-              "value": "$locals.recipient"
-            }
-          ],
-          "checks": [[{"left": "$locals.recipient", "right": "$locals.recipient"}]]
-        },
-        {
-          "title": "Decoded Amount",
-          "format": "uint",
-          "params": [
+              "title": "Sender Copy",
+              "format": "address",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$locals.sender_copy"
+                }
+              ]
+            },
             {
-              "key": "value",
-              "value": "$locals.amount"
+              "title": "Decoded Recipient",
+              "format": "address",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$locals.recipient"
+                }
+              ]
+            },
+            {
+              "title": "Decoded Amount",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$locals.amount"
+                }
+              ]
             }
-          ],
-          "checks": [
-            [
-              {
-                "left": "$locals.amount",
-                "right": "$locals.amount"
-              }
-            ]
           ]
         }
       ]

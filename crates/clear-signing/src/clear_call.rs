@@ -1,4 +1,4 @@
-use crate::display::{Check, Display, Format};
+use crate::display::{Check, Display, Field, Format};
 use crate::error::ParseError;
 use crate::error::ParseError::{DisplayNotFound, ParamNotFound, SmthWentWrong};
 use crate::fields::{ClearCall, Direction, DisplayField, Label};
@@ -9,10 +9,10 @@ use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
+use alloy_dyn_abi::DynSolType;
 use alloy_primitives::{address, Address, FixedBytes, U256};
 use alloy_sol_types::sol;
 use alloy_sol_types::SolCall;
-use alloy_dyn_abi::DynSolType;
 use core::time::Duration;
 
 /// Maximum recursion depth for nested calls to prevent stack overflow
@@ -117,7 +117,7 @@ impl ClearCallContext {
             }
 
             if display.hash_struct() != hash {
-                return Err(ParseError::DisplayHashMismatch);
+                return Err(ParseError::DisplayHashMismatch(hash, display.hash_struct()));
             } else {
                 display
             }
@@ -165,7 +165,7 @@ impl ClearCallContext {
 
         let locals = function_call.decode(&message.data)?;
 
-        let fields = self.process_fields(&message, &display, &locals, registry, level, false)?;
+        let fields = self.process_fields(&message, &display.fields, &locals, registry, level)?;
 
         Ok(ClearCall {
             title: display.title.clone(),
@@ -181,28 +181,23 @@ impl ClearCallContext {
     fn process_fields(
         &self,
         message: &Message,
-        display: &Display,
+        fields: &[Field],
         locals: &SolValue,
         registry: &dyn Registry,
         level: usize,
-        matching: bool,
     ) -> Result<Vec<DisplayField>, ParseError> {
         if level > MAX_RECURSION_DEPTH {
             return Err(ParseError::RecursionLimitExceeded);
         }
 
-        let mut fields = vec![];
+        let mut display_fields = vec![];
 
-        'fields: for field in &display.fields {
+        'fields: for field in fields {
             let params = entries_to_map(&field.params)?;
             let title = field.title.clone();
             let description = field.description.clone();
 
-            // Evaluate checks: in matching mode, skip if no checks; otherwise evaluate
-            if matching && field.checks.is_empty() {
-                continue 'fields;
-            }
-
+            // Evaluate checks
             if !field.checks.is_empty() && !evaluate_checks(&field.checks, message, locals)? {
                 continue 'fields; // Skip field if checks don't pass
             }
@@ -212,7 +207,7 @@ impl ClearCallContext {
                     let value =
                         resolve_param_value(&params, "value", message, locals)?.as_address()?;
 
-                    fields.push(DisplayField::Address {
+                    display_fields.push(DisplayField::Address {
                         title,
                         description,
                         value,
@@ -237,14 +232,14 @@ impl ClearCallContext {
                         address!("0x0000000000000000000000000000000000000000"),
                     ];
                     if natives.contains(&token) {
-                        fields.push(DisplayField::NativeAmount {
+                        display_fields.push(DisplayField::NativeAmount {
                             title,
                             description,
                             amount,
                             direction,
                         })
                     } else if registry.is_well_known_token(&token) {
-                        fields.push(DisplayField::TokenAmount {
+                        display_fields.push(DisplayField::TokenAmount {
                             title,
                             description,
                             token,
@@ -267,7 +262,7 @@ impl ClearCallContext {
                         None
                     };
 
-                    fields.push(DisplayField::NativeAmount {
+                    display_fields.push(DisplayField::NativeAmount {
                         title,
                         description,
                         amount,
@@ -282,7 +277,7 @@ impl ClearCallContext {
                         return Err(ParseError::UnknownContract(contract));
                     }
 
-                    fields.push(DisplayField::Contract {
+                    display_fields.push(DisplayField::Contract {
                         title,
                         description,
                         contract,
@@ -296,7 +291,7 @@ impl ClearCallContext {
                         return Err(ParseError::UnknownContract(token));
                     }
 
-                    fields.push(DisplayField::Token {
+                    display_fields.push(DisplayField::Token {
                         title,
                         description,
                         token,
@@ -306,7 +301,7 @@ impl ClearCallContext {
                     let value =
                         resolve_param_value(&params, "value", message, locals)?.as_bytes()?;
 
-                    fields.push(DisplayField::Bytes {
+                    display_fields.push(DisplayField::Bytes {
                         title,
                         description,
                         value: value.into(),
@@ -316,7 +311,7 @@ impl ClearCallContext {
                     let value =
                         resolve_param_value(&params, "value", message, locals)?.as_string()?;
 
-                    fields.push(DisplayField::String {
+                    display_fields.push(DisplayField::String {
                         title,
                         description,
                         value,
@@ -331,7 +326,7 @@ impl ClearCallContext {
                     let msg = Message::new(message.to, to, value, data.into());
                     let call = self.parse_clear_call(msg, registry, level + 1)?;
 
-                    fields.push(DisplayField::Call {
+                    display_fields.push(DisplayField::Call {
                         title,
                         description,
                         call,
@@ -340,7 +335,7 @@ impl ClearCallContext {
                 Format::Boolean => {
                     let value =
                         resolve_param_value(&params, "value", message, locals)?.as_bool()?;
-                    fields.push(DisplayField::Boolean {
+                    display_fields.push(DisplayField::Boolean {
                         title,
                         description,
                         value,
@@ -348,7 +343,7 @@ impl ClearCallContext {
                 }
                 Format::Int => {
                     let value = resolve_param_value(&params, "value", message, locals)?.as_int()?;
-                    fields.push(DisplayField::Int {
+                    display_fields.push(DisplayField::Int {
                         title,
                         description,
                         value,
@@ -358,7 +353,7 @@ impl ClearCallContext {
                     let value =
                         resolve_param_value(&params, "value", message, locals)?.as_uint()?;
 
-                    fields.push(DisplayField::Uint {
+                    display_fields.push(DisplayField::Uint {
                         title,
                         description,
                         value,
@@ -368,7 +363,7 @@ impl ClearCallContext {
                     let value =
                         resolve_param_value(&params, "value", message, locals)?.as_uint()?;
 
-                    fields.push(DisplayField::Duration {
+                    display_fields.push(DisplayField::Duration {
                         title,
                         description,
                         value: Duration::from_secs(value.try_into()?),
@@ -378,7 +373,7 @@ impl ClearCallContext {
                     let value =
                         resolve_param_value(&params, "value", message, locals)?.as_uint()?;
 
-                    fields.push(DisplayField::Datetime {
+                    display_fields.push(DisplayField::Datetime {
                         title,
                         description,
                         value: Duration::from_secs(value.try_into()?),
@@ -390,7 +385,7 @@ impl ClearCallContext {
                     let basis =
                         resolve_param_value(&params, "basis", message, locals)?.as_uint()?;
 
-                    fields.push(DisplayField::Percentage {
+                    display_fields.push(DisplayField::Percentage {
                         title,
                         description,
                         value,
@@ -411,7 +406,7 @@ impl ClearCallContext {
                         }
                     }
 
-                    fields.push(DisplayField::Bitmask {
+                    display_fields.push(DisplayField::Bitmask {
                         title,
                         description,
                         values,
@@ -426,14 +421,13 @@ impl ClearCallContext {
 
                     let new_fields = self.process_fields(
                         message,
-                        display,
+                        &field.fields,
                         &new_locals,
                         registry,
                         level + 1,
-                        true,
                     )?;
 
-                    fields.push(DisplayField::Match {
+                    display_fields.push(DisplayField::Match {
                         title,
                         description,
                         values: new_fields,
@@ -465,16 +459,15 @@ impl ClearCallContext {
                         let new_locals = SolValue::Tuple(tuple);
                         let item_fields = self.process_fields(
                             message,
-                            display,
+                            &field.fields,
                             &new_locals,
                             registry,
                             level + 1,
-                            true,
                         )?;
                         values.push(item_fields);
                     }
 
-                    fields.push(DisplayField::Array {
+                    display_fields.push(DisplayField::Array {
                         title,
                         description,
                         values,
@@ -487,7 +480,7 @@ impl ClearCallContext {
         //     return Err(SmthWentWrong("Fields not created".to_string()));
         // }
 
-        Ok(fields)
+        Ok(display_fields)
     }
 }
 
