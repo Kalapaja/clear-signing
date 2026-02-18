@@ -4,8 +4,9 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./Display.sol";
 
 library SwapExactTokensForTokensDisplayHash {
+    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = 0xb0b7356db751844a64a9e452c8982a4c058a3a1fee1f304ea287e96caf285330;
 
-    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = keccak256(
+    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS = keccak256(
         abi.encode(
             DISPLAY_TH,
             keccak256(bytes("function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline)")),

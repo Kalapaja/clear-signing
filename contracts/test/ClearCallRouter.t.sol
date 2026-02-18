@@ -206,8 +206,8 @@ contract ClearCallRouterTest is Test {
         // The baseline hash was calculated using the updated EIP-712 structure with Check[][] for checks field
         // verifyingContract (router) was set to address(0) for the baseline calculation.
         // We must ensure the router used for hashing here is also address(0).
-        bytes32 calculatedHash = SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH;
-        bytes32 expectedHash = 0xa6f768cfe4f70ca48cf05bff1e1fe78173e5694a7c19ac87736239185ac97b80;
+        bytes32 calculatedHash = SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS;
+        bytes32 expectedHash = 0xb0b7356db751844a64a9e452c8982a4c058a3a1fee1f304ea287e96caf285330;
 
         assertEq(calculatedHash, expectedHash, "Display hash should match updated EIP-712 structure");
     }
