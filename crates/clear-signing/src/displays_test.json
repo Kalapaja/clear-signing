@@ -2,7 +2,6 @@
   "$schema": "../../../schemas/display.schema.json",
   "displays": [
     {
-      "address": "0x0000000000000000000000000000000000000004",
       "abi": "function simpleCall(uint256 val) payable",
       "title": "Inner",
       "fields": [
@@ -12,14 +11,13 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.val"
+              "value": "$data.val"
             }
           ]
         }
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000000",
       "abi": "function transfer(address to, uint256 value)",
       "title": "ERC20",
       "fields": [
@@ -39,7 +37,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.to"
+              "value": "$data.to"
             }
           ]
         },
@@ -53,14 +51,13 @@
             },
             {
               "key": "amount",
-              "value": "$locals.value"
+              "value": "$data.value"
             }
           ]
         }
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function complexCall(address addr, uint256 uint_val, int256 int_val, bool bool_val, string string_val, bytes bytes_val, uint256 percentage_val, uint256 basis_val, uint256 duration_val, uint256 bitmask_val) payable",
       "title": "Complex",
       "description": "Test all formats",
@@ -71,7 +68,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.addr"
+              "value": "$data.addr"
             }
           ]
         },
@@ -81,7 +78,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.uint_val"
+              "value": "$data.uint_val"
             }
           ]
         },
@@ -91,7 +88,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.int_val"
+              "value": "$data.int_val"
             }
           ]
         },
@@ -101,7 +98,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.bool_val"
+              "value": "$data.bool_val"
             }
           ]
         },
@@ -111,7 +108,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.string_val"
+              "value": "$data.string_val"
             }
           ]
         },
@@ -121,7 +118,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.bytes_val"
+              "value": "$data.bytes_val"
             }
           ]
         },
@@ -131,11 +128,11 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.percentage_val"
+              "value": "$data.percentage_val"
             },
             {
               "key": "basis",
-              "value": "$locals.basis_val"
+              "value": "$data.basis_val"
             }
           ]
         },
@@ -145,7 +142,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.duration_val"
+              "value": "$data.duration_val"
             }
           ]
         },
@@ -155,7 +152,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.duration_val"
+              "value": "$data.duration_val"
             }
           ]
         },
@@ -165,7 +162,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.bitmask_val"
+              "value": "$data.bitmask_val"
             },
             {
               "key": "#0",
@@ -211,7 +208,7 @@
             },
             {
               "key": "amount",
-              "value": "$locals.uint_val"
+              "value": "$data.uint_val"
             }
           ]
         },
@@ -221,7 +218,7 @@
           "params": [
             {
               "key": "amount",
-              "value": "$locals.uint_val"
+              "value": "$data.uint_val"
             }
           ]
         }
@@ -243,7 +240,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function nestedCall(address call_target, bytes call_data, uint256 call_value, address erc20_target, bytes erc20_data) payable",
       "title": "Nested",
       "description": "Testing Nested Calls",
@@ -254,15 +250,15 @@
           "params": [
             {
               "key": "to",
-              "value": "$locals.call_target"
+              "value": "$data.call_target"
             },
             {
               "key": "data",
-              "value": "$locals.call_data"
+              "value": "$data.call_data"
             },
             {
               "key": "value",
-              "value": "$locals.call_value"
+              "value": "$data.call_value"
             }
           ]
         },
@@ -272,11 +268,11 @@
           "params": [
             {
               "key": "to",
-              "value": "$locals.erc20_target"
+              "value": "$data.erc20_target"
             },
             {
               "key": "data",
-              "value": "$locals.erc20_data"
+              "value": "$data.erc20_data"
             },
             {
               "key": "value",
@@ -287,7 +283,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function matchCall(uint256 val) payable",
       "title": "Match Test",
       "description": "Testing Format::Match",
@@ -300,23 +295,23 @@
               "key": "$check",
               "value": "100"
             }
-          ]
-        },
-        {
-          "title": "Proxy Result",
-          "format": "uint",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.check"
-            }
           ],
-          "checks": [[{"left": "$locals.check", "right": "100"}]]
+          "fields": [
+            {
+              "title": "Proxy Result",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$data.check"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function arrayCall(uint256[] nums) payable",
       "title": "Array",
       "description": "Test array format",
@@ -327,25 +322,25 @@
           "params": [
             {
               "key": "$val",
-              "value": "$locals.nums"
-            }
-          ]
-        },
-        {
-          "title": "Item",
-          "format": "uint",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.val"
+              "value": "$data.nums"
             }
           ],
-          "checks": [[{"left": "$locals.val", "right": "$locals.val"}]]
+          "fields": [
+            {
+              "title": "Item",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$data.val"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
     {
-      "address": "0xcA11bde05977b3631167028862bE2a173976CA11",
       "abi": "function aggregate((address target, bytes data)[] calls)",
       "title": "Multicall3",
       "fields": [
@@ -355,33 +350,33 @@
           "params": [
             {
               "key": "$item",
-              "value": "$locals.calls"
-            }
-          ]
-        },
-        {
-          "title": "Call",
-          "format": "call",
-          "params": [
-            {
-              "key": "to",
-              "value": "$locals.item.target"
-            },
-            {
-              "key": "data",
-              "value": "$locals.item.data"
-            },
-            {
-              "key": "value",
-              "value": "0"
+              "value": "$data.calls"
             }
           ],
-          "checks": [[{"left": "$locals.item", "right": "$locals.item"}]]
+          "fields": [
+            {
+              "title": "Call",
+              "format": "call",
+              "params": [
+                {
+                  "key": "to",
+                  "value": "$data.item.target"
+                },
+                {
+                  "key": "data",
+                  "value": "$data.item.data"
+                },
+                {
+                  "key": "value",
+                  "value": "0"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function abiCall(bytes data) payable",
       "title": "Abi Test",
       "description": "Testing Format::Match with abi",
@@ -392,40 +387,39 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.data"
+              "value": "$data.data"
             },
             {
               "key": "abi",
               "value": "(address recipient, uint256 amount)"
             }
+          ],
+          "fields": [
+            {
+              "title": "Recipient",
+              "format": "address",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$data.recipient"
+                }
+              ]
+            },
+            {
+              "title": "Amount",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$data.amount"
+                }
+              ]
+            }
           ]
-        },
-        {
-          "title": "Recipient",
-          "format": "address",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.recipient"
-            }
-          ],
-          "checks": [[{"left": "$locals.recipient", "right": "$locals.recipient"}]]
-        },
-        {
-          "title": "Amount",
-          "format": "uint",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.amount"
-            }
-          ],
-          "checks": [[{"left": "$locals.amount", "right": "$locals.amount"}]]
         }
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function abiCall(bytes data) payable",
       "title": "Abi Test New Locals",
       "description": "Testing Format::Match with abi with new locals from parent",
@@ -436,7 +430,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.data"
+              "value": "$data.data"
             },
             {
               "key": "abi",
@@ -446,46 +440,38 @@
               "key": "$sender_copy",
               "value": "$msg.sender"
             }
-          ]
-        },
-        {
-          "title": "Sender Copy",
-          "format": "address",
-          "params": [
-            {
-              "key": "value",
-              "value": "$locals.sender_copy"
-            }
           ],
-          "checks": [[{"left": "$locals.sender_copy", "right": "$locals.sender_copy"}]]
-        },
-        {
-          "title": "Decoded Recipient",
-          "format": "address",
-          "params": [
+          "fields": [
             {
-              "key": "value",
-              "value": "$locals.recipient"
-            }
-          ],
-          "checks": [[{"left": "$locals.recipient", "right": "$locals.recipient"}]]
-        },
-        {
-          "title": "Decoded Amount",
-          "format": "uint",
-          "params": [
+              "title": "Sender Copy",
+              "format": "address",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$data.sender_copy"
+                }
+              ]
+            },
             {
-              "key": "value",
-              "value": "$locals.amount"
+              "title": "Decoded Recipient",
+              "format": "address",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$data.recipient"
+                }
+              ]
+            },
+            {
+              "title": "Decoded Amount",
+              "format": "uint",
+              "params": [
+                {
+                  "key": "value",
+                  "value": "$data.amount"
+                }
+              ]
             }
-          ],
-          "checks": [
-            [
-              {
-                "left": "$locals.amount",
-                "right": "$locals.amount"
-              }
-            ]
           ]
         }
       ]

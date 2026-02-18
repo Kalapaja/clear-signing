@@ -12,11 +12,11 @@
           "params": [
             {
               "key": "token",
-              "value": "$locals.path[0]"
+              "value": "$data.path[0]"
             },
             {
               "key": "amount",
-              "value": "$locals.amountIn"
+              "value": "$data.amountIn"
             }
           ]
         },
@@ -27,11 +27,11 @@
           "params": [
             {
               "key": "token",
-              "value": "$locals.path[-1]"
+              "value": "$data.path[-1]"
             },
             {
               "key": "amount",
-              "value": "$locals.amountOutMin"
+              "value": "$data.amountOutMin"
             }
           ]
         },
@@ -42,7 +42,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.to"
+              "value": "$data.to"
             }
           ]
         },
@@ -53,7 +53,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.deadline"
+              "value": "$data.deadline"
             }
           ]
         }

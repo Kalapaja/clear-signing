@@ -2,7 +2,6 @@
   "$schema": "../../schemas/display.schema.json",
   "displays": [
     {
-      "address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af",
       "title": "Swap",
       "abi": "function execute(bytes commands, bytes[] inputs, uint256 deadline) payable",
       "fields": [
@@ -16,446 +15,417 @@
         {
           "format": "array",
           "params": [
-            {"key": "$command", "value": "$locals.commands"},
-            {"key": "$input", "value": "$locals.inputs"}
-          ]
-        },
-        {
-          "description": "V2 SWAP EXACT IN",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x08"}]],
-          "params": [
-            {"key": "$case", "value": "v2_swap_exact_in"},
-            {"key": "value", "value": "$locals.input"},
+            {"key": "$command", "value": "$data.commands"},
+            {"key": "$input", "value": "$data.inputs"}
+          ],
+          "fields": [
             {
-              "key": "abi",
-              "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, address[] path, bool payerIsUser)"
-            }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v2_swap_exact_in"},
-              {"left": "$locals.payerIsUser", "right": "true"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountIn", "value": "$locals.amountIn"},
-            {"key": "$tokenIn", "value": "$locals.path[0]"}
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v2_swap_exact_in"},
-              {"left": "$locals.recipient", "right": "$msg.sender"}
-            ],
-            [
-              {"left": "$locals.case", "right": "v2_swap_exact_in"},
-              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
-            {"key": "$tokenOut", "value": "$locals.path[-1]"}
-          ]
-        },
-        {
-          "description": "V2 SWAP EXACT OUT",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x09"}]],
-          "params": [
-            {"key": "$case", "value": "v2_swap_exact_out"},
-            {"key": "value", "value": "$locals.input"},
+              "description": "V2 SWAP EXACT IN",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x08"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {
+                  "key": "abi",
+                  "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, address[] path, bool payerIsUser)"
+                }
+              ],
+              "fields": [
+                {
+                  "title": "Send",
+                  "format": "tokenAmount",
+                  "checks": [[{"left": "$data.payerIsUser", "right": "true"}]],
+                  "params": [
+                    {"key": "token", "value": "$data.path[0]"},
+                    {"key": "amount", "value": "$data.amountIn"},
+                    {"key": "direction", "value": "out"}
+                  ]
+                },
+                {
+                  "title": "Receive minimum",
+                  "format": "tokenAmount",
+                  "checks": [
+                    [{"left": "$data.recipient", "right": "$msg.sender"}],
+                    [{"left": "$data.recipient", "right": "0x0000000000000000000000000000000000000001"}]
+                  ],
+                  "params": [
+                    {"key": "token", "value": "$data.path[-1]"},
+                    {"key": "amount", "value": "$data.amountOutMin"},
+                    {"key": "direction", "value": "in"}
+                  ]
+                }
+              ]
+            },
             {
-              "key": "abi",
-              "value": "(address recipient, uint256 amountOut, uint256 amountInMax, address[] path, bool payerIsUser)"
-            }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v2_swap_exact_out"},
-              {"left": "$locals.payerIsUser", "right": "true"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountInMax", "value": "$locals.amountInMax"},
-            {"key": "$tokenIn", "value": "$locals.path[0]"}
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v2_swap_exact_out"},
-              {"left": "$locals.recipient", "right": "$msg.sender"}
-            ],
-            [
-              {"left": "$locals.case", "right": "v2_swap_exact_out"},
-              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOut", "value": "$locals.amountOut"},
-            {"key": "$tokenOut", "value": "$locals.path[-1]"}
-          ]
-        },
-        {
-          "description": "V3 SWAP EXACT IN",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x00"}]],
-          "params": [
-            {"key": "$case", "value": "v3_swap_exact_in"},
-            {"key": "value", "value": "$locals.input"},
+              "description": "V2 SWAP EXACT OUT",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x09"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {
+                  "key": "abi",
+                  "value": "(address recipient, uint256 amountOut, uint256 amountInMax, address[] path, bool payerIsUser)"
+                }
+              ],
+              "fields": [
+                {
+                  "title": "Send maximum",
+                  "format": "tokenAmount",
+                  "checks": [[{"left": "$data.payerIsUser", "right": "true"}]],
+                  "params": [
+                    {"key": "token", "value": "$data.path[0]"},
+                    {"key": "amount", "value": "$data.amountInMax"},
+                    {"key": "direction", "value": "out"}
+                  ]
+                },
+                {
+                  "title": "Receive",
+                  "format": "tokenAmount",
+                  "checks": [
+                    [{"left": "$data.recipient", "right": "$msg.sender"}],
+                    [{"left": "$data.recipient", "right": "0x0000000000000000000000000000000000000001"}]
+                  ],
+                  "params": [
+                    {"key": "token", "value": "$data.path[-1]"},
+                    {"key": "amount", "value": "$data.amountOut"},
+                    {"key": "direction", "value": "in"}
+                  ]
+                }
+              ]
+            },
             {
-              "key": "abi",
-              "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, bytes pathBytes, bool payerIsUser)"
-            }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v3_swap_exact_in"},
-              {"left": "$locals.payerIsUser", "right": "true"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountIn", "value": "$locals.amountIn"},
-            {"key": "$tokenIn", "value": "$locals.pathBytes[:20]"}
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v3_swap_exact_in"},
-              {"left": "$locals.recipient", "right": "$msg.sender"}
-            ],
-            [
-              {"left": "$locals.case", "right": "v3_swap_exact_in"},
-              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
-            {"key": "$tokenOut", "value": "$locals.pathBytes[-20:]"}
-          ]
-        },
-        {
-          "description": "V3 SWAP EXACT OUT",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x01"}]],
-          "params": [
-            {"key": "$case", "value": "v3_swap_exact_out"},
-            {"key": "value", "value": "$locals.input"},
+              "description": "V3 SWAP EXACT IN",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x00"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {
+                  "key": "abi",
+                  "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, bytes pathBytes, bool payerIsUser)"
+                }
+              ],
+              "fields": [
+                {
+                  "title": "Send",
+                  "format": "tokenAmount",
+                  "checks": [[{"left": "$data.payerIsUser", "right": "true"}]],
+                  "params": [
+                    {"key": "token", "value": "$data.pathBytes[:20]"},
+                    {"key": "amount", "value": "$data.amountIn"},
+                    {"key": "direction", "value": "out"}
+                  ]
+                },
+                {
+                  "title": "Receive minimum",
+                  "format": "tokenAmount",
+                  "checks": [
+                    [{"left": "$data.recipient", "right": "$msg.sender"}],
+                    [{"left": "$data.recipient", "right": "0x0000000000000000000000000000000000000001"}]
+                  ],
+                  "params": [
+                    {"key": "token", "value": "$data.pathBytes[-20:]"},
+                    {"key": "amount", "value": "$data.amountOutMin"},
+                    {"key": "direction", "value": "in"}
+                  ]
+                }
+              ]
+            },
             {
-              "key": "abi",
-              "value": "(address recipient, uint256 amountOut, uint256 amountInMax, bytes pathBytes, bool payerIsUser)"
-            }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v3_swap_exact_out"},
-              {"left": "$locals.payerIsUser", "right": "true"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountInMax", "value": "$locals.amountInMax"},
-            {"key": "$tokenIn", "value": "$locals.pathBytes[:20]"}
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v3_swap_exact_out"},
-              {"left": "$locals.recipient", "right": "$msg.sender"}
-            ],
-            [
-              {"left": "$locals.case", "right": "v3_swap_exact_out"},
-              {"left": "$locals.recipient", "right": "0x0000000000000000000000000000000000000001"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOut", "value": "$locals.amountOut"},
-            {"key": "$tokenOut", "value": "$locals.pathBytes[-20:]"}
-          ]
-        },
-        {
-          "description": "Unwrap ETH",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x0c"}]],
-          "params": [
-            {"key": "$case", "value": "unwrap_eth"},
-            {"key": "value", "value": "$locals.input"},
-            {"key": "abi", "value": "(address recipient, uint256 amountOutMin)"}
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "unwrap_eth"},
-              {"left": "$locals.recipient", "right": "$msg.sender"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOutMin", "value": "$locals.amountOutMin"},
-            {"key": "$tokenOut", "value": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"}
-          ]
-        },
-        {
-          "description": "Wrap ETH",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x0b"}]],
-          "params": [
-            {"key": "$case", "value": "wrap_eth"},
-            {"key": "value", "value": "$locals.input"},
-            {"key": "abi", "value": "(address recipient, uint256 amountIn)"},
-            {"key": "$tokenIn", "value": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}
-          ]
-        },
-        {
-          "description": "Execute Sub Plan",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x21"}]],
-          "params": [
-            {"key": "value", "value": "$locals.input"},
-            {"key": "abi", "value": "(bytes commands, bytes[] inputs)"},
-            {"key": "$commands", "value": "$locals.commands"},
-            {"key": "$inputs", "value": "$locals.inputs"}
-          ]
-        },
-        {
-          "description": "V4 Swap",
-          "format": "match",
-          "checks": [[{"left": "$locals.command", "right": "0x10"}]],
-          "params": [
-            {"key": "value", "value": "$locals.input"},
-            {"key": "abi", "value": "(bytes actions, bytes[] params)"}
-          ]
-        },
-        {
-          "format": "array",
-          "checks": [
-            [
-              {"left": "$locals.actions", "right": "$locals.actions"},
-              {"left": "$locals.params", "right": "$locals.params"}
-            ]
-          ],
-          "params": [
-            {"key": "$action", "value": "$locals.actions"},
-            {"key": "$param", "value": "$locals.params"}
-          ]
-        },
-        {
-          "description": "V4 SWAP EXACT IN",
-          "format": "match",
-          "checks": [[{"left": "$locals.action", "right": "0x07"}]],
-          "params": [
-            {"key": "$case", "value": "v4_swap_exact_in"},
-            {"key": "value", "value": "$locals.param"},
+              "description": "V3 SWAP EXACT OUT",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x01"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {
+                  "key": "abi",
+                  "value": "(address recipient, uint256 amountOut, uint256 amountInMax, bytes pathBytes, bool payerIsUser)"
+                }
+              ],
+              "fields": [
+                {
+                  "title": "Send maximum",
+                  "format": "tokenAmount",
+                  "checks": [[{"left": "$data.payerIsUser", "right": "true"}]],
+                  "params": [
+                    {"key": "token", "value": "$data.pathBytes[:20]"},
+                    {"key": "amount", "value": "$data.amountInMax"},
+                    {"key": "direction", "value": "out"}
+                  ]
+                },
+                {
+                  "title": "Receive",
+                  "format": "tokenAmount",
+                  "checks": [
+                    [{"left": "$data.recipient", "right": "$msg.sender"}],
+                    [{"left": "$data.recipient", "right": "0x0000000000000000000000000000000000000001"}]
+                  ],
+                  "params": [
+                    {"key": "token", "value": "$data.pathBytes[-20:]"},
+                    {"key": "amount", "value": "$data.amountOut"},
+                    {"key": "direction", "value": "in"}
+                  ]
+                }
+              ]
+            },
             {
-              "key": "abi",
-              "value": "((address tokenIn, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountIn, uint256 amountOutMin) swap)"
-            }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [[{"left": "$locals.case", "right": "v4_swap_exact_in"}]],
-          "params": [
-            {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
-            {"key": "$tokenOut", "value": "$locals.swap.pathKeys[-1].token"},
-            {"key": "$tokenIn", "value": "$locals.swap.tokenIn"},
-            {"key": "$amountIn", "value": "$locals.swap.amountIn"}
-          ]
-        },
-        {
-          "description": "V4 SWAP EXACT IN SINGLE",
-          "format": "match",
-          "checks": [[{"left": "$locals.action", "right": "0x06"}]],
-          "params": [
-            {"key": "$case", "value": "v4_swap_exact_in_single"},
-            {"key": "value", "value": "$locals.param"},
+              "description": "Unwrap ETH",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x0c"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {"key": "abi", "value": "(address recipient, uint256 amountOutMin)"}
+              ],
+              "fields": [
+                {
+                  "title": "Receive minimum",
+                  "format": "tokenAmount",
+                  "checks": [[{"left": "$data.recipient", "right": "$msg.sender"}]],
+                  "params": [
+                    {"key": "token", "value": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"},
+                    {"key": "amount", "value": "$data.amountOutMin"},
+                    {"key": "direction", "value": "in"}
+                  ]
+                }
+              ]
+            },
             {
-              "key": "abi",
-              "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, bytes) swap)"
-            }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v4_swap_exact_in_single"},
-              {"left": "$locals.swap.zeroForOne", "right": "true"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
-            {"key": "$amountIn", "value": "$locals.swap.amountIn"},
-            {"key": "$tokenOut", "value": "$locals.swap.pool.token1"},
-            {"key": "$tokenIn", "value": "$locals.swap.pool.token0"}
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v4_swap_exact_in_single"},
-              {"left": "$locals.swap.zeroForOne", "right": "false"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOutMin", "value": "$locals.swap.amountOutMin"},
-            {"key": "$amountIn", "value": "$locals.swap.amountIn"},
-            {"key": "$tokenOut", "value": "$locals.swap.pool.token0"},
-            {"key": "$tokenIn", "value": "$locals.swap.pool.token1"}
-          ]
-        },
-        {
-          "description": "V4 SWAP EXACT OUT",
-          "format": "match",
-          "checks": [[{"left": "$locals.action", "right": "0x09"}]],
-          "params": [
-            {"key": "$case", "value": "v4_swap_exact_out"},
-            {"key": "value", "value": "$locals.param"},
+              "description": "Wrap ETH",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x0b"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {"key": "abi", "value": "(address recipient, uint256 amountIn)"}
+              ],
+              "fields": [
+                {
+                  "title": "Send",
+                  "format": "tokenAmount",
+                  "params": [
+                    {"key": "token", "value": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+                    {"key": "amount", "value": "$data.amountIn"},
+                    {"key": "direction", "value": "out"}
+                  ]
+                }
+              ]
+            },
             {
-              "key": "abi",
-              "value": "((address tokenOut, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountOut, uint256 amountInMax) swap)"
-            }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [[{"left": "$locals.case", "right": "v4_swap_exact_out"}]],
-          "params": [
-            {"key": "$amountOut", "value": "$locals.swap.amountOut"},
-            {"key": "$tokenOut", "value": "$locals.swap.pathKeys[-1].token"},
-            {"key": "$tokenIn", "value": "$locals.swap.tokenIn"},
-            {"key": "$amountInMax", "value": "$locals.swap.amountInMax"}
-          ]
-        },
-        {
-          "description": "V4 SWAP EXACT OUT SINGLE",
-          "format": "match",
-          "checks": [[{"left": "$locals.action", "right": "0x08"}]],
-          "params": [
-            {"key": "$case", "value": "v4_swap_exact_out_single"},
-            {"key": "value", "value": "$locals.param"},
+              "description": "Execute Sub Plan",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x21"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {"key": "abi", "value": "(bytes commands, bytes[] inputs)"}
+              ],
+              "fields": [
+                {
+                  "format": "array",
+                  "params": [
+                    {"key": "$command", "value": "$data.commands"},
+                    {"key": "$input", "value": "$data.inputs"}
+                  ],
+                  "fields": []
+                }
+              ]
+            },
             {
-              "key": "abi",
-              "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountOut, uint256 amountInMax, bytes) swap)"
+              "description": "V4 Swap",
+              "format": "match",
+              "checks": [[{"left": "$data.command", "right": "0x10"}]],
+              "params": [
+                {"key": "value", "value": "$data.input"},
+                {"key": "abi", "value": "(bytes actions, bytes[] params)"}
+              ],
+              "fields": [
+                {
+                  "format": "array",
+                  "params": [
+                    {"key": "$action", "value": "$data.actions"},
+                    {"key": "$param", "value": "$data.params"}
+                  ],
+                  "fields": [
+                    {
+                      "description": "V4 SWAP EXACT IN",
+                      "format": "match",
+                      "checks": [[{"left": "$data.action", "right": "0x07"}]],
+                      "params": [
+                        {"key": "value", "value": "$data.param"},
+                        {
+                          "key": "abi",
+                          "value": "((address tokenIn, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountIn, uint256 amountOutMin) swap)"
+                        }
+                      ],
+                      "fields": [
+                        {
+                          "title": "Send",
+                          "format": "tokenAmount",
+                          "params": [
+                            {"key": "token", "value": "$data.swap.tokenIn"},
+                            {"key": "amount", "value": "$data.swap.amountIn"},
+                            {"key": "direction", "value": "out"}
+                          ]
+                        },
+                        {
+                          "title": "Receive minimum",
+                          "format": "tokenAmount",
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pathKeys[-1].token"},
+                            {"key": "amount", "value": "$data.swap.amountOutMin"},
+                            {"key": "direction", "value": "in"}
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "description": "V4 SWAP EXACT IN SINGLE",
+                      "format": "match",
+                      "checks": [[{"left": "$data.action", "right": "0x06"}]],
+                      "params": [
+                        {"key": "value", "value": "$data.param"},
+                        {
+                          "key": "abi",
+                          "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, bytes) swap)"
+                        }
+                      ],
+                      "fields": [
+                        {
+                          "title": "Send",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "true"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token0"},
+                            {"key": "amount", "value": "$data.swap.amountIn"},
+                            {"key": "direction", "value": "out"}
+                          ]
+                        },
+                        {
+                          "title": "Receive minimum",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "true"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token1"},
+                            {"key": "amount", "value": "$data.swap.amountOutMin"},
+                            {"key": "direction", "value": "in"}
+                          ]
+                        },
+                        {
+                          "title": "Send",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "false"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token1"},
+                            {"key": "amount", "value": "$data.swap.amountIn"},
+                            {"key": "direction", "value": "out"}
+                          ]
+                        },
+                        {
+                          "title": "Receive minimum",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "false"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token0"},
+                            {"key": "amount", "value": "$data.swap.amountOutMin"},
+                            {"key": "direction", "value": "in"}
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "description": "V4 SWAP EXACT OUT",
+                      "format": "match",
+                      "checks": [[{"left": "$data.action", "right": "0x09"}]],
+                      "params": [
+                        {"key": "value", "value": "$data.param"},
+                        {
+                          "key": "abi",
+                          "value": "((address tokenOut, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountOut, uint256 amountInMax) swap)"
+                        }
+                      ],
+                      "fields": [
+                        {
+                          "title": "Send maximum",
+                          "format": "tokenAmount",
+                          "params": [
+                            {"key": "token", "value": "$data.swap.tokenIn"},
+                            {"key": "amount", "value": "$data.swap.amountInMax"},
+                            {"key": "direction", "value": "out"}
+                          ]
+                        },
+                        {
+                          "title": "Receive",
+                          "format": "tokenAmount",
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pathKeys[-1].token"},
+                            {"key": "amount", "value": "$data.swap.amountOut"},
+                            {"key": "direction", "value": "in"}
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "description": "V4 SWAP EXACT OUT SINGLE",
+                      "format": "match",
+                      "checks": [[{"left": "$data.action", "right": "0x08"}]],
+                      "params": [
+                        {"key": "value", "value": "$data.param"},
+                        {
+                          "key": "abi",
+                          "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountOut, uint256 amountInMax, bytes) swap)"
+                        }
+                      ],
+                      "fields": [
+                        {
+                          "title": "Send maximum",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "true"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token0"},
+                            {"key": "amount", "value": "$data.swap.amountInMax"},
+                            {"key": "direction", "value": "out"}
+                          ]
+                        },
+                        {
+                          "title": "Receive",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "true"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token1"},
+                            {"key": "amount", "value": "$data.swap.amountOut"},
+                            {"key": "direction", "value": "in"}
+                          ]
+                        },
+                        {
+                          "title": "Send maximum",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "false"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token1"},
+                            {"key": "amount", "value": "$data.swap.amountInMax"},
+                            {"key": "direction", "value": "out"}
+                          ]
+                        },
+                        {
+                          "title": "Receive",
+                          "format": "tokenAmount",
+                          "checks": [[{"left": "$data.swap.zeroForOne", "right": "false"}]],
+                          "params": [
+                            {"key": "token", "value": "$data.swap.pool.token0"},
+                            {"key": "amount", "value": "$data.swap.amountOut"},
+                            {"key": "direction", "value": "in"}
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
             }
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v4_swap_exact_out_single"},
-              {"left": "$locals.swap.zeroForOne", "right": "true"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOut", "value": "$locals.swap.amountOut"},
-            {"key": "$amountInMax", "value": "$locals.swap.amountInMax"},
-            {"key": "$tokenOut", "value": "$locals.swap.pool.token1"},
-            {"key": "$tokenIn", "value": "$locals.swap.pool.token0"}
-          ]
-        },
-        {
-          "format": "match",
-          "checks": [
-            [
-              {"left": "$locals.case", "right": "v4_swap_exact_out_single"},
-              {"left": "$locals.swap.zeroForOne", "right": "false"}
-            ]
-          ],
-          "params": [
-            {"key": "$amountOut", "value": "$locals.swap.amountOut"},
-            {"key": "$amountInMax", "value": "$locals.swap.amountInMax"},
-            {"key": "$tokenOut", "value": "$locals.swap.pool.token0"},
-            {"key": "$tokenIn", "value": "$locals.swap.pool.token1"}
-          ]
-        },
-        {
-          "title": "Send",
-          "format": "tokenAmount",
-          "checks": [
-            [
-              {"left": "$locals.tokenIn"},
-              {"left": "$locals.amountIn"}
-            ]
-          ],
-          "params": [
-            {"key": "token", "value": "$locals.tokenIn"},
-            {"key": "amount", "value": "$locals.amountIn"},
-            {"key": "direction", "value": "out"}
-          ]
-        },
-        {
-          "title": "Send maximum",
-          "format": "tokenAmount",
-          "checks": [
-            [
-              {"left": "$locals.tokenIn"},
-              {"left": "$locals.amountInMax"}
-            ]
-          ],
-          "params": [
-            {"key": "token", "value": "$locals.tokenIn"},
-            {"key": "amount", "value": "$locals.amountInMax"},
-            {"key": "direction", "value": "out"}
-          ]
-        },
-        {
-          "title": "Receive",
-          "format": "tokenAmount",
-          "checks": [
-            [
-              {"left": "$locals.tokenOut"},
-              {"left": "$locals.amountOut"}
-            ]
-          ],
-          "params": [
-            {"key": "token", "value": "$locals.tokenOut"},
-            {"key": "amount", "value": "$locals.amountOut"},
-            {"key": "direction", "value": "in"}
-          ]
-        },
-        {
-          "title": "Receive minimum",
-          "format": "tokenAmount",
-          "checks": [
-            [
-              {"left": "$locals.tokenOut"},
-              {"left": "$locals.amountOutMin"}
-            ]
-          ],
-          "params": [
-            {"key": "token", "value": "$locals.tokenOut"},
-            {"key": "amount", "value": "$locals.amountOutMin"},
-            {"key": "direction", "value": "in"}
           ]
         },
         {
           "title": "Deadline",
           "format": "datetime",
           "params": [
-            {"key": "value", "value": "$locals.deadline"}
+            {"key": "value", "value": "$data.deadline"}
           ]
         }
       ],

@@ -17,13 +17,8 @@
   "definitions": {
     "Display": {
       "type": "object",
-      "required": [ "address", "abi", "fields" ],
+      "required": [ "abi", "fields" ],
       "properties": {
-        "address": {
-          "type": "string",
-          "pattern": "^0x[a-fA-F0-9]{40}$",
-          "description": "The address of the contract that will verify the signature"
-        },
         "abi": {
           "type": "string",
           "description": "Solidity function signature (e.g., 'transfer(address receiver, uint256 amount)')"
@@ -109,6 +104,13 @@
               "$ref": "#/definitions/Check"
             }
           }
+        },
+        "fields": {
+          "type": "array",
+          "description": "Nested child fields (recursive). Used for array and match formats to define explicit scope.",
+          "items": {
+            "$ref": "#/definitions/Field"
+          }
         }
       },
       "additionalProperties": false,
@@ -130,7 +132,10 @@
             "properties": {
               "params": {
                 "type": "array",
-                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+                "allOf": [
+                  { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } },
+                  { "contains": { "type": "object", "properties": { "key": { "const": "basis" } } } }
+                ]
               }
             }
           }
@@ -347,7 +352,7 @@
       "anyOf": [
         {
           "pattern": "^[#$][\\w_.\\[:\\]]*",
-          "description": "A reference to a context variable (e.g., $msg.data.amount, $locals.val)"
+          "description": "A reference to a context variable (e.g., $msg.data.amount, $data.val)"
         },
         {
           "description": "A literal value"

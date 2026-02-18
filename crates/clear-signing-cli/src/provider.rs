@@ -28,6 +28,7 @@ impl<'a> Registry for ProviderRegistry<'a> {
             .contracts
             .iter()
             .any(|c| c.address == *address)
+            || self.is_well_known_token(address)
     }
 
     fn is_well_known_token(&self, address: &Address) -> bool {
@@ -36,16 +37,13 @@ impl<'a> Registry for ProviderRegistry<'a> {
 
     fn get_well_known_display(
         &self,
-        address: &Address,
+        _address: &Address,
         selector: &FixedBytes<4>,
     ) -> Option<Display> {
         self.provider
             .displays
             .iter()
             .find(|d| {
-                if d.address != *address && d.address != Address::ZERO {
-                    return false;
-                }
                 if let Ok(func) = SolFunction::parse(&d.abi) {
                     func.selector() == *selector
                 } else {

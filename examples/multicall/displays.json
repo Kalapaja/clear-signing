@@ -2,7 +2,6 @@
   "$schema": "../../schemas/display.schema.json",
   "displays": [
     {
-      "address": "0x0000000000000000000000000000000000000000",
       "title": "Transfer",
       "abi": "function transfer(address receiver, uint256 amount)",
       "fields": [
@@ -11,7 +10,7 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$locals.amount"}
+            {"key": "amount", "value": "$data.amount"}
           ]
         },
         {
@@ -25,7 +24,7 @@
           "title": "$labels.receiver",
           "format": "address",
           "params": [
-            {"key": "value", "value": "$locals.receiver"}
+            {"key": "value", "value": "$data.receiver"}
           ]
         }
       ],
@@ -41,7 +40,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000000",
       "title": "Approve",
       "abi": "function approve(address spender, uint256 amount)",
       "fields": [
@@ -50,7 +48,7 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$locals.amount"}
+            {"key": "amount", "value": "$data.amount"}
           ]
         },
         {
@@ -64,7 +62,7 @@
           "title": "$labels.spender",
           "format": "contract",
           "params": [
-            {"key": "value", "value": "$locals.spender"}
+            {"key": "value", "value": "$data.spender"}
           ]
         }
       ],
@@ -80,7 +78,6 @@
       ]
     },
     {
-      "address": "0xcA11bde05977b3631167028862bE2a173976CA11",
       "title": "$labels.aggregate",
       "abi": "function aggregate((address to, bytes data)[] calls)",
       "fields": [
@@ -88,16 +85,17 @@
           "title": "$labels.calls",
           "format": "array",
           "params": [
-            {"key": "$call", "value": "$locals.calls"}
-          ]
-        },
-        {
-          "format": "call",
-          "checks": [[{"left": "$locals.call", "right": "$locals.call"}]],
-          "params": [
-            {"key": "to", "value": "$locals.call.to"},
-            {"key": "data", "value": "$locals.call.data"},
-            {"key": "value", "value": "0"}
+            {"key": "$call", "value": "$data.calls"}
+          ],
+          "fields": [
+            {
+              "format": "call",
+              "params": [
+                {"key": "to", "value": "$data.call.to"},
+                {"key": "data", "value": "$data.call.data"},
+                {"key": "value", "value": "0"}
+              ]
+            }
           ]
         }
       ],

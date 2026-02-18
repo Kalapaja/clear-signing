@@ -1,9 +1,9 @@
 use crate::fields::Label;
 use alloc::format;
 use alloc::string::String;
-use alloy_primitives::hex::FromHexError;
-use alloy_primitives::{ruint, Address, Selector};
 use alloy_dyn_abi::parser;
+use alloy_primitives::hex::FromHexError;
+use alloy_primitives::{ruint, Address, Selector, B256};
 use nom::{error, Err};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -11,10 +11,10 @@ pub enum ParseError {
     RecursionLimitExceeded,
     UnknownContract(Address),
     UnknownToken(Address),
-    DisplayHashMismatch,
+    DisplayHashMismatch(B256, B256),
     FunctionNotPayable,
     FunctionNotWriteable,
-    DisplayNotFound { address: Address, selector: Selector },
+    DisplayNotFound { address: Address, selector: Selector, display_hash: Option<B256> },
     UnknownFormat(String),
     UnknownOperator(String),
     SmthWentWrong(String),
@@ -28,7 +28,7 @@ impl core::fmt::Display for ParseError {
         match self {
             ParseError::RecursionLimitExceeded => write!(f, "Max recursion depth exceeded"),
             ParseError::UnknownContract(addr) => write!(f, "Unknown contract: {}", addr),
-            ParseError::DisplayHashMismatch => write!(f, "Display hash mismatch",),
+            ParseError::DisplayHashMismatch(exp, act) => write!(f, "Display hash mismatch, expected: {}, actual: {}", exp, act),
             ParseError::FunctionNotPayable => write!(f, "Function is not payable"),
             ParseError::FunctionNotWriteable => write!(f, "Function is not writeable"),
             ParseError::UnknownFormat(format) => write!(f, "Unknown format: {}", format),
@@ -39,8 +39,8 @@ impl core::fmt::Display for ParseError {
             ParseError::LabelNotFound { locale, label } => {
                 write!(f, "Label no found {} {:?}", locale, label)
             }
-            ParseError::DisplayNotFound { address, selector } => {
-                write!(f, "Display not found: {:?} at address {}", selector, address)
+            ParseError::DisplayNotFound { address, selector, display_hash } => {
+                write!(f, "Display not found: {:?} at address {} with display hash {:?}", selector, address, display_hash)
             }
             ParseError::ParamNotFound(msg) => {
                 write!(f, "Param not found: {}", msg)

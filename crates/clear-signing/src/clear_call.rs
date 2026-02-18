@@ -1,4 +1,4 @@
-use crate::display::{Check, Display, Format};
+use crate::display::{Check, Display, Field, Format};
 use crate::error::ParseError;
 use crate::error::ParseError::{DisplayNotFound, ParamNotFound, SmthWentWrong};
 use crate::fields::{ClearCall, Direction, DisplayField, Label};
@@ -9,10 +9,10 @@ use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
+use alloy_dyn_abi::DynSolType;
 use alloy_primitives::{address, Address, FixedBytes, U256};
 use alloy_sol_types::sol;
 use alloy_sol_types::SolCall;
-use alloy_dyn_abi::DynSolType;
 use core::time::Duration;
 
 /// Maximum recursion depth for nested calls to prevent stack overflow
@@ -91,60 +91,51 @@ impl ClearCallContext {
         registry: &dyn Registry,
         level: usize,
     ) -> Result<ClearCall, ParseError> {
+        if !registry.is_well_known_contract(&message.to) {
+            return Err(ParseError::UnknownContract(message.to));
+        }
+
         let display = if let Some(hash) = display_hash {
-            if !registry.is_well_known_contract(&message.to)
-                && !registry.is_well_known_token(&message.to)
-            {
-                return Err(ParseError::UnknownContract(message.to));
-            }
 
             let selector = message.selector()?;
+
+            for display in &self.displays {
+                if !display.validate() {
+                    return Err(SmthWentWrong("Display validation failed".to_string()));
+                }
+            }
 
             let display = self
                 .displays
                 .iter()
                 .find(|d| {
-                    d.address == message.to
-                        && SolFunction::parse(&d.abi)
-                            .map(|t| t.selector() == selector)
-                            .unwrap_or(false)
+                    if let Ok(func) = SolFunction::parse(&d.abi) {
+                        func.selector() == selector && d.hash_struct() == hash
+                    } else {
+                        false
+                    }
                 })
-                .ok_or(DisplayNotFound { address: message.to, selector })?
+                .ok_or(DisplayNotFound {
+                    address: message.to,
+                    selector,
+                    display_hash: Some(self.displays.first().unwrap().hash_struct()),
+                })?
                 .clone();
 
-            if !display.validate() {
-                return Err(SmthWentWrong("Display validation failed".to_string()));
-            }
-
-            if display.hash_struct() != hash {
-                return Err(ParseError::DisplayHashMismatch);
-            } else {
-                display
-            }
+            display
         } else {
             let selector = message.selector()?;
 
             let well_known_display = registry
                 .get_well_known_display(&message.to, &selector)
-                .ok_or(DisplayNotFound { address: message.to, selector })?;
+                .ok_or(DisplayNotFound {
+                    address: message.to,
+                    selector,
+                    display_hash: None,
+                })?;
 
             if !well_known_display.validate() {
                 return Err(SmthWentWrong("Display validation failed".to_string()));
-            }
-
-            match well_known_display.address {
-                Address::ZERO => {
-                    if !registry.is_well_known_contract(&message.to)
-                        && !registry.is_well_known_token(&message.to)
-                    {
-                        return Err(ParseError::UnknownContract(message.to));
-                    }
-                }
-                _ => {
-                    if well_known_display.address != message.to {
-                        return Err(ParseError::UnknownContract(message.to));
-                    }
-                }
             }
 
             well_known_display
@@ -163,9 +154,9 @@ impl ClearCallContext {
             }
         }
 
-        let locals = function_call.decode(&message.data)?;
+        let data = function_call.decode(&message.data)?;
 
-        let fields = self.process_fields(&message, &display, &locals, registry, level, false)?;
+        let fields = self.process_fields(&message, &display.fields, &data, registry, level)?;
 
         Ok(ClearCall {
             title: display.title.clone(),
@@ -181,38 +172,33 @@ impl ClearCallContext {
     fn process_fields(
         &self,
         message: &Message,
-        display: &Display,
-        locals: &SolValue,
+        fields: &[Field],
+        data: &SolValue,
         registry: &dyn Registry,
         level: usize,
-        matching: bool,
     ) -> Result<Vec<DisplayField>, ParseError> {
         if level > MAX_RECURSION_DEPTH {
             return Err(ParseError::RecursionLimitExceeded);
         }
 
-        let mut fields = vec![];
+        let mut display_fields = vec![];
 
-        'fields: for field in &display.fields {
+        'fields: for field in fields {
             let params = entries_to_map(&field.params)?;
             let title = field.title.clone();
             let description = field.description.clone();
 
-            // Evaluate checks: in matching mode, skip if no checks; otherwise evaluate
-            if matching && field.checks.is_empty() {
-                continue 'fields;
-            }
-
-            if !field.checks.is_empty() && !evaluate_checks(&field.checks, message, locals)? {
+            // Evaluate checks
+            if !field.checks.is_empty() && !evaluate_checks(&field.checks, message, data)? {
                 continue 'fields; // Skip field if checks don't pass
             }
 
             match Format::from(&field.format)? {
                 Format::Address => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_address()?;
+                        resolve_param_value(&params, "value", message, data)?.as_address()?;
 
-                    fields.push(DisplayField::Address {
+                    display_fields.push(DisplayField::Address {
                         title,
                         description,
                         value,
@@ -220,11 +206,11 @@ impl ClearCallContext {
                 }
                 Format::TokenAmount => {
                     let amount =
-                        resolve_param_value(&params, "amount", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "amount", message, data)?.as_uint()?;
                     let token =
-                        resolve_param_value(&params, "token", message, locals)?.as_address()?;
+                        resolve_param_value(&params, "token", message, data)?.as_address()?;
                     let direction =
-                        resolve_optional_param_value(&params, "direction", message, locals);
+                        resolve_optional_param_value(&params, "direction", message, data);
 
                     let direction = if let Some(direction) = direction {
                         Some(Direction::from_str(direction?.as_literal()?.as_str())?)
@@ -237,14 +223,14 @@ impl ClearCallContext {
                         address!("0x0000000000000000000000000000000000000000"),
                     ];
                     if natives.contains(&token) {
-                        fields.push(DisplayField::NativeAmount {
+                        display_fields.push(DisplayField::NativeAmount {
                             title,
                             description,
                             amount,
                             direction,
                         })
                     } else if registry.is_well_known_token(&token) {
-                        fields.push(DisplayField::TokenAmount {
+                        display_fields.push(DisplayField::TokenAmount {
                             title,
                             description,
                             token,
@@ -257,9 +243,9 @@ impl ClearCallContext {
                 }
                 Format::NativeAmount => {
                     let amount =
-                        resolve_param_value(&params, "amount", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "amount", message, data)?.as_uint()?;
                     let direction =
-                        resolve_optional_param_value(&params, "direction", message, locals);
+                        resolve_optional_param_value(&params, "direction", message, data);
 
                     let direction = if let Some(direction) = direction {
                         Some(Direction::from_str(direction?.as_literal()?.as_str())?)
@@ -267,7 +253,7 @@ impl ClearCallContext {
                         None
                     };
 
-                    fields.push(DisplayField::NativeAmount {
+                    display_fields.push(DisplayField::NativeAmount {
                         title,
                         description,
                         amount,
@@ -276,13 +262,13 @@ impl ClearCallContext {
                 }
                 Format::Contract => {
                     let contract =
-                        resolve_param_value(&params, "value", message, locals)?.as_address()?;
+                        resolve_param_value(&params, "value", message, data)?.as_address()?;
 
                     if !registry.is_well_known_contract(&contract) {
                         return Err(ParseError::UnknownContract(contract));
                     }
 
-                    fields.push(DisplayField::Contract {
+                    display_fields.push(DisplayField::Contract {
                         title,
                         description,
                         contract,
@@ -290,13 +276,13 @@ impl ClearCallContext {
                 }
                 Format::Token => {
                     let token =
-                        resolve_param_value(&params, "value", message, locals)?.as_address()?;
+                        resolve_param_value(&params, "value", message, data)?.as_address()?;
 
                     if !registry.is_well_known_token(&token) {
                         return Err(ParseError::UnknownContract(token));
                     }
 
-                    fields.push(DisplayField::Token {
+                    display_fields.push(DisplayField::Token {
                         title,
                         description,
                         token,
@@ -304,9 +290,9 @@ impl ClearCallContext {
                 }
                 Format::Bytes => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_bytes()?;
+                        resolve_param_value(&params, "value", message, data)?.as_bytes()?;
 
-                    fields.push(DisplayField::Bytes {
+                    display_fields.push(DisplayField::Bytes {
                         title,
                         description,
                         value: value.into(),
@@ -314,24 +300,23 @@ impl ClearCallContext {
                 }
                 Format::String => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_string()?;
+                        resolve_param_value(&params, "value", message, data)?.as_string()?;
 
-                    fields.push(DisplayField::String {
+                    display_fields.push(DisplayField::String {
                         title,
                         description,
                         value,
                     });
                 }
                 Format::Call => {
-                    let to = resolve_param_value(&params, "to", message, locals)?.as_address()?;
-                    let data = resolve_param_value(&params, "data", message, locals)?.as_bytes()?;
+                    let to = resolve_param_value(&params, "to", message, data)?.as_address()?;
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_uint()?;
-
+                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
+                    let data = resolve_param_value(&params, "data", message, data)?.as_bytes()?;
                     let msg = Message::new(message.to, to, value, data.into());
                     let call = self.parse_clear_call(msg, registry, level + 1)?;
 
-                    fields.push(DisplayField::Call {
+                    display_fields.push(DisplayField::Call {
                         title,
                         description,
                         call,
@@ -339,16 +324,16 @@ impl ClearCallContext {
                 }
                 Format::Boolean => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_bool()?;
-                    fields.push(DisplayField::Boolean {
+                        resolve_param_value(&params, "value", message, data)?.as_bool()?;
+                    display_fields.push(DisplayField::Boolean {
                         title,
                         description,
                         value,
                     });
                 }
                 Format::Int => {
-                    let value = resolve_param_value(&params, "value", message, locals)?.as_int()?;
-                    fields.push(DisplayField::Int {
+                    let value = resolve_param_value(&params, "value", message, data)?.as_int()?;
+                    display_fields.push(DisplayField::Int {
                         title,
                         description,
                         value,
@@ -356,9 +341,9 @@ impl ClearCallContext {
                 }
                 Format::Uint => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
 
-                    fields.push(DisplayField::Uint {
+                    display_fields.push(DisplayField::Uint {
                         title,
                         description,
                         value,
@@ -366,9 +351,9 @@ impl ClearCallContext {
                 }
                 Format::Duration => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
 
-                    fields.push(DisplayField::Duration {
+                    display_fields.push(DisplayField::Duration {
                         title,
                         description,
                         value: Duration::from_secs(value.try_into()?),
@@ -376,9 +361,9 @@ impl ClearCallContext {
                 }
                 Format::Datetime => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
 
-                    fields.push(DisplayField::Datetime {
+                    display_fields.push(DisplayField::Datetime {
                         title,
                         description,
                         value: Duration::from_secs(value.try_into()?),
@@ -386,11 +371,11 @@ impl ClearCallContext {
                 }
                 Format::Percentage => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
                     let basis =
-                        resolve_param_value(&params, "basis", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "basis", message, data)?.as_uint()?;
 
-                    fields.push(DisplayField::Percentage {
+                    display_fields.push(DisplayField::Percentage {
                         title,
                         description,
                         value,
@@ -399,7 +384,7 @@ impl ClearCallContext {
                 }
                 Format::Bitmask => {
                     let value =
-                        resolve_param_value(&params, "value", message, locals)?.as_uint()?;
+                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
                     let bit_indexes = map_to_values(&params, '#');
 
                     let mut values: Vec<Label> = vec![];
@@ -411,42 +396,41 @@ impl ClearCallContext {
                         }
                     }
 
-                    fields.push(DisplayField::Bitmask {
+                    display_fields.push(DisplayField::Bitmask {
                         title,
                         description,
                         values,
                     });
                 }
                 Format::Match => {
-                    let mut match_locals = vec![];
-                    decode_abi_locals(&params, message, locals, &mut match_locals)?;
-                    decode_params_locals(&params, message, locals, &mut match_locals)?;
+                    let mut match_data = vec![];
+                    decode_abi_data(&params, message, data, &mut match_data)?;
+                    decode_params_data(&params, message, data, &mut match_data)?;
 
-                    let new_locals = SolValue::Tuple(match_locals);
+                    let new_data = SolValue::Tuple(match_data);
 
                     let new_fields = self.process_fields(
                         message,
-                        display,
-                        &new_locals,
+                        &field.fields,
+                        &new_data,
                         registry,
                         level + 1,
-                        true,
                     )?;
 
-                    fields.push(DisplayField::Match {
+                    display_fields.push(DisplayField::Match {
                         title,
                         description,
                         values: new_fields,
                     });
                 }
                 Format::Array => {
-                    let new_locals_names = map_to_values(&params, '$');
+                    let new_data_names = map_to_values(&params, '$');
 
                     let mut arrays: Vec<(String, Vec<SolValue>)> = vec![];
                     let mut length = 0;
 
-                    for (i, (name, reference)) in new_locals_names.into_iter().enumerate() {
-                        let value = resolve_value(reference, message, locals)?.as_array()?;
+                    for (i, (name, reference)) in new_data_names.into_iter().enumerate() {
+                        let value = resolve_value(reference, message, data)?.as_array()?;
                         if i == 0 {
                             length = value.len();
                         } else if value.len() != length {
@@ -462,19 +446,18 @@ impl ClearCallContext {
                         for (name, array) in &arrays {
                             tuple.push((Some(name.clone()), array[i].clone()));
                         }
-                        let new_locals = SolValue::Tuple(tuple);
+                        let new_data = SolValue::Tuple(tuple);
                         let item_fields = self.process_fields(
                             message,
-                            display,
-                            &new_locals,
+                            &field.fields,
+                            &new_data,
                             registry,
                             level + 1,
-                            true,
                         )?;
                         values.push(item_fields);
                     }
 
-                    fields.push(DisplayField::Array {
+                    display_fields.push(DisplayField::Array {
                         title,
                         description,
                         values,
@@ -487,7 +470,7 @@ impl ClearCallContext {
         //     return Err(SmthWentWrong("Fields not created".to_string()));
         // }
 
-        Ok(fields)
+        Ok(display_fields)
     }
 }
 
@@ -499,12 +482,12 @@ impl ClearCallContext {
 fn evaluate_checks(
     checks: &[Vec<Check>],
     message: &Message,
-    locals: &SolValue,
+    data: &SolValue,
 ) -> Result<bool, ParseError> {
     // OR logic: at least one group must pass
     for check_group in checks {
         // AND logic: all checks in this group must pass
-        if evaluate_check_group(check_group, message, locals)? {
+        if evaluate_check_group(check_group, message, data)? {
             return Ok(true); // Short-circuit on first passing group
         }
     }
@@ -516,11 +499,11 @@ fn evaluate_checks(
 fn evaluate_check_group(
     check_group: &[Check],
     message: &Message,
-    locals: &SolValue,
+    data: &SolValue,
 ) -> Result<bool, ParseError> {
     for check in check_group {
         // Resolve left operand
-        let left_val = resolve_value(&check.left, message, locals);
+        let left_val = resolve_value(&check.left, message, data);
 
         // Handle ReferenceNotFound - treat as check failure
         if let Err(ParseError::ReferenceNotFound(_)) = left_val {
@@ -531,7 +514,7 @@ fn evaluate_check_group(
         let right_val = if check.right.is_empty() {
             left_val.clone()
         } else {
-            resolve_value(&check.right, message, locals)
+            resolve_value(&check.right, message, data)
         };
 
         // Parse and apply operator
@@ -570,35 +553,35 @@ fn resolve_param_value(
     params: &BTreeMap<&str, &str>,
     key: &str,
     message: &Message,
-    locals: &SolValue,
+    data: &SolValue,
 ) -> Result<SolValue, ParseError> {
     let param_value = params
         .get(key)
         .ok_or_else(|| ParamNotFound(format!("Param {} not found", key)))?;
 
-    resolve_value(param_value, message, locals)
+    resolve_value(param_value, message, data)
 }
 
 fn resolve_optional_param_value(
     params: &BTreeMap<&str, &str>,
     key: &str,
     message: &Message,
-    locals: &SolValue,
+    data: &SolValue,
 ) -> Option<Result<SolValue, ParseError>> {
     let param_value = params.get(key);
 
-    param_value.map(|param_value| resolve_value(param_value, message, locals))
+    param_value.map(|param_value| resolve_value(param_value, message, data))
 }
 
-fn decode_abi_locals(
+fn decode_abi_data(
     params: &BTreeMap<&str, &str>,
     message: &Message,
-    locals: &SolValue,
-    match_locals: &mut Vec<(Option<String>, SolValue)>,
+    data: &SolValue,
+    match_data: &mut Vec<(Option<String>, SolValue)>,
 ) -> Result<(), ParseError> {
     if let (Some(abi), Some(value)) = (
-        resolve_optional_param_value(params, "abi", message, locals),
-        resolve_optional_param_value(params, "value", message, locals),
+        resolve_optional_param_value(params, "abi", message, data),
+        resolve_optional_param_value(params, "value", message, data),
     ) {
         let abi_string = abi?.as_string()?;
         let bytes_value = value?.as_bytes()?;
@@ -607,29 +590,29 @@ fn decode_abi_locals(
 
         let dyn_type = DynSolType::from(&sol_type);
         let decoded_dyn_value = dyn_type.abi_decode_params(&bytes_value)?;
-        let decoded_locals = SolValue::from(decoded_dyn_value, &sol_type)?;
+        let decoded_data = SolValue::from(decoded_dyn_value, &sol_type)?;
 
-        if let SolValue::Tuple(t) = decoded_locals {
-            match_locals.extend(t);
+        if let SolValue::Tuple(t) = decoded_data {
+            match_data.extend(t);
         }
     }
     Ok(())
 }
 
-fn decode_params_locals(
+fn decode_params_data(
     params: &BTreeMap<&str, &str>,
     message: &Message,
-    locals: &SolValue,
-    match_locals: &mut Vec<(Option<String>, SolValue)>,
+    data: &SolValue,
+    match_data: &mut Vec<(Option<String>, SolValue)>,
 ) -> Result<(), ParseError> {
-    let new_locals_names = map_to_values(params, '$');
-    if new_locals_names.is_empty() {
+    let new_data_names = map_to_values(params, '$');
+    if new_data_names.is_empty() {
         return Ok(());
     }
 
-    for (name, reference) in new_locals_names {
-        let value = resolve_value(reference, message, locals)?;
-        match_locals.push((Some(name), value));
+    for (name, reference) in new_data_names {
+        let value = resolve_value(reference, message, data)?;
+        match_data.push((Some(name), value));
     }
     Ok(())
 }
@@ -639,11 +622,37 @@ fn decode_params_locals(
 mod tests {
     use super::*;
     use crate::display::Display;
+    use alloc::collections::BTreeMap;
     use alloc::vec;
     use alloy_primitives::{address, uint, Address, I256};
 
-    use crate::registry::LocalRegistry;
-    use alloc::collections::BTreeMap;
+    pub struct LocalRegistry {
+        pub well_known_displays: BTreeMap<FixedBytes<4>, Display>,
+        pub well_known_contracts: Vec<Address>,
+        pub well_known_tokens: Vec<Address>,
+    }
+
+    impl Registry for LocalRegistry {
+        fn is_well_known_contract(&self, address: &Address) -> bool {
+            self.well_known_contracts.contains(address)
+                || self.well_known_tokens.contains(address)
+        }
+
+        fn is_well_known_token(&self, address: &Address) -> bool {
+            self.well_known_tokens.contains(address)
+        }
+
+        fn get_well_known_display(
+            &self,
+            _address: &Address,
+            selector: &FixedBytes<4>,
+        ) -> Option<Display> {
+            self.well_known_displays
+                .get(&(*selector))
+                .or_else(|| self.well_known_displays.get(&(*selector)))
+                .map(|d| d.clone())
+        }
+    }
 
     fn setup_test_registry(
         contracts: Vec<Address>,
@@ -653,7 +662,7 @@ mod tests {
         let mut display_map = BTreeMap::new();
         for display in displays {
             let selector = SolFunction::parse(&display.abi).unwrap().selector();
-            display_map.insert((display.address, selector), display);
+            display_map.insert(selector, display);
         }
 
         LocalRegistry {
@@ -974,7 +983,7 @@ mod tests {
                     DisplayField::Address { value, .. } => assert_eq!(*value, display_addr),
                     _ => panic!(),
                 }
-                // Receiver: $locals.to
+                // Receiver: $data.to
                 match &call.fields[1] {
                     DisplayField::Address { value, .. } => assert_eq!(*value, f.receiver_addr),
                     _ => panic!(),
@@ -1178,7 +1187,7 @@ mod tests {
             DisplayField::Match { values, .. } => {
                 assert_eq!(values.len(), 3, "Expected 3 inner fields in Abi Match");
 
-                // Inner Field 0: Sender Copy (from parent locals via $msg.sender)
+                // Inner Field 0: Sender Copy (from parent data via $msg.sender)
                 match &values[0] {
                     DisplayField::Address { value, .. } => {
                         assert_eq!(*value, sender);
@@ -1209,6 +1218,7 @@ mod tests {
     #[test]
     fn test_parse_clear_call_multicall() {
         let token = address!("0000000000000000000000000000000000000001");
+        let multicall_address = address!("0000000000000000000000000000000000000002");
 
         let multilcall_display = get_display("Multicall3");
         let erc20_display = get_display("ERC20");
@@ -1246,14 +1256,14 @@ mod tests {
         };
 
         let registry = setup_test_registry(
-            vec![multilcall_display.address],
+            vec![multicall_address],
             vec![token],
             vec![multilcall_display.clone(), erc20_display],
         );
 
         let message = Message {
             sender: Address::ZERO,
-            to: multilcall_display.address,
+            to: multicall_address,
             value: U256::ZERO,
             data: multicall.abi_encode().into(),
         };
@@ -1276,7 +1286,7 @@ mod tests {
                             // Field 0: Sender
                             match &call.fields[0] {
                                 DisplayField::Address { value, .. } => {
-                                    assert_eq!(*value, multilcall_display.address);
+                                    assert_eq!(*value, multicall_address);
                                 }
                                 _ => panic!("Expected Address field for Sender"),
                             }
