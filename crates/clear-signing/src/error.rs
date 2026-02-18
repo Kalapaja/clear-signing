@@ -14,7 +14,7 @@ pub enum ParseError {
     DisplayHashMismatch(B256, B256),
     FunctionNotPayable,
     FunctionNotWriteable,
-    DisplayNotFound { address: Address, selector: Selector },
+    DisplayNotFound { address: Address, selector: Selector, display_hash: Option<B256> },
     UnknownFormat(String),
     UnknownOperator(String),
     SmthWentWrong(String),
@@ -39,8 +39,8 @@ impl core::fmt::Display for ParseError {
             ParseError::LabelNotFound { locale, label } => {
                 write!(f, "Label no found {} {:?}", locale, label)
             }
-            ParseError::DisplayNotFound { address, selector } => {
-                write!(f, "Display not found: {:?} at address {}", selector, address)
+            ParseError::DisplayNotFound { address, selector, display_hash } => {
+                write!(f, "Display not found: {:?} at address {} with display hash {:?}", selector, address, display_hash)
             }
             ParseError::ParamNotFound(msg) => {
                 write!(f, "Param not found: {}", msg)

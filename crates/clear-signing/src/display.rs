@@ -1,10 +1,16 @@
 use crate::error::ParseError;
-use alloy_primitives::{keccak256, Address, B256};
+use alloy_primitives::{keccak256, B256};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::clone::Clone;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+// Validation constants
+const MAX_STRING_LEN: usize = 256;
+const MAX_ARRAY_LEN: usize = 256;
+const MAX_ABI_LEN: usize = 1024;
+const MAX_FIELD_DEPTH: usize = 16; // matches MAX_RECURSION_DEPTH in clear_call.rs
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
@@ -15,7 +21,6 @@ pub struct DisplaySpecFile {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Display {
-    pub address: Address,
     pub abi: String,
     #[cfg_attr(feature = "serde", serde(default))]
     pub title: String,
@@ -41,6 +46,48 @@ pub struct Field {
     pub fields: Vec<Field>,
 }
 
+impl Field {
+    pub fn validate(&self, depth: usize) -> bool {
+        // Check recursion depth limit
+        if depth >= MAX_FIELD_DEPTH {
+            return false;
+        }
+
+        // Validate string lengths
+        if self.title.len() >= MAX_STRING_LEN
+            || self.description.len() >= MAX_STRING_LEN
+            || self.format.len() >= MAX_STRING_LEN
+        {
+            return false;
+        }
+
+        // Validate array lengths
+        if self.checks.len() >= MAX_ARRAY_LEN
+            || self.params.len() >= MAX_ARRAY_LEN
+            || self.fields.len() >= MAX_ARRAY_LEN
+        {
+            return false;
+        }
+
+        // Validate checks (2D array)
+        if !self.checks.iter().all(|check_group| {
+            check_group.len() < MAX_ARRAY_LEN && check_group.iter().all(|check| check.validate())
+        }) {
+            return false;
+        }
+
+        // Validate params
+        if !self.params.iter().all(|entry| entry.validate()) {
+            return false;
+        }
+
+        // Recursively validate nested fields
+        self.fields
+            .iter()
+            .all(|field| field.validate(depth + 1))
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Labels {
@@ -48,11 +95,25 @@ pub struct Labels {
     pub items: Vec<Entry>,
 }
 
+impl Labels {
+    pub fn validate(&self) -> bool {
+        self.locale.len() < MAX_STRING_LEN
+            && self.items.len() < MAX_ARRAY_LEN
+            && self.items.iter().all(|entry| entry.validate())
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
     pub key: String,
     pub value: String,
+}
+
+impl Entry {
+    pub fn validate(&self) -> bool {
+        self.key.len() < MAX_STRING_LEN && self.value.len() < MAX_STRING_LEN
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -65,16 +126,21 @@ pub struct Check {
     pub right: String,
 }
 
+impl Check {
+    pub fn validate(&self) -> bool {
+        self.left.len() < MAX_STRING_LEN
+            && self.op.len() < MAX_STRING_LEN
+            && self.right.len() < MAX_STRING_LEN
+    }
+}
+
 impl Display {
     pub fn validate(&self) -> bool {
-        self.abi.len() < 1024
-            && self.fields.len() < 256
-            && self.labels.len() < 256
-            && self
-                .fields
-                .iter()
-                .all(|field| field.format.len() < 256 && field.params.len() < 256)
-            && self.labels.iter().all(|labels| labels.items.len() < 256)
+        self.abi.len() < MAX_ABI_LEN
+            && self.fields.len() < MAX_ARRAY_LEN
+            && self.labels.len() < MAX_ARRAY_LEN
+            && self.fields.iter().all(|field| field.validate(0))
+            && self.labels.iter().all(|labels| labels.validate())
     }
 
     pub fn hash_struct(&self) -> B256 {
@@ -148,7 +214,7 @@ fn labels_typehash() -> B256 {
 }
 
 fn display_typehash() -> B256 {
-    keccak256("Display(address address,string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)")
+    keccak256("Display(string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)")
 }
 
 // Manual EIP-712 encoding functions for recursive types
@@ -251,7 +317,6 @@ fn eip712_hash_display(display: &Display) -> B256 {
     // Use Solidity's abi.encode which pads each element to 32 bytes
     let encoded = (
         display_typehash(),
-        display.address,
         abi_hash,
         title_hash,
         description_hash,

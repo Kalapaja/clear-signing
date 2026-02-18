@@ -372,7 +372,6 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
 
 ```json
 {
-  "address": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCccCcCcCc",
   "abi": "transfer(address to, uint256 amount)",
   "title": "$labels.transfer",
   "description": "Transfer tokens to another address",
@@ -530,8 +529,9 @@ The wallet processes the display specification in a deterministic sequence to ge
     - **Recursion Limit**: Wallets **MUST** enforce a maximum recursion depth of **16** to prevent Stack Overflow or
       Denial of Service attacks.
     - A new, ephemeral `$msg` context is created for the inner call from calling parameters.
-    - The wallet looks up the display specification for this inner call matching `$msg.to` to `display.address`,
-      `$msg.data[:4]` to `display.abi` (via matching signature), and recursively renders it.
+    - The wallet looks up the display specification for this inner call by matching the function selector (derived from
+      `$msg.data[:4]`) against the `display.abi` and verifying the display hash matches the `displayHash` parameter in
+      the `clearCall`, then recursively renders it.
 
 5. **Verification**:
     - **Integrity Check**: The wallet calculates the hash of the *exact* display specification used so it can be passed
@@ -575,7 +575,7 @@ displayHash = hashStruct(Display)
 To ensure interoperability, the following type strings **MUST** be used for EIP-712 `hashStruct` calculation:
 
 - **`Display`**:
-  `Display(address address,string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)`
+  `Display(string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)`
 - **`Field`**:
   `Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Check(string left,string op,string right)Entry(string key,string value)`
 - **`Labels`**: `Labels(string locale,Entry[] items)Entry(string key,string value)`
@@ -583,32 +583,40 @@ To ensure interoperability, the following type strings **MUST** be used for EIP-
 - **`Check`**: `Check(string left,string op,string right)`
 
 **Example Calculation (Solidity)**:
-Contracts verify the display hash by reconstructing the expected structure on-chain (typically in the constructor or at
-compile time to save gas).
+Contracts verify the display hash by computing it at compile time as a constant. The hash must be computed using only
+`keccak256()`, `abi.encode()`, and `abi.encodePacked()` operations with the typehash constants imported from Display.sol.
 
 ```solidity
-bytes32 TRANSFER_DISPLAY_HASH = Display.display(
-    address(this),                                 // address
-    "transfer(address to, uint256 amount)",        // abi
-    "Transfer",                                    // title
-    "Transfer tokens to another address",          // description
+bytes32 constant TRANSFER_DISPLAY_HASH = keccak256(
     abi.encode(
-        Display.tokenAmountField(
-            "$labels.amount",                      // title
-            "Amount to transfer",                  // description
-            hex"",                                 // checks (empty)
-            "$msg.to",                             // token
-            "$locals.amount"                       // amount
-        )
-    ),
-    abi.encode(
-        Display.labels(
-            "en",                                  // locale
-            abi.encodePacked(                      // items
-                Display.entry("transfer", "Transfer"),
-                Display.entry("amount", "Amount")
-            )
-        )
+        DISPLAY_TH,
+        keccak256(bytes("transfer(address to, uint256 amount)")),
+        keccak256(bytes("Transfer")),
+        keccak256(bytes("Transfer tokens to another address")),
+        keccak256(abi.encodePacked(
+            keccak256(abi.encode(
+                FIELD_TH,
+                keccak256(bytes("$labels.amount")),
+                keccak256(bytes("Amount to transfer")),
+                keccak256(bytes("tokenAmount")),
+                keccak256(bytes("")), // checks (empty)
+                keccak256(abi.encodePacked(
+                    keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$msg.to")))),
+                    keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$locals.amount"))))
+                )),
+                keccak256(bytes("")) // fields (empty)
+            ))
+        )),
+        keccak256(abi.encodePacked(
+            keccak256(abi.encode(
+                LABELS_TH,
+                keccak256(bytes("en")),
+                keccak256(abi.encodePacked(
+                    keccak256(abi.encode(ENTRY_TH, keccak256(bytes("transfer")), keccak256(bytes("Transfer")))),
+                    keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("Amount"))))
+                ))
+            ))
+        ))
     )
 );
 ```
@@ -885,9 +893,7 @@ interactions and improving integration with existing Ethereum standards.
 
 - **NFT Support**: Introducing standard display types and formats for non-fungible tokens (ERC-721 and ERC-1155).
 - **EIP-5267 Integration**: Consider including the EIP-712 domain separator in the display hash calculation.
-- **Display Address**: Consider removing the `address` field from the `Display` specification, allowing the display hash
-  to be computed at compile time and the same display specifications can match with each other across deployments.
-- **EIP-712 Envelope**: Implementing support for signing the entire EIP-712 message as an envelope, ensuring that the
+- **EIP-712 Envelope**: Implementing support for signing the entire EIP-712 message as an envelope.
 - **ERC-4337 Envelope**: Implement support of user operation as envelope.
 - **Proof of Clear Call**: The dApp may initially send a transaction with a zeroed `displayHash`. The wallet then
   resolves the corresponding display specification, calculates its cryptographic hash, and injects it into the

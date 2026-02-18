@@ -2,7 +2,6 @@
   "$schema": "../../../schemas/display.schema.json",
   "displays": [
     {
-      "address": "0x0000000000000000000000000000000000000004",
       "abi": "function simpleCall(uint256 val) payable",
       "title": "Inner",
       "fields": [
@@ -19,7 +18,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000000",
       "abi": "function transfer(address to, uint256 value)",
       "title": "ERC20",
       "fields": [
@@ -60,7 +58,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function complexCall(address addr, uint256 uint_val, int256 int_val, bool bool_val, string string_val, bytes bytes_val, uint256 percentage_val, uint256 basis_val, uint256 duration_val, uint256 bitmask_val) payable",
       "title": "Complex",
       "description": "Test all formats",
@@ -243,7 +240,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function nestedCall(address call_target, bytes call_data, uint256 call_value, address erc20_target, bytes erc20_data) payable",
       "title": "Nested",
       "description": "Testing Nested Calls",
@@ -287,7 +283,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function matchCall(uint256 val) payable",
       "title": "Match Test",
       "description": "Testing Format::Match",
@@ -317,7 +312,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function arrayCall(uint256[] nums) payable",
       "title": "Array",
       "description": "Test array format",
@@ -347,7 +341,6 @@
       ]
     },
     {
-      "address": "0xcA11bde05977b3631167028862bE2a173976CA11",
       "abi": "function aggregate((address target, bytes data)[] calls)",
       "title": "Multicall3",
       "fields": [
@@ -384,7 +377,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function abiCall(bytes data) payable",
       "title": "Abi Test",
       "description": "Testing Format::Match with abi",
@@ -428,7 +420,6 @@
       ]
     },
     {
-      "address": "0x0000000000000000000000000000000000000001",
       "abi": "function abiCall(bytes data) payable",
       "title": "Abi Test New Locals",
       "description": "Testing Format::Match with abi with new locals from parent",

@@ -5,11 +5,9 @@ import "./IUniswapV2Router.sol";
 import "./SwapExactTokensForTokensDisplayHash.sol";
 
 contract ClearCallRouter is IUniswapV2Router {
-    using SwapExactTokensForTokensDisplayHash for ClearCallRouter;
 
     ClearCallRouter internal immutable ROUTER = ClearCallRouter(this);
-    bytes32 public immutable SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH =
-        ROUTER.getSwapExactTokensForTokenDisplayHash();
+    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH;
 
     function clearCall(
         bytes32 displayHash,

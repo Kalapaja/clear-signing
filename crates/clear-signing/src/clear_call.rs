@@ -91,60 +91,51 @@ impl ClearCallContext {
         registry: &dyn Registry,
         level: usize,
     ) -> Result<ClearCall, ParseError> {
+        if !registry.is_well_known_contract(&message.to) {
+            return Err(ParseError::UnknownContract(message.to));
+        }
+
         let display = if let Some(hash) = display_hash {
-            if !registry.is_well_known_contract(&message.to)
-                && !registry.is_well_known_token(&message.to)
-            {
-                return Err(ParseError::UnknownContract(message.to));
-            }
 
             let selector = message.selector()?;
+
+            for display in &self.displays {
+                if !display.validate() {
+                    return Err(SmthWentWrong("Display validation failed".to_string()));
+                }
+            }
 
             let display = self
                 .displays
                 .iter()
                 .find(|d| {
-                    d.address == message.to
-                        && SolFunction::parse(&d.abi)
-                            .map(|t| t.selector() == selector)
-                            .unwrap_or(false)
+                    if let Ok(func) = SolFunction::parse(&d.abi) {
+                        func.selector() == selector && d.hash_struct() == hash
+                    } else {
+                        false
+                    }
                 })
-                .ok_or(DisplayNotFound { address: message.to, selector })?
+                .ok_or(DisplayNotFound {
+                    address: message.to,
+                    selector,
+                    display_hash: Some(self.displays.first().unwrap().hash_struct()),
+                })?
                 .clone();
 
-            if !display.validate() {
-                return Err(SmthWentWrong("Display validation failed".to_string()));
-            }
-
-            if display.hash_struct() != hash {
-                return Err(ParseError::DisplayHashMismatch(hash, display.hash_struct()));
-            } else {
-                display
-            }
+            display
         } else {
             let selector = message.selector()?;
 
             let well_known_display = registry
                 .get_well_known_display(&message.to, &selector)
-                .ok_or(DisplayNotFound { address: message.to, selector })?;
+                .ok_or(DisplayNotFound {
+                    address: message.to,
+                    selector,
+                    display_hash: None,
+                })?;
 
             if !well_known_display.validate() {
                 return Err(SmthWentWrong("Display validation failed".to_string()));
-            }
-
-            match well_known_display.address {
-                Address::ZERO => {
-                    if !registry.is_well_known_contract(&message.to)
-                        && !registry.is_well_known_token(&message.to)
-                    {
-                        return Err(ParseError::UnknownContract(message.to));
-                    }
-                }
-                _ => {
-                    if well_known_display.address != message.to {
-                        return Err(ParseError::UnknownContract(message.to));
-                    }
-                }
             }
 
             well_known_display
@@ -632,11 +623,37 @@ fn decode_params_locals(
 mod tests {
     use super::*;
     use crate::display::Display;
+    use alloc::collections::BTreeMap;
     use alloc::vec;
     use alloy_primitives::{address, uint, Address, I256};
 
-    use crate::registry::LocalRegistry;
-    use alloc::collections::BTreeMap;
+    pub struct LocalRegistry {
+        pub well_known_displays: BTreeMap<FixedBytes<4>, Display>,
+        pub well_known_contracts: Vec<Address>,
+        pub well_known_tokens: Vec<Address>,
+    }
+
+    impl Registry for LocalRegistry {
+        fn is_well_known_contract(&self, address: &Address) -> bool {
+            self.well_known_contracts.contains(address)
+                || self.well_known_tokens.contains(address)
+        }
+
+        fn is_well_known_token(&self, address: &Address) -> bool {
+            self.well_known_tokens.contains(address)
+        }
+
+        fn get_well_known_display(
+            &self,
+            _address: &Address,
+            selector: &FixedBytes<4>,
+        ) -> Option<Display> {
+            self.well_known_displays
+                .get(&(*selector))
+                .or_else(|| self.well_known_displays.get(&(*selector)))
+                .map(|d| d.clone())
+        }
+    }
 
     fn setup_test_registry(
         contracts: Vec<Address>,
@@ -646,7 +663,7 @@ mod tests {
         let mut display_map = BTreeMap::new();
         for display in displays {
             let selector = SolFunction::parse(&display.abi).unwrap().selector();
-            display_map.insert((display.address, selector), display);
+            display_map.insert(selector, display);
         }
 
         LocalRegistry {
@@ -1202,6 +1219,7 @@ mod tests {
     #[test]
     fn test_parse_clear_call_multicall() {
         let token = address!("0000000000000000000000000000000000000001");
+        let multicall_address = address!("0000000000000000000000000000000000000002");
 
         let multilcall_display = get_display("Multicall3");
         let erc20_display = get_display("ERC20");
@@ -1239,14 +1257,14 @@ mod tests {
         };
 
         let registry = setup_test_registry(
-            vec![multilcall_display.address],
+            vec![multicall_address],
             vec![token],
             vec![multilcall_display.clone(), erc20_display],
         );
 
         let message = Message {
             sender: Address::ZERO,
-            to: multilcall_display.address,
+            to: multicall_address,
             value: U256::ZERO,
             data: multicall.abi_encode().into(),
         };
@@ -1269,7 +1287,7 @@ mod tests {
                             // Field 0: Sender
                             match &call.fields[0] {
                                 DisplayField::Address { value, .. } => {
-                                    assert_eq!(*value, multilcall_display.address);
+                                    assert_eq!(*value, multicall_address);
                                 }
                                 _ => panic!("Expected Address field for Sender"),
                             }

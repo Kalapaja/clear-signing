@@ -17,13 +17,8 @@
   "definitions": {
     "Display": {
       "type": "object",
-      "required": [ "address", "abi", "fields" ],
+      "required": [ "abi", "fields" ],
       "properties": {
-        "address": {
-          "type": "string",
-          "pattern": "^0x[a-fA-F0-9]{40}$",
-          "description": "The address of the contract that will verify the signature"
-        },
         "abi": {
           "type": "string",
           "description": "Solidity function signature (e.g., 'transfer(address receiver, uint256 amount)')"

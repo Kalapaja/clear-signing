@@ -2,7 +2,6 @@
   "$schema": "../../schemas/display.schema.json",
   "displays": [
     {
-      "address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af",
       "title": "Swap",
       "abi": "function execute(bytes commands, bytes[] inputs, uint256 deadline) payable",
       "fields": [
