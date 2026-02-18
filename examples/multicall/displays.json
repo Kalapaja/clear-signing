@@ -10,7 +10,7 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$locals.amount"}
+            {"key": "amount", "value": "$data.amount"}
           ]
         },
         {
@@ -24,7 +24,7 @@
           "title": "$labels.receiver",
           "format": "address",
           "params": [
-            {"key": "value", "value": "$locals.receiver"}
+            {"key": "value", "value": "$data.receiver"}
           ]
         }
       ],
@@ -48,7 +48,7 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$locals.amount"}
+            {"key": "amount", "value": "$data.amount"}
           ]
         },
         {
@@ -62,7 +62,7 @@
           "title": "$labels.spender",
           "format": "contract",
           "params": [
-            {"key": "value", "value": "$locals.spender"}
+            {"key": "value", "value": "$data.spender"}
           ]
         }
       ],
@@ -85,14 +85,14 @@
           "title": "$labels.calls",
           "format": "array",
           "params": [
-            {"key": "$call", "value": "$locals.calls"}
+            {"key": "$call", "value": "$data.calls"}
           ],
           "fields": [
             {
               "format": "call",
               "params": [
-                {"key": "to", "value": "$locals.call.to"},
-                {"key": "data", "value": "$locals.call.data"},
+                {"key": "to", "value": "$data.call.to"},
+                {"key": "data", "value": "$data.call.data"},
                 {"key": "value", "value": "0"}
               ]
             }

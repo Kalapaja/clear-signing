@@ -20,8 +20,8 @@ library SwapExactTokensForTokensDisplayHash {
                     keccak256(bytes("tokenAmount")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$locals.path[0]")))),
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$locals.amountIn"))))
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$data.path[0]")))),
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$data.amountIn"))))
                     )),
                     keccak256(bytes("")) // fields
                 )),
@@ -33,8 +33,8 @@ library SwapExactTokensForTokensDisplayHash {
                     keccak256(bytes("tokenAmount")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$locals.path[-1]")))),
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$locals.amountOutMin"))))
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$data.path[-1]")))),
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$data.amountOutMin"))))
                     )),
                     keccak256(bytes("")) // fields
                 )),
@@ -46,7 +46,7 @@ library SwapExactTokensForTokensDisplayHash {
                     keccak256(bytes("address")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$locals.to"))))
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$data.to"))))
                     )),
                     keccak256(bytes("")) // fields
                 )),
@@ -58,7 +58,7 @@ library SwapExactTokensForTokensDisplayHash {
                     keccak256(bytes("datetime")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$locals.deadline"))))
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$data.deadline"))))
                     )),
                     keccak256(bytes("")) // fields
                 ))

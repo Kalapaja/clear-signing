@@ -17,14 +17,14 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$locals.amount"}
+            {"key": "amount", "value": "$data.amount"}
           ]
         },
         {
           "title": "$labels.receiver",
           "format": "address",
           "params": [
-            {"key": "value", "value": "$locals.receiver"}
+            {"key": "value", "value": "$data.receiver"}
           ]
         }
       ],
@@ -54,7 +54,7 @@
           "title": "$labels.spender",
           "format": "contract",
           "params": [
-            {"key": "value", "value": "$locals.spender"}
+            {"key": "value", "value": "$data.spender"}
           ]
         },
         {
@@ -62,7 +62,7 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$locals.amount"}
+            {"key": "amount", "value": "$data.amount"}
           ]
         }
       ],

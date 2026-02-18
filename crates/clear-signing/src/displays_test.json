@@ -11,7 +11,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.val"
+              "value": "$data.val"
             }
           ]
         }
@@ -37,7 +37,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.to"
+              "value": "$data.to"
             }
           ]
         },
@@ -51,7 +51,7 @@
             },
             {
               "key": "amount",
-              "value": "$locals.value"
+              "value": "$data.value"
             }
           ]
         }
@@ -68,7 +68,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.addr"
+              "value": "$data.addr"
             }
           ]
         },
@@ -78,7 +78,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.uint_val"
+              "value": "$data.uint_val"
             }
           ]
         },
@@ -88,7 +88,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.int_val"
+              "value": "$data.int_val"
             }
           ]
         },
@@ -98,7 +98,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.bool_val"
+              "value": "$data.bool_val"
             }
           ]
         },
@@ -108,7 +108,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.string_val"
+              "value": "$data.string_val"
             }
           ]
         },
@@ -118,7 +118,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.bytes_val"
+              "value": "$data.bytes_val"
             }
           ]
         },
@@ -128,11 +128,11 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.percentage_val"
+              "value": "$data.percentage_val"
             },
             {
               "key": "basis",
-              "value": "$locals.basis_val"
+              "value": "$data.basis_val"
             }
           ]
         },
@@ -142,7 +142,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.duration_val"
+              "value": "$data.duration_val"
             }
           ]
         },
@@ -152,7 +152,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.duration_val"
+              "value": "$data.duration_val"
             }
           ]
         },
@@ -162,7 +162,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.bitmask_val"
+              "value": "$data.bitmask_val"
             },
             {
               "key": "#0",
@@ -208,7 +208,7 @@
             },
             {
               "key": "amount",
-              "value": "$locals.uint_val"
+              "value": "$data.uint_val"
             }
           ]
         },
@@ -218,7 +218,7 @@
           "params": [
             {
               "key": "amount",
-              "value": "$locals.uint_val"
+              "value": "$data.uint_val"
             }
           ]
         }
@@ -250,15 +250,15 @@
           "params": [
             {
               "key": "to",
-              "value": "$locals.call_target"
+              "value": "$data.call_target"
             },
             {
               "key": "data",
-              "value": "$locals.call_data"
+              "value": "$data.call_data"
             },
             {
               "key": "value",
-              "value": "$locals.call_value"
+              "value": "$data.call_value"
             }
           ]
         },
@@ -268,11 +268,11 @@
           "params": [
             {
               "key": "to",
-              "value": "$locals.erc20_target"
+              "value": "$data.erc20_target"
             },
             {
               "key": "data",
-              "value": "$locals.erc20_data"
+              "value": "$data.erc20_data"
             },
             {
               "key": "value",
@@ -303,7 +303,7 @@
               "params": [
                 {
                   "key": "value",
-                  "value": "$locals.check"
+                  "value": "$data.check"
                 }
               ]
             }
@@ -322,7 +322,7 @@
           "params": [
             {
               "key": "$val",
-              "value": "$locals.nums"
+              "value": "$data.nums"
             }
           ],
           "fields": [
@@ -332,7 +332,7 @@
               "params": [
                 {
                   "key": "value",
-                  "value": "$locals.val"
+                  "value": "$data.val"
                 }
               ]
             }
@@ -350,7 +350,7 @@
           "params": [
             {
               "key": "$item",
-              "value": "$locals.calls"
+              "value": "$data.calls"
             }
           ],
           "fields": [
@@ -360,11 +360,11 @@
               "params": [
                 {
                   "key": "to",
-                  "value": "$locals.item.target"
+                  "value": "$data.item.target"
                 },
                 {
                   "key": "data",
-                  "value": "$locals.item.data"
+                  "value": "$data.item.data"
                 },
                 {
                   "key": "value",
@@ -387,7 +387,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.data"
+              "value": "$data.data"
             },
             {
               "key": "abi",
@@ -401,7 +401,7 @@
               "params": [
                 {
                   "key": "value",
-                  "value": "$locals.recipient"
+                  "value": "$data.recipient"
                 }
               ]
             },
@@ -411,7 +411,7 @@
               "params": [
                 {
                   "key": "value",
-                  "value": "$locals.amount"
+                  "value": "$data.amount"
                 }
               ]
             }
@@ -430,7 +430,7 @@
           "params": [
             {
               "key": "value",
-              "value": "$locals.data"
+              "value": "$data.data"
             },
             {
               "key": "abi",
@@ -448,7 +448,7 @@
               "params": [
                 {
                   "key": "value",
-                  "value": "$locals.sender_copy"
+                  "value": "$data.sender_copy"
                 }
               ]
             },
@@ -458,7 +458,7 @@
               "params": [
                 {
                   "key": "value",
-                  "value": "$locals.recipient"
+                  "value": "$data.recipient"
                 }
               ]
             },
@@ -468,7 +468,7 @@
               "params": [
                 {
                   "key": "value",
-                  "value": "$locals.amount"
+                  "value": "$data.amount"
                 }
               ]
             }

@@ -347,13 +347,13 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
 - **Context Variables**:
     - **`$msg`**: The transaction context. It remains constant throughout the display rendering (unless a nested `call`
       context is entered). Contains properties like `to`, `sender`, `value`, and `data`.
-    - **`$locals`**: The primary storage for resolving parameter values. Initialized with function arguments from
+    - **`$data`**: The primary storage for resolving parameter values. Initialized with function arguments from
       `$msg.data` based on the `abi`.
     - **`$labels`**: Accesses localized strings from the `labels` bundles.
 - **Labels & i18n**: User-facing strings are stored in locale-specific bundles and accessed via the global `$labels`
   variable.
 - **Explicit Scoping**: The display format uses a recursive structure where some fields MAY contain nested `fields`. 
-  Control flow types like `match` and `array` create new scopes by processing their own `fields` array with a new `$locals`
+  Control flow types like `match` and `array` create new scopes by processing their own `fields` array with a new `$data`
   context. This recursive structure naturally aligns with EIP-712's type system while maintaining efficiency for hardware
   wallets.
 - **Sensitivity to Safety**: Wallets **MUST** reject any display specification that contains unknown fields or
@@ -388,7 +388,7 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
         },
         {
           "key": "amount",
-          "value": "$locals.amount"
+          "value": "$data.amount"
         }
       ],
       "fields": []
@@ -443,14 +443,14 @@ Wallets **MUST** support these standard higher-level types:
 - **`call`**: (Target + Value + Data) → Decoded nested call. Essential for multisigs and account abstraction.
 
 **Control Flow Types**
-These types create a new `$locals` scope from their `params` and recursively process their `fields` array. The `$msg`
+These types create a new `$data` scope from their `params` and recursively process their `fields` array. The `$msg`
 context remains unchanged:
 
-- **`match`**: Acts as a **conditional branch**. It supports mapping values into a new scope's `$locals` using:
+- **`match`**: Acts as a **conditional branch**. It supports mapping values into a new scope's `$data` using:
     - **Named Parameters**: Parameters starting with `$` (e.g., `$param`) map values or literals into the scope's
-      `$locals`.
+      `$data`.
     - **ABI Decoding**: By providing **`abi`** (signature) and **`value`** (bytes) parameters, `match` decodes the bytes
-      and maps the resulting fields into `$locals`.
+      and maps the resulting fields into `$data`.
     - The `fields` property defines what fields should be rendered in this scope.
 - **`array`**: Behaves identically to `match`, except it iterates in a loop, creating a new scope for each array
   element. The `fields` property defines the template that is rendered for each iteration.
@@ -490,11 +490,11 @@ The wallet processes the display specification in a deterministic sequence to ge
       logic, and the wallet **MUST** verify that the `displayHash` argument matches the hash of the display
       specification.
     - The **$msg context** MUST be initialized. For the top-level call, `$msg` maps to the Envelope parameters.
-    - The **$locals context** MUST be initialized. For the top-level call, `$locals` maps to the function arguments from
+    - The **$data context** MUST be initialized. For the top-level call, `$data` maps to the function arguments from
       `$msg.data`.
 
 2. **Field Processing**:
-    - Field processing accepts the `$msg` and `$locals` contexts and recursively processes a `fields` array to return a
+    - Field processing accepts the `$msg` and `$data` contexts and recursively processes a `fields` array to return a
       list of formatted fields to display.
     - The wallet iterates through the provided `fields` array (initially from the display spec's top-level `fields`).
     - **Conditional Filtering (`checks`)**: The `checks` 2D array controls field visibility using **OR-of-ANDs** logic.
@@ -502,7 +502,7 @@ The wallet processes the display specification in a deterministic sequence to ge
         - Fields with non-empty `checks` are evaluated against the current context. A field is displayed if at least one
           group of checks (where all checks in the group pass) evaluates to true.
     - **Scoped Processing (`match` and `array`)**: When a field is of type `match` or `array`:
-        - A new `$locals` context is created based on the field's `params`.
+        - A new `$data` context is created based on the field's `params`.
         - The wallet recursively processes the field's `fields` array (not the display's top-level fields).
         - This creates explicit scoping: only fields defined in `field.fields` are rendered within that scope.
 
@@ -513,14 +513,14 @@ The wallet processes the display specification in a deterministic sequence to ge
         - **$msg.sender**: The immediate caller.
         - **$msg.value**: The native value attached to *this specific call*.
         - **$msg.data**: The raw calldata bytes for *this specific call*.
-    - **$locals**: The primary storage for resolving parameter values.
+    - **$data**: The primary storage for resolving parameter values.
         - **Top-Level**: Initialized by decoding the function arguments from calldata (`$msg.data`) according to the
-          `abi`. (e.g., `transfer(address to, uint256 amount)` -> `$locals.to`, `$locals.amount`).
-        - **Scoped Contexts**: When entering a `match` or `array` scope, a **new** `$locals` object is created. It
+          `abi`. (e.g., `transfer(address to, uint256 amount)` -> `$data.to`, `$data.amount`).
+        - **Scoped Contexts**: When entering a `match` or `array` scope, a **new** `$data` object is created. It
           contains **only** the parameters explicitly mapped in the field definition (starting with `$` or decoded via
           `abi`).
           It does **not** inherit variables from the parent scope.
-    - **Resolution Failure**: If a referenced path (e.g., `$locals.missingParam`) does not exist in the context,
+    - **Resolution Failure**: If a referenced path (e.g., `$data.missingParam`) does not exist in the context,
       execution **MUST stop**, effectively rejecting the display.
 
 4. **Nested Call Processing (`call`)**:
@@ -602,7 +602,7 @@ bytes32 constant TRANSFER_DISPLAY_HASH = keccak256(
                 keccak256(bytes("")), // checks (empty)
                 keccak256(abi.encodePacked(
                     keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$msg.to")))),
-                    keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$locals.amount"))))
+                    keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$data.amount"))))
                 )),
                 keccak256(bytes("")) // fields (empty)
             ))

@@ -13,6 +13,8 @@ use core::ops::Not;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+const CONTAINER_LABELS: &str = "labels";
+
 /// ERC-20 token metadata
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -642,7 +644,8 @@ fn is_leap_year(year: u64) -> bool {
 }
 
 fn resolve_label(label: &str, labels: &[Labels], locale: Option<&str>) -> String {
-    let key = match label.strip_prefix("$labels.") {
+    let prefix = format!("${}.", CONTAINER_LABELS);
+    let key = match label.strip_prefix(prefix.as_str()) {
         Some(key) if !key.is_empty() => key,
         _ => return label.to_string(),
     };

@@ -20,8 +20,8 @@ library OneInchSwapDisplayHash {
                     keccak256(bytes("tokenAmount")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$locals.desc.srcToken")))),
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$locals.desc.amount"))))
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$data.desc.srcToken")))),
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$data.desc.amount"))))
                     )),
                     keccak256(bytes("")) // fields
                 )),
@@ -33,8 +33,8 @@ library OneInchSwapDisplayHash {
                     keccak256(bytes("tokenAmount")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$locals.desc.dstToken")))),
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$locals.desc.minReturnAmount"))))
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$data.desc.dstToken")))),
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$data.desc.minReturnAmount"))))
                     )),
                     keccak256(bytes("")) // fields
                 )),
@@ -46,7 +46,7 @@ library OneInchSwapDisplayHash {
                     keccak256(bytes("address")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$locals.desc.dstReceiver"))))
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$data.desc.dstReceiver"))))
                     )),
                     keccak256(bytes("")) // fields
                 )),
@@ -58,7 +58,7 @@ library OneInchSwapDisplayHash {
                     keccak256(bytes("bitmask")),
                     keccak256(bytes("")), // checks
                     keccak256(abi.encodePacked(
-                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$locals.desc.flags")))),
+                        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$data.desc.flags")))),
                         keccak256(abi.encode(ENTRY_TH, keccak256(bytes("#0")), keccak256(bytes("$labels.partial_fill_enabled"))))
                     )),
                     keccak256(bytes("")) // fields

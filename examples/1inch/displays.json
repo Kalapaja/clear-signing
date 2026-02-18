@@ -11,8 +11,8 @@
           "description": "$labels.desc_you_send",
           "format": "tokenAmount",
           "params": [
-            {"key": "token", "value": "$locals.desc.srcToken"},
-            {"key": "amount", "value": "$locals.desc.amount"},
+            {"key": "token", "value": "$data.desc.srcToken"},
+            {"key": "amount", "value": "$data.desc.amount"},
             {"key": "direction", "value": "out"}
           ]
         },
@@ -21,8 +21,8 @@
           "description": "$labels.desc_you_receive_minimum",
           "format": "tokenAmount",
           "params": [
-            {"key": "token", "value": "$locals.desc.dstToken"},
-            {"key": "amount", "value": "$locals.desc.minReturnAmount"},
+            {"key": "token", "value": "$data.desc.dstToken"},
+            {"key": "amount", "value": "$data.desc.minReturnAmount"},
             {"key": "direction", "value": "in"}
           ]
         },
@@ -31,7 +31,7 @@
           "description": "$labels.desc_recipient",
           "format": "address",
           "params": [
-            {"key": "value", "value": "$locals.desc.dstReceiver"}
+            {"key": "value", "value": "$data.desc.dstReceiver"}
           ]
         },
         {
@@ -39,7 +39,7 @@
           "description": "$labels.desc_swap_options",
           "format": "bitmask",
           "params": [
-            {"key": "value", "value": "$locals.desc.flags"},
+            {"key": "value", "value": "$data.desc.flags"},
             {"key": "#0", "value": "$labels.partial_fill_enabled"}
           ]
         }
