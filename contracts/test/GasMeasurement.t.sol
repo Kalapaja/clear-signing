@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import {Test} from "forge-std/Test.sol";
 import {GasMeasurement} from "../src/GasMeasurement.sol";
+import {ClearCallRouter} from "../src/ClearCallRouter.sol";
 
 contract GasMeasurementTest is Test {
     GasMeasurement router;
@@ -11,9 +12,11 @@ contract GasMeasurementTest is Test {
     bytes callData;
     bytes clearCallDelegatecallData;
     bytes clearCallInternalData;
+    bytes clearCallFallbackData;
     bytes callDataSwap;
     bytes clearCallDelegatecallSwapData;
     bytes clearCallInternalSwapData;
+    bytes clearCallFallbackSwapData;
     address[] path;
 
     function setUp() public {
@@ -24,6 +27,7 @@ contract GasMeasurementTest is Test {
         callData = _getTransferCallData(amount, to);
         clearCallDelegatecallData = _wrapClearDelegate(router.TARGET_TRANSFER_DISPLAY_HASH(), callData);
         clearCallInternalData = _wrapClearInternal(router.TARGET_TRANSFER_DISPLAY_HASH(), callData);
+        clearCallFallbackData = _wrapClearFallback(router.TARGET_TRANSFER_DISPLAY_HASH(), callData);
 
         path = new address[](5);
         path[0] = address(0x1);
@@ -34,30 +38,55 @@ contract GasMeasurementTest is Test {
         callDataSwap = _getSwapCallData(100, 90, path, to, 123);
         clearCallDelegatecallSwapData = _wrapClearDelegate(router.TARGET_SWAP_DISPLAY_HASH(), callDataSwap);
         clearCallInternalSwapData = _wrapClearInternal(router.TARGET_SWAP_DISPLAY_HASH(), callDataSwap);
+        clearCallFallbackSwapData = _wrapClearFallback(router.TARGET_SWAP_DISPLAY_HASH(), callDataSwap);
     }
 
     function test_Gas_Transfer_DirectCall() public {
-        address(router).call(callData);
+        (bool success, bytes memory result) = address(router).call(callData);
+        assert(success);
+        assertEq(bytesToUint(result), 4760);
     }
 
     function test_Gas_Transfer_ClearCall_Delegatecall() public {
-        address(router).call(clearCallDelegatecallData);
+        (bool success, bytes memory result) = address(router).call(clearCallDelegatecallData);
+        assert(success);
+        assertEq(bytesToUint(result), 4760);
     }
 
     function test_Gas_Transfer_ClearCall_Internal() public {
-        address(router).call(clearCallInternalData);
+        (bool success, bytes memory result) = address(router).call(clearCallInternalData);
+        assert(success);
+        assertEq(bytesToUint(result), 4760);
+    }
+
+    function test_Gas_Transfer_ClearCall_Fallback() public {
+        (bool success, bytes memory result) = address(router).call(clearCallFallbackData);
+        assert(success);
+        assertEq(bytesToUint(result), 4760);
     }
 
     function test_Gas_Swap_DirectCall() public {
-        address(router).call(callDataSwap);
+        (bool success, bytes memory result) = address(router).call(callDataSwap);
+        assert(success);
+        assertEq(bytesToUint(result), 4978);
     }
 
     function test_Gas_Swap_ClearCall_Delegatecall() public {
-        address(router).call(clearCallDelegatecallSwapData);
+        (bool success, bytes memory result) = address(router).call(clearCallDelegatecallSwapData);
+        assert(success);
+        assertEq(bytesToUint(result), 4978);
     }
 
     function test_Gas_Swap_ClearCall_Internal() public {
-        address(router).call(clearCallInternalSwapData);
+        (bool success, bytes memory result) = address(router).call(clearCallInternalSwapData);
+        assert(success);
+        assertEq(bytesToUint(result), 4978);
+    }
+
+    function test_Gas_Swap_ClearCall_Fallback() public {
+        (bool success, bytes memory result) = address(router).call(clearCallFallbackSwapData);
+        assert(success);
+        assertEq(bytesToUint(result), 4978);
     }
 
     function _wrapClearDelegate(bytes32 displayHash, bytes memory innerCall) internal view returns (bytes memory) {
@@ -66,6 +95,10 @@ contract GasMeasurementTest is Test {
 
     function _wrapClearInternal(bytes32 displayHash, bytes memory innerCall) internal view returns (bytes memory) {
         return abi.encodeWithSelector(router.clearCallInternal.selector, displayHash, innerCall);
+    }
+
+    function _wrapClearFallback(bytes32 displayHash, bytes memory innerCall) internal view returns (bytes memory) {
+        return abi.encodePacked(router.CLEAR_CALL_MAGIC_NUMBER(), displayHash, innerCall);
     }
 
     function _getTransferCallData(uint256 amount, address to) internal pure returns (bytes memory) {
