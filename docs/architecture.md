@@ -866,11 +866,16 @@ While Clear Signing improves security, it introduces new privacy considerations:
 #### 9.3.1 Gas Overhead
 
 Implementing on-chain verification like `clearCall` adds computational steps (selector checks, display hash checks,
-delegatecall, or internal decoding). In the current measurements:
-- **Transfer**: clear-call overhead is ~8.3k gas
-- **Swap**: clear-call overhead is ~7.3k gas
+delegatecall, or internal decoding). Three implementation approaches have been measured with different overhead
+characteristics:
 
-These figures come from the `GasMeasurement` test and reflect the current implementation.
+- **Fallback approach**: ~2,700 gas overhead - uses magic number prefix with pure
+  assembly
+- **Internal decoding**: ~9,000 gas overhead - manual parameter extraction
+- **Delegatecall wrapper**: ~10,000 gas overhead - highest but most explicit
+
+The fallback approach offers the best gas efficiency with consistent overhead regardless of function complexity, while
+maintaining full security guarantees. These figures come from the `GasMeasurement` test.
 
 #### 9.3.2 Developer Dependency
 
