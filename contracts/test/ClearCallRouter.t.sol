@@ -5,6 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {ClearCallRouter} from "../src/ClearCallRouter.sol";
 import {IUniswapV2Router} from "../src/IUniswapV2Router.sol";
 import {SwapExactTokensForTokensDisplayHash} from "../src/SwapExactTokensForTokensDisplayHash.sol";
+import {OneInchSwapDisplayHash} from "../src/OneInchSwapDisplayHash.sol";
 
 // Helper contract to receive calls from the router
 contract ExternalContract {
@@ -25,7 +26,7 @@ contract TestableClearCallRouter is ClearCallRouter {
 
     // Mode for controlling swapExactTokensForTokens behavior
     TestMode public testMode;
-    
+
     address public externalContract;
 
     event SenderLog(address indexed sender);
@@ -51,24 +52,24 @@ contract TestableClearCallRouter is ClearCallRouter {
             uint[] memory ret = new uint[](2);
             return ret;
         }
-        // ExternalCall: External Call
+            // ExternalCall: External Call
         else if (testMode == TestMode.ExternalCall) {
             ExternalContract(externalContract).callMe();
             uint[] memory ret = new uint[](2);
             return ret;
         }
-        // Revert: Revert
+            // Revert: Revert
         else if (testMode == TestMode.Revert) {
             revert("Custom Revert Message");
         }
-        // ReturnSpecific: Return specific data 
+            // ReturnSpecific: Return specific data
         else if (testMode == TestMode.ReturnSpecific) {
-             uint[] memory ret = new uint[](2);
-             ret[0] = 123;
-             ret[1] = 456;
-             return ret;
+            uint[] memory ret = new uint[](2);
+            ret[0] = 123;
+            ret[1] = 456;
+            return ret;
         }
-        
+
         return new uint[](0);
     }
 }
@@ -133,7 +134,7 @@ contract ClearCallRouterTest is Test {
         // Case 1: Value = 0
         vm.expectEmit(true, false, false, false);
         emit SenderLog(address(this));
-        
+
         (bool success,) = address(router).call{value: 0}(callData);
         assertTrue(success, "Call failed with 0 value");
 
@@ -156,8 +157,8 @@ contract ClearCallRouterTest is Test {
         // We expect CallReceived emitted by ExternalContract (address(externalContract))
         // The sender logged should be the Router
         vm.expectEmit(true, false, false, false, address(externalContract));
-        emit CallReceived(address(router)); 
-        
+        emit CallReceived(address(router));
+
         (bool success,) = address(router).call(callData);
         assertTrue(success, "Call failed");
     }
@@ -206,9 +207,17 @@ contract ClearCallRouterTest is Test {
         // The baseline hash was calculated using the updated EIP-712 structure with Check[][] for checks field
         // verifyingContract (router) was set to address(0) for the baseline calculation.
         // We must ensure the router used for hashing here is also address(0).
-        bytes32 calculatedHash = SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS;
-        bytes32 expectedHash = 0xb0b7356db751844a64a9e452c8982a4c058a3a1fee1f304ea287e96caf285330;
 
-        assertEq(calculatedHash, expectedHash, "Display hash should match updated EIP-712 structure");
+        assertEq(
+            SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS(),
+            SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH,
+            "Invalid display hash for SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH"
+        );
+
+        assertEq(
+            OneInchSwapDisplayHash.ONE_INCH_SWAP_DISPLAY(),
+            OneInchSwapDisplayHash.ONE_INCH_SWAP_DISPLAY_HASH,
+            "Invalid display hash for ONE_INCH_SWAP_DISPLAY_HASH"
+        );
     }
 }
