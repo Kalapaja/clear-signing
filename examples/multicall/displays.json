@@ -16,16 +16,12 @@
         {
           "title": "$labels.sender",
           "format": "address",
-          "params": [
-            {"key": "value", "value": "$msg.sender"}
-          ]
+          "params": [{"key": "value", "value": "$msg.sender"}]
         },
         {
           "title": "$labels.receiver",
           "format": "address",
-          "params": [
-            {"key": "value", "value": "$data.receiver"}
-          ]
+          "params": [{"key": "value", "value": "$data.receiver"}]
         }
       ],
       "labels": [
@@ -54,16 +50,12 @@
         {
           "title": "$labels.sender",
           "format": "address",
-          "params": [
-            {"key": "value", "value": "$msg.sender"}
-          ]
+          "params": [{"key": "value", "value": "$msg.sender"}]
         },
         {
           "title": "$labels.spender",
           "format": "contract",
-          "params": [
-            {"key": "value", "value": "$data.spender"}
-          ]
+          "params": [{"key": "value", "value": "$data.spender"}]
         }
       ],
       "labels": [
@@ -84,9 +76,7 @@
         {
           "title": "$labels.calls",
           "format": "array",
-          "params": [
-            {"key": "$call", "value": "$data.calls"}
-          ],
+          "params": [{"key": "$call", "value": "$data.calls"}],
           "fields": [
             {
               "format": "call",

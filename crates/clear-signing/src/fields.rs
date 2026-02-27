@@ -1,6 +1,4 @@
 use crate::display::Labels;
-use crate::error::ParseError;
-use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, Bytes, I256, U256};
@@ -27,14 +25,11 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn from_str(direction: &str) -> Result<Self, ParseError> {
+    pub fn from_str(direction: &str) -> crate::Result<Self> {
         match direction {
             "in" => Ok(Direction::In),
             "out" => Ok(Direction::Out),
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Unknown direction: {}",
-                direction
-            ))),
+            _ => anyhow::bail!("Unknown direction: {}", direction),
         }
     }
 }

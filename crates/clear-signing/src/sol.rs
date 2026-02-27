@@ -1,22 +1,21 @@
+use crate::ResultExt;
 use alloc::{
     boxed::Box,
     format,
     string::{String, ToString},
     vec::Vec,
 };
-use alloy_primitives::{keccak256, Address, Function, Selector, I256, U256};
 use alloy_dyn_abi::{DynSolType, DynSolValue, Word};
+use alloy_primitives::{Address, Function, I256, Selector, U256, keccak256};
 use nom::{
-    branch::alt, bytes::complete::{tag, take_while, take_while1},
+    IResult, Parser,
+    branch::alt,
+    bytes::complete::{tag, take_while, take_while1},
     character::complete::{char, digit1, multispace0},
     combinator::{all_consuming, map, map_res, opt, recognize, value},
     multi::{many0, separated_list0},
     sequence::{delimited, pair, preceded},
-    IResult,
-    Parser,
 };
-
-use crate::error::ParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SolType {
@@ -74,8 +73,10 @@ impl SolType {
         }
     }
 
-    pub fn parse(input: &str) -> Result<Self, ParseError> {
-        let (_, sol_type) = all_consuming(parse_tuple).parse(input)?;
+    pub fn parse(input: &str) -> crate::Result<Self> {
+        let (_, sol_type) = all_consuming(parse_tuple)
+            .parse(input)
+            .err_ctx("Failed to parse tuple")?;
         Ok(sol_type)
     }
 }
@@ -132,7 +133,7 @@ pub enum SolValue {
 }
 
 impl SolValue {
-    pub fn matches(&self, other: &SolValue) -> Result<bool, ParseError> {
+    pub fn matches(&self, other: &SolValue) -> crate::Result<bool> {
         match (self, other) {
             (SolValue::Literal(l1), SolValue::Literal(l2)) => Ok(l1 == l2),
             (SolValue::Bool(v1), SolValue::Bool(v2)) => Ok(v1 == v2),
@@ -192,98 +193,72 @@ impl SolValue {
         }
     }
 
-    pub fn as_address(&self) -> Result<Address, ParseError> {
+    pub fn as_address(&self) -> crate::Result<Address> {
         match self {
             SolValue::Address(a) => Ok(*a),
             SolValue::Bytes(bytes) => {
-                if bytes.len() != 20 {
-                    return Err(ParseError::SmthWentWrong(format!(
-                        "Invalid address length: {}",
-                        bytes.len()
-                    )));
-                }
-
+                anyhow::ensure!(bytes.len() == 20, "Invalid address length: {}", bytes.len());
                 Ok(Address::from_slice(bytes))
             }
             SolValue::Literal(string) => Ok(string.parse()?),
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected address, got {:?}",
-                self
-            ))),
+            _ => anyhow::bail!("Type mismatch: expected address, got {:?}", self),
         }
     }
 
-    pub fn as_uint(&self) -> Result<U256, ParseError> {
+    pub fn as_uint(&self) -> crate::Result<U256> {
         match self {
             SolValue::Uint(v, _) => Ok(*v),
             SolValue::Bytes(bytes) => {
-                if bytes.len() > 32 {
-                    return Err(ParseError::SmthWentWrong(format!(
-                        "Bytes length {} exceeds 32 for uint conversion",
-                        bytes.len()
-                    )));
-                }
+                anyhow::ensure!(
+                    bytes.len() <= 32,
+                    "Bytes length {} exceeds 32 for uint conversion",
+                    bytes.len()
+                );
                 Ok(U256::from_be_slice(bytes))
             }
-            SolValue::Literal(string) => Ok(string.parse()?),
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected uint, got {:?}",
-                self
-            ))),
+            SolValue::Literal(string) => {
+                Ok(string.parse().err_ctx("Failed to parse uint from string")?)
+            }
+            _ => anyhow::bail!("Type mismatch: expected uint, got {:?}", self),
         }
     }
 
-    pub fn as_literal(&self) -> Result<String, ParseError> {
+    pub fn as_literal(&self) -> crate::Result<String> {
         match self {
             SolValue::Literal(string) => Ok(string.clone()),
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected literal, got {:?}",
-                self
-            ))),
+            _ => anyhow::bail!("Type mismatch: expected literal, got {:?}", self),
         }
     }
 
-    pub fn as_int(&self) -> Result<I256, ParseError> {
+    pub fn as_int(&self) -> crate::Result<I256> {
         match self {
             SolValue::Int(v, _) => Ok(*v),
             SolValue::Literal(string) => Ok(string.parse()?),
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected int, got {:?}",
-                self
-            ))),
+            _ => anyhow::bail!("Type mismatch: expected int, got {:?}", self),
         }
     }
 
-    pub fn as_bool(&self) -> Result<bool, ParseError> {
+    pub fn as_bool(&self) -> crate::Result<bool> {
         match self {
             SolValue::Bool(v) => Ok(*v),
             SolValue::Literal(string) => match string.to_lowercase().as_str() {
                 "true" => Ok(true),
                 "false" => Ok(false),
-                _ => Err(ParseError::SmthWentWrong(format!(
-                    "Invalid boolean literal: {}",
-                    string
-                ))),
+                _ => anyhow::bail!("Invalid boolean literal: {}", string),
             },
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected bool, got {:?}",
-                self
-            ))),
+            _ => anyhow::bail!("Type mismatch: expected bool, got {:?}", self),
         }
     }
 
-    pub fn as_string(&self) -> Result<String, ParseError> {
+    pub fn as_string(&self) -> crate::Result<String> {
         match self {
             SolValue::String(s) => Ok(s.clone()),
             SolValue::Literal(string) => Ok(string.clone()),
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected string, got {:?}",
-                self
-            ))),
+            _ => anyhow::bail!("Type mismatch: expected string, got {:?}", self),
         }
     }
 
-    pub fn as_bytes(&self) -> Result<Vec<u8>, ParseError> {
+    pub fn as_bytes(&self) -> crate::Result<Vec<u8>> {
         match self {
             SolValue::Bytes(b) => Ok(b.clone()),
             SolValue::FixedBytes(b, size) => Ok(b[..*size].to_vec()),
@@ -292,19 +267,14 @@ impl SolValue {
                 let bytes = val.to_be_bytes::<32>();
                 Ok(bytes[32 - byte_len..].to_vec())
             }
-            SolValue::Literal(string) => {
-                Ok(alloy_primitives::hex::decode(
-                    string.trim_start_matches("0x"),
-                )?)
-            }
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected bytes, got {:?}",
-                self
-            ))),
+            SolValue::Literal(string) => Ok(alloy_primitives::hex::decode(
+                string.trim_start_matches("0x"),
+            )?),
+            _ => anyhow::bail!("Type mismatch: expected bytes, got {:?}", self),
         }
     }
 
-    pub fn as_array(&self) -> Result<Vec<SolValue>, ParseError> {
+    pub fn as_array(&self) -> crate::Result<Vec<SolValue>> {
         match self {
             SolValue::Array(arr) => Ok(arr.clone()),
             SolValue::FixedArray(arr) => Ok(arr.clone()),
@@ -336,14 +306,11 @@ impl SolValue {
                     })
                     .collect())
             }
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Type mismatch: expected array, got {:?}",
-                self
-            ))),
+            _ => anyhow::bail!("Type mismatch: expected array, got {:?}", self),
         }
     }
 
-    pub fn from(value: DynSolValue, ty: &SolType) -> Result<SolValue, ParseError> {
+    pub fn from(value: DynSolValue, ty: &SolType) -> crate::Result<SolValue> {
         match value {
             DynSolValue::Bool(v) => Ok(SolValue::Bool(v)),
             DynSolValue::Int(v, size) => Ok(SolValue::Int(v, size)),
@@ -361,10 +328,7 @@ impl SolValue {
                         .collect();
                     Ok(SolValue::Array(converted?))
                 } else {
-                    Err(ParseError::SmthWentWrong(format!(
-                        "Type mismatch: expected Array, got {:?}",
-                        ty
-                    )))
+                    anyhow::bail!("Type mismatch: expected Array, got {:?}", ty)
                 }
             }
             DynSolValue::FixedArray(values) => {
@@ -375,21 +339,17 @@ impl SolValue {
                         .collect();
                     Ok(SolValue::FixedArray(converted?))
                 } else {
-                    Err(ParseError::SmthWentWrong(format!(
-                        "Type mismatch: expected FixedArray, got {:?}",
-                        ty
-                    )))
+                    anyhow::bail!("Type mismatch: expected FixedArray, got {:?}", ty)
                 }
             }
             DynSolValue::Tuple(values) => {
                 if let SolType::Tuple(types) = ty {
-                    if values.len() != types.len() {
-                        return Err(ParseError::SmthWentWrong(format!(
-                            "Tuple length mismatch: values {} != types {}",
-                            values.len(),
-                            types.len()
-                        )));
-                    }
+                    anyhow::ensure!(
+                        values.len() == types.len(),
+                        "Tuple length mismatch: values {} != types {}",
+                        values.len(),
+                        types.len()
+                    );
 
                     let entries = values
                         .into_iter()
@@ -397,14 +357,11 @@ impl SolValue {
                         .map(|(val, (name_opt, type_def))| {
                             Ok((name_opt.clone(), Self::from(val, type_def)?))
                         })
-                        .collect::<Result<Vec<_>, ParseError>>()?;
+                        .collect::<crate::Result<Vec<_>>>()?;
 
                     Ok(SolValue::Tuple(entries))
                 } else {
-                    Err(ParseError::SmthWentWrong(format!(
-                        "Type mismatch: expected Tuple, got {:?}",
-                        ty
-                    )))
+                    anyhow::bail!("Type mismatch: expected Tuple, got {:?}", ty)
                 }
             }
         }
@@ -418,22 +375,24 @@ pub struct SolFunction {
 }
 
 impl SolFunction {
-    pub fn parse(signature: &str) -> Result<Self, ParseError> {
+    pub fn parse(signature: &str) -> crate::Result<Self> {
         let input = signature.trim();
 
-        let (input, _) = ws::<_, nom::error::Error<&str>, _>(tag("function")).parse(input)?;
+        let (input, _) = ws::<_, nom::error::Error<&str>, _>(tag("function"))
+            .parse(input)
+            .err_ctx("Expected 'function' keyword")?;
 
-        let (input, function_name) = ws(identifier).parse(input)?;
+        let (input, function_name) = ws(identifier)
+            .parse(input)
+            .err_ctx("Failed to parse function name")?;
 
-        let (input, tuple) = parse_tuple(input)?;
+        let (input, tuple) = parse_tuple(input).err_ctx("Failed to parse function parameters")?;
 
-        let (input, state_mutability) = parse_state_mutability(input)?;
+        let (input, state_mutability) =
+            parse_state_mutability(input).err_ctx("Failed to parse state mutability")?;
 
         if !input.trim().is_empty() {
-            return Err(ParseError::SmthWentWrong(format!(
-                "Trailing data: {}",
-                input
-            )));
+            anyhow::bail!("Trailing data: {}", input);
         }
 
         Ok(SolFunction {
@@ -450,11 +409,9 @@ impl SolFunction {
         Selector::from_slice(&hash[..4])
     }
 
-    pub fn decode(&self, data: &[u8]) -> Result<SolValue, ParseError> {
+    pub fn decode(&self, data: &[u8]) -> crate::Result<SolValue> {
         if data.len() < 4 || &data[..4] != self.selector().as_slice() {
-            return Err(ParseError::SmthWentWrong(
-                "Invalid data, wrong selector".to_string(),
-            ));
+            anyhow::bail!("Invalid data, wrong selector");
         }
         let ty = DynSolType::from(&self.tuple);
         let decoded = ty.abi_decode_params(&data[4..])?;

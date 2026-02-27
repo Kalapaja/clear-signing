@@ -538,6 +538,7 @@ dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
  "alloy-sol-types",
+ "anyhow",
  "nom",
  "serde",
  "serde_json",

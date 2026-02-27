@@ -80,7 +80,8 @@
                 "nativeAmount",
                 "tokenAmount",
                 "call",
-                "array"
+                "array",
+                "switch"
               ]
             },
             {
@@ -95,15 +96,13 @@
             "$ref": "#/definitions/Entry"
           }
         },
-        "checks": {
+        "case": {
           "type": "array",
-          "description": "2D array: OR of AND groups. Each group is ANDed, groups are ORed",
+          "description": "Array of case values for branching. Field is shown if parent context value matches any case value. Empty array means always show.",
           "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/Check"
-            }
-          }
+            "type": "string"
+          },
+          "default": []
         },
         "fields": {
           "type": "array",
@@ -221,6 +220,17 @@
           }
         },
         {
+          "if": { "properties": { "format": { "const": "switch" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
           "if": { "properties": { "format": { "const": "duration" } } },
           "then": {
             "properties": {
@@ -311,27 +321,6 @@
       "properties": {
         "key": { "$ref": "#/definitions/Key" },
         "value": { "$ref": "#/definitions/Value" }
-      },
-      "additionalProperties": false
-    },
-    "Check": {
-      "type": "object",
-      "required": [ "left" ],
-      "properties": {
-        "left": {
-          "type": "string",
-          "description": "Left operand (reference or literal)"
-        },
-        "op": {
-          "type": "string",
-          "enum": ["eq", "ne"],
-          "default": "eq",
-          "description": "Comparison operator: eq (equals), ne (not equals), empty defaults to eq"
-        },
-        "right": {
-          "type": "string",
-          "description": "Right operand (reference or literal)"
-        }
       },
       "additionalProperties": false
     },

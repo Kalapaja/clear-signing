@@ -1,4 +1,4 @@
-use crate::error::ParseError;
+use crate::ResultExt;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use nom::combinator::{all_consuming, map, map_res, verify};
@@ -32,17 +32,17 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn only_segments(&self) -> Result<String, ParseError> {
+    pub fn only_segments(&self) -> crate::Result<String> {
         let mut result = String::new();
 
         for member in &self.members {
             match member {
                 Member::Segment(seg) => result.push_str(&seg.0),
                 Member::Index(_) => {
-                    return Err(ParseError::SmthWentWrong("Expected segment member".into()));
+                    anyhow::bail!("Expected segment member");
                 }
                 Member::Slice(_) => {
-                    return Err(ParseError::SmthWentWrong("Expected segment member".into()));
+                    anyhow::bail!("Expected segment member");
                 }
             };
         }
@@ -84,12 +84,13 @@ impl Member {
 }
 
 impl Reference {
-    pub fn parse(path: &str) -> Result<Self, ParseError> {
+    pub fn parse(path: &str) -> crate::Result<Self> {
         if path.is_empty() {
             return Ok(Reference::Literal("".into()));
         }
 
-        let parsed = all_consuming(parse_value).parse(path)?;
+        let parsed = all_consuming(parse_value).parse(path)
+            .err_ctx("Nom parse error")?;
         Ok(parsed.1)
     }
 }

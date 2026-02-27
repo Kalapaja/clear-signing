@@ -1,51 +1,20 @@
-use crate::display::{Check, Display, Field, Format};
-use crate::error::ParseError;
-use crate::error::ParseError::{DisplayNotFound, ParamNotFound, SmthWentWrong};
+use crate::display::{Display, Field, Format};
 use crate::fields::{ClearCall, Direction, DisplayField, Label};
 use crate::registry::Registry;
 use crate::resolver::{resolve_value, Message};
 use crate::sol::{SolFunction, SolType, SolValue, StateMutability};
+use crate::ResultExt;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use alloc::{format, vec};
+use alloc::vec;
 use alloy_dyn_abi::DynSolType;
-use alloy_primitives::{address, Address, FixedBytes, U256};
+use alloy_primitives::{address, FixedBytes, U256};
 use alloy_sol_types::sol;
 use alloy_sol_types::SolCall;
 use core::time::Duration;
 
-/// Maximum recursion depth for nested calls to prevent stack overflow
 const MAX_RECURSION_DEPTH: usize = 16;
-
-/// Comparison operators for check evaluation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CheckOperator {
-    /// Equal (==)
-    Eq,
-    /// Not equal (!=)
-    Ne,
-}
-
-impl CheckOperator {
-    /// Parse operator from string, defaulting to Eq if empty
-    fn from_str(s: &str) -> Result<Self, ParseError> {
-        match s {
-            "" | "eq" => Ok(CheckOperator::Eq),
-            "ne" => Ok(CheckOperator::Ne),
-            _ => Err(ParseError::UnknownOperator(s.to_string())),
-        }
-    }
-
-    /// Evaluate the operator against two values
-    fn evaluate(&self, left: &SolValue, right: &SolValue) -> Result<bool, ParseError> {
-        let matches = left.matches(right)?;
-        Ok(match self {
-            CheckOperator::Eq => matches,
-            CheckOperator::Ne => !matches,
-        })
-    }
-}
 
 sol! {
     function clearCall(bytes32 displayHash, bytes call) payable returns (bytes);
@@ -65,10 +34,8 @@ impl ClearCallContext {
         message: Message,
         registry: &dyn Registry,
         level: usize,
-    ) -> Result<ClearCall, ParseError> {
-        if level > MAX_RECURSION_DEPTH {
-            return Err(ParseError::RecursionLimitExceeded);
-        }
+    ) -> crate::Result<ClearCall> {
+        anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
 
         let (display_hash, msg) = match message.selector()? {
             FixedBytes(clearCallCall::SELECTOR) => {
@@ -90,10 +57,8 @@ impl ClearCallContext {
         display_hash: Option<FixedBytes<32>>,
         registry: &dyn Registry,
         level: usize,
-    ) -> Result<ClearCall, ParseError> {
-        if !registry.is_well_known_contract(&message.to) {
-            return Err(ParseError::UnknownContract(message.to));
-        }
+    ) -> crate::Result<ClearCall> {
+        anyhow::ensure!(registry.is_well_known_contract(&message.to), "Unknown contract: {}", message.to);
 
         let display = if let Some(hash) = display_hash {
 
@@ -101,7 +66,7 @@ impl ClearCallContext {
 
             for display in &self.displays {
                 if !display.validate() {
-                    return Err(SmthWentWrong("Display validation failed".to_string()));
+                    anyhow::bail!("Display validation failed");
                 }
             }
 
@@ -115,11 +80,12 @@ impl ClearCallContext {
                         false
                     }
                 })
-                .ok_or(DisplayNotFound {
-                    address: message.to,
+                .ok_or_else(|| anyhow::anyhow!(
+                    "Display not found: {:?} at address {} with display hash {:?}",
                     selector,
-                    display_hash: Some(self.displays.first().unwrap().hash_struct()),
-                })?
+                    message.to,
+                    Some(self.displays.first().unwrap().hash_struct())
+                ))?
                 .clone();
 
             display
@@ -128,14 +94,15 @@ impl ClearCallContext {
 
             let well_known_display = registry
                 .get_well_known_display(&message.to, &selector)
-                .ok_or(DisplayNotFound {
-                    address: message.to,
+                .ok_or_else(|| anyhow::anyhow!(
+                    "Display not found: {:?} at address {} with display hash {:?}",
                     selector,
-                    display_hash: None,
-                })?;
+                    message.to,
+                    None::<FixedBytes<32>>
+                ))?;
 
             if !well_known_display.validate() {
-                return Err(SmthWentWrong("Display validation failed".to_string()));
+                anyhow::bail!("Display validation failed");
             }
 
             well_known_display
@@ -144,13 +111,11 @@ impl ClearCallContext {
         let function_call = SolFunction::parse(&display.abi)?;
 
         match function_call.state_mutability {
-            StateMutability::Pure => return Err(ParseError::FunctionNotWriteable),
-            StateMutability::View => return Err(ParseError::FunctionNotWriteable),
+            StateMutability::Pure => anyhow::bail!("Function is not writeable"),
+            StateMutability::View => anyhow::bail!("Function is not writeable"),
             StateMutability::Payable => {}
             StateMutability::NonPayable => {
-                if message.value != U256::ZERO {
-                    return Err(ParseError::FunctionNotPayable);
-                }
+                anyhow::ensure!(message.value == U256::ZERO, "Function is not payable");
             }
         }
 
@@ -176,10 +141,20 @@ impl ClearCallContext {
         data: &SolValue,
         registry: &dyn Registry,
         level: usize,
-    ) -> Result<Vec<DisplayField>, ParseError> {
-        if level > MAX_RECURSION_DEPTH {
-            return Err(ParseError::RecursionLimitExceeded);
-        }
+    ) -> crate::Result<Vec<DisplayField>> {
+        self.process_fields_with_switch_value(message, fields, data, registry, level, None)
+    }
+
+    fn process_fields_with_switch_value(
+        &self,
+        message: &Message,
+        fields: &[Field],
+        data: &SolValue,
+        registry: &dyn Registry,
+        level: usize,
+        switch_value: Option<SolValue>,
+    ) -> crate::Result<Vec<DisplayField>> {
+        anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
 
         let mut display_fields = vec![];
 
@@ -188,9 +163,48 @@ impl ClearCallContext {
             let title = field.title.clone();
             let description = field.description.clone();
 
-            // Evaluate checks
-            if !field.checks.is_empty() && !evaluate_checks(&field.checks, message, data)? {
-                continue 'fields; // Skip field if checks don't pass
+            // Case matching logic:
+            // - If switch_value is None: ALL fields should NOT have case (validation check)
+            // - If switch_value is Some:
+            //   - Fields with empty case: always shown (considered as matched)
+            //   - Fields with non-empty case: shown only if any case value matches switch_value
+
+            if let Some(ref switch_val) = switch_value {
+                // We're in a switch context - apply case matching
+                if !field.case.is_empty() {
+                    // Field has case values - check if any matches using SolValue::matches()
+                    let mut matched = false;
+                    for case_str in &field.case {
+                        // Resolve the case value (it might be a reference like $msg.sender)
+                        let case_value = resolve_value(case_str, message, data)?;
+
+                        match switch_val.matches(&case_value) {
+                            Ok(true) => {
+                                matched = true;
+                                break;
+                            }
+                            Ok(false) => continue,
+                            Err(e) => {
+                                anyhow::bail!(
+                                    "Error matching switch value {:?} against case '{}': {}",
+                                    switch_val, case_str, e
+                                );
+                            }
+                        }
+                    }
+                    if !matched {
+                        continue 'fields; // Skip - no case matches
+                    }
+                }
+                // If field.case is empty, field is shown (default match)
+            } else {
+                // No switch context - fields should not have case specified
+                if !field.case.is_empty() {
+                    anyhow::bail!(
+                        "Field '{}' has case array but no switch context. Fields with case must be children of a switch format.",
+                        title
+                    );
+                }
             }
 
             match Format::from(&field.format)? {
@@ -238,7 +252,7 @@ impl ClearCallContext {
                             direction,
                         })
                     } else {
-                        return Err(ParseError::UnknownToken(token));
+                        anyhow::bail!("Unknown token: {:?}", token);
                     }
                 }
                 Format::NativeAmount => {
@@ -264,9 +278,7 @@ impl ClearCallContext {
                     let contract =
                         resolve_param_value(&params, "value", message, data)?.as_address()?;
 
-                    if !registry.is_well_known_contract(&contract) {
-                        return Err(ParseError::UnknownContract(contract));
-                    }
+                    anyhow::ensure!(registry.is_well_known_contract(&contract), "Unknown contract: {}", contract);
 
                     display_fields.push(DisplayField::Contract {
                         title,
@@ -278,9 +290,7 @@ impl ClearCallContext {
                     let token =
                         resolve_param_value(&params, "value", message, data)?.as_address()?;
 
-                    if !registry.is_well_known_token(&token) {
-                        return Err(ParseError::UnknownContract(token));
-                    }
+                    anyhow::ensure!(registry.is_well_known_token(&token), "Unknown token: {}", token);
 
                     display_fields.push(DisplayField::Token {
                         title,
@@ -356,7 +366,7 @@ impl ClearCallContext {
                     display_fields.push(DisplayField::Duration {
                         title,
                         description,
-                        value: Duration::from_secs(value.try_into()?),
+                        value: Duration::from_secs(value.try_into().err_ctx("Can't parse uint into u64")?),
                     });
                 }
                 Format::Datetime => {
@@ -366,7 +376,7 @@ impl ClearCallContext {
                     display_fields.push(DisplayField::Datetime {
                         title,
                         description,
-                        value: Duration::from_secs(value.try_into()?),
+                        value: Duration::from_secs(value.try_into().err_ctx("Can't parse uint into u64")?),
                     });
                 }
                 Format::Percentage => {
@@ -409,12 +419,44 @@ impl ClearCallContext {
 
                     let new_data = SolValue::Tuple(match_data);
 
-                    let new_fields = self.process_fields(
+                    let new_fields = self.process_fields_with_switch_value(
                         message,
                         &field.fields,
                         &new_data,
                         registry,
                         level + 1,
+                        None,
+                    )?;
+
+                    display_fields.push(DisplayField::Match {
+                        title,
+                        description,
+                        values: new_fields,
+                    });
+                }
+                Format::Switch => {
+                    // Switch evaluates a value and passes it to child fields for case matching
+                    let switch_val = resolve_param_value(&params, "value", message, data)?;
+
+                    // Decode any additional data like match does
+                    let mut switch_data = vec![];
+                    decode_abi_data(&params, message, data, &mut switch_data)?;
+                    decode_params_data(&params, message, data, &mut switch_data)?;
+
+                    let new_data = if !switch_data.is_empty() {
+                        SolValue::Tuple(switch_data)
+                    } else {
+                        data.clone()
+                    };
+
+                    // Process child fields with the switch value for case matching
+                    let new_fields = self.process_fields_with_switch_value(
+                        message,
+                        &field.fields,
+                        &new_data,
+                        registry,
+                        level + 1,
+                        Some(switch_val),
                     )?;
 
                     display_fields.push(DisplayField::Match {
@@ -433,9 +475,8 @@ impl ClearCallContext {
                         let value = resolve_value(reference, message, data)?.as_array()?;
                         if i == 0 {
                             length = value.len();
-                        } else if value.len() != length {
-                            return Err(SmthWentWrong("Array length mismatch".to_string()));
                         }
+                        anyhow::ensure!(value.len() == length, "Array length mismatch");
                         arrays.push((name, value));
                     }
 
@@ -447,12 +488,13 @@ impl ClearCallContext {
                             tuple.push((Some(name.clone()), array[i].clone()));
                         }
                         let new_data = SolValue::Tuple(tuple);
-                        let item_fields = self.process_fields(
+                        let item_fields = self.process_fields_with_switch_value(
                             message,
                             &field.fields,
                             &new_data,
                             registry,
                             level + 1,
+                            None,
                         )?;
                         values.push(item_fields);
                     }
@@ -474,66 +516,11 @@ impl ClearCallContext {
     }
 }
 
-/// Evaluate a 2D checks array with OR-of-AND logic
-///
-/// Returns true if at least one check group passes (where all checks in the group must pass)
-///
-/// **Note**: Caller should check if checks array is empty before calling this function
-fn evaluate_checks(
-    checks: &[Vec<Check>],
-    message: &Message,
-    data: &SolValue,
-) -> Result<bool, ParseError> {
-    // OR logic: at least one group must pass
-    for check_group in checks {
-        // AND logic: all checks in this group must pass
-        if evaluate_check_group(check_group, message, data)? {
-            return Ok(true); // Short-circuit on first passing group
-        }
-    }
-
-    Ok(false) // No groups passed
-}
-
-/// Evaluate a single check group (all checks must pass - AND logic)
-fn evaluate_check_group(
-    check_group: &[Check],
-    message: &Message,
-    data: &SolValue,
-) -> Result<bool, ParseError> {
-    for check in check_group {
-        // Resolve left operand
-        let left_val = resolve_value(&check.left, message, data);
-
-        // Handle ReferenceNotFound - treat as check failure
-        if let Err(ParseError::ReferenceNotFound(_)) = left_val {
-            return Ok(false);
-        }
-
-        // Resolve right operand
-        let right_val = if check.right.is_empty() {
-            left_val.clone()
-        } else {
-            resolve_value(&check.right, message, data)
-        };
-
-        // Parse and apply operator
-        let op = CheckOperator::from_str(&check.op)?;
-        let matched = op.evaluate(&left_val?, &right_val?)?;
-
-        if !matched {
-            return Ok(false); // Check failed
-        }
-    }
-
-    Ok(true) // All checks passed
-}
-
-fn entries_to_map(entries: &[crate::display::Entry]) -> Result<BTreeMap<&str, &str>, ParseError> {
+fn entries_to_map(entries: &[crate::display::Entry]) -> crate::Result<BTreeMap<&str, &str>> {
     let mut map = BTreeMap::new();
     for entry in entries {
         if map.contains_key(entry.key.as_str()) {
-            return Err(SmthWentWrong(format!("Duplicate entry key: {}", entry.key)));
+            anyhow::bail!("Duplicate entry key: {}", entry.key);
         }
 
         map.insert(entry.key.as_str(), entry.value.as_str());
@@ -554,10 +541,10 @@ fn resolve_param_value(
     key: &str,
     message: &Message,
     data: &SolValue,
-) -> Result<SolValue, ParseError> {
+) -> crate::Result<SolValue> {
     let param_value = params
         .get(key)
-        .ok_or_else(|| ParamNotFound(format!("Param {} not found", key)))?;
+        .ok_or_else(|| anyhow::anyhow!("Param {} not found", key))?;
 
     resolve_value(param_value, message, data)
 }
@@ -567,7 +554,7 @@ fn resolve_optional_param_value(
     key: &str,
     message: &Message,
     data: &SolValue,
-) -> Option<Result<SolValue, ParseError>> {
+) -> Option<crate::Result<SolValue>> {
     let param_value = params.get(key);
 
     param_value.map(|param_value| resolve_value(param_value, message, data))
@@ -578,7 +565,7 @@ fn decode_abi_data(
     message: &Message,
     data: &SolValue,
     match_data: &mut Vec<(Option<String>, SolValue)>,
-) -> Result<(), ParseError> {
+) -> crate::Result<()> {
     if let (Some(abi), Some(value)) = (
         resolve_optional_param_value(params, "abi", message, data),
         resolve_optional_param_value(params, "value", message, data),
@@ -604,7 +591,7 @@ fn decode_params_data(
     message: &Message,
     data: &SolValue,
     match_data: &mut Vec<(Option<String>, SolValue)>,
-) -> Result<(), ParseError> {
+) -> crate::Result<()> {
     let new_data_names = map_to_values(params, '$');
     if new_data_names.is_empty() {
         return Ok(());

@@ -30,9 +30,7 @@
           "title": "$labels.recipient",
           "description": "$labels.desc_recipient",
           "format": "address",
-          "params": [
-            {"key": "value", "value": "$data.desc.dstReceiver"}
-          ]
+          "params": [{"key": "value", "value": "$data.desc.dstReceiver"}]
         },
         {
           "title": "$labels.swap_options",
@@ -66,34 +64,34 @@
           "locale": "es",
           "items": [
             {"key": "swap_title", "value": "Intercambio 1inch"},
-            {"key": "swap_description", "value": "Intercambia un token por otro usando el protocolo de agregación 1inch"},
-            {"key": "you_send", "value": "Envías"},
-            {"key": "you_receive_minimum", "value": "Recibes (Mínimo)"},
+            {"key": "swap_description", "value": "Intercambia un token por otro usando el protocolo de agregaci\u00f3n 1inch"},
+            {"key": "you_send", "value": "Env\u00edas"},
+            {"key": "you_receive_minimum", "value": "Recibes (M\u00ednimo)"},
             {"key": "recipient", "value": "Destinatario"},
             {"key": "swap_options", "value": "Opciones de Intercambio"},
             {"key": "partial_fill_enabled", "value": "Llenado parcial permitido"},
-            {"key": "desc_you_send", "value": "La cantidad exacta que enviarás desde tu billetera"},
-            {"key": "desc_you_receive_minimum", "value": "La cantidad mínima que recibirás. Puedes recibir más si mejora el tipo de cambio"},
-            {"key": "desc_recipient", "value": "La dirección de billetera que recibirá los tokens intercambiados"},
-            {"key": "desc_swap_options", "value": "Configuraciones adicionales de ejecución del intercambio"},
-            {"key": "desc_partial_fill", "value": "Si está habilitado, el intercambio puede llenarse parcialmente si no se puede ejecutar la cantidad completa"}
+            {"key": "desc_you_send", "value": "La cantidad exacta que enviar\u00e1s desde tu billetera"},
+            {"key": "desc_you_receive_minimum", "value": "La cantidad m\u00ednima que recibir\u00e1s. Puedes recibir m\u00e1s si mejora el tipo de cambio"},
+            {"key": "desc_recipient", "value": "La direcci\u00f3n de billetera que recibir\u00e1 los tokens intercambiados"},
+            {"key": "desc_swap_options", "value": "Configuraciones adicionales de ejecuci\u00f3n del intercambio"},
+            {"key": "desc_partial_fill", "value": "Si est\u00e1 habilitado, el intercambio puede llenarse parcialmente si no se puede ejecutar la cantidad completa"}
           ]
         },
         {
           "locale": "ru",
           "items": [
-            {"key": "swap_title", "value": "Обмен 1inch"},
-            {"key": "swap_description", "value": "Обменяйте один токен на другой, используя протокол агрегации 1inch"},
-            {"key": "you_send", "value": "Вы отправляете"},
-            {"key": "you_receive_minimum", "value": "Вы получаете (Минимум)"},
-            {"key": "recipient", "value": "Получатель"},
-            {"key": "swap_options", "value": "Параметры обмена"},
-            {"key": "partial_fill_enabled", "value": "Частичное исполнение разрешено"},
-            {"key": "desc_you_send", "value": "Точная сумма, которую вы отправите из своего кошелька"},
-            {"key": "desc_you_receive_minimum", "value": "Минимальная сумма, которую вы получите. Вы можете получить больше, если обменный курс улучшится"},
-            {"key": "desc_recipient", "value": "Адрес кошелька, который получит обменянные токены"},
-            {"key": "desc_swap_options", "value": "Дополнительные настройки выполнения обмена"},
-            {"key": "desc_partial_fill", "value": "Если включено, обмен может быть частично исполнен, если невозможно выполнить полную сумму"}
+            {"key": "swap_title", "value": "\u041e\u0431\u043c\u0435\u043d 1inch"},
+            {"key": "swap_description", "value": "\u041e\u0431\u043c\u0435\u043d\u044f\u0439\u0442\u0435 \u043e\u0434\u0438\u043d \u0442\u043e\u043a\u0435\u043d \u043d\u0430 \u0434\u0440\u0443\u0433\u043e\u0439, \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044f \u043f\u0440\u043e\u0442\u043e\u043a\u043e\u043b \u0430\u0433\u0440\u0435\u0433\u0430\u0446\u0438\u0438 1inch"},
+            {"key": "you_send", "value": "\u0412\u044b \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u0442\u0435"},
+            {"key": "you_receive_minimum", "value": "\u0412\u044b \u043f\u043e\u043b\u0443\u0447\u0430\u0435\u0442\u0435 (\u041c\u0438\u043d\u0438\u043c\u0443\u043c)"},
+            {"key": "recipient", "value": "\u041f\u043e\u043b\u0443\u0447\u0430\u0442\u0435\u043b\u044c"},
+            {"key": "swap_options", "value": "\u041f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u044b \u043e\u0431\u043c\u0435\u043d\u0430"},
+            {"key": "partial_fill_enabled", "value": "\u0427\u0430\u0441\u0442\u0438\u0447\u043d\u043e\u0435 \u0438\u0441\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043d\u043e"},
+            {"key": "desc_you_send", "value": "\u0422\u043e\u0447\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430, \u043a\u043e\u0442\u043e\u0440\u0443\u044e \u0432\u044b \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u0435 \u0438\u0437 \u0441\u0432\u043e\u0435\u0433\u043e \u043a\u043e\u0448\u0435\u043b\u044c\u043a\u0430"},
+            {"key": "desc_you_receive_minimum", "value": "\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430, \u043a\u043e\u0442\u043e\u0440\u0443\u044e \u0432\u044b \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u0435. \u0412\u044b \u043c\u043e\u0436\u0435\u0442\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0431\u043e\u043b\u044c\u0448\u0435, \u0435\u0441\u043b\u0438 \u043e\u0431\u043c\u0435\u043d\u043d\u044b\u0439 \u043a\u0443\u0440\u0441 \u0443\u043b\u0443\u0447\u0448\u0438\u0442\u0441\u044f"},
+            {"key": "desc_recipient", "value": "\u0410\u0434\u0440\u0435\u0441 \u043a\u043e\u0448\u0435\u043b\u044c\u043a\u0430, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u043f\u043e\u043b\u0443\u0447\u0438\u0442 \u043e\u0431\u043c\u0435\u043d\u044f\u043d\u043d\u044b\u0435 \u0442\u043e\u043a\u0435\u043d\u044b"},
+            {"key": "desc_swap_options", "value": "\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f \u043e\u0431\u043c\u0435\u043d\u0430"},
+            {"key": "desc_partial_fill", "value": "\u0415\u0441\u043b\u0438 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u043e, \u043e\u0431\u043c\u0435\u043d \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u0447\u0430\u0441\u0442\u0438\u0447\u043d\u043e \u0438\u0441\u043f\u043e\u043b\u043d\u0435\u043d, \u0435\u0441\u043b\u0438 \u043d\u0435\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u043e\u043b\u043d\u0443\u044e \u0441\u0443\u043c\u043c\u0443"}
           ]
         }
       ]
