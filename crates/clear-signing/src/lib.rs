@@ -4,6 +4,7 @@ extern crate alloc;
 pub mod clear_call;
 pub mod display;
 pub mod fields;
+pub mod format;
 pub mod reference;
 pub mod registry;
 pub mod resolver;

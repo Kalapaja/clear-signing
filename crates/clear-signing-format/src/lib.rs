@@ -574,6 +574,25 @@ fn format_field(
             }
             lines.push(format!("{}  {}", indent, value));
         }
+        DisplayField::Switch {
+            title,
+            description,
+            fields,
+        } => {
+            let title = resolve(title);
+            if !title.is_empty() {
+                lines.push(format_title(&title, &indent));
+            }
+            if detailed {
+                let desc = resolve(description);
+                if !desc.is_empty() {
+                    lines.push(format!("{}{}", indent, desc));
+                }
+            }
+            for field in fields {
+                format_field(field, provider, level, lines, labels, detailed, locale);
+            }
+        }
     }
 }
 

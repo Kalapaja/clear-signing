@@ -1,18 +1,14 @@
-use crate::display::{Display, Field, Format};
-use crate::fields::{ClearCall, Direction, DisplayField, Label};
+use crate::display::{Display, Field};
+use crate::fields::{ClearCall, DisplayField};
+use crate::format::{ClearCallProcessor, Format, ProcessingContext};
 use crate::registry::Registry;
 use crate::resolver::{resolve_value, Message};
-use crate::sol::{SolFunction, SolType, SolValue, StateMutability};
-use crate::ResultExt;
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
+use crate::sol::{SolFunction, SolValue, StateMutability};
 use alloc::vec;
-use alloy_dyn_abi::DynSolType;
-use alloy_primitives::{address, FixedBytes, U256};
+use alloc::vec::Vec;
+use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_sol_types::sol;
 use alloy_sol_types::SolCall;
-use core::time::Duration;
 
 const MAX_RECURSION_DEPTH: usize = 16;
 
@@ -28,29 +24,9 @@ impl ClearCallContext {
     pub fn new(displays: Vec<Display>) -> Self {
         Self { displays }
     }
+}
 
-    pub fn parse_clear_call(
-        &self,
-        message: Message,
-        registry: &dyn Registry,
-        level: usize,
-    ) -> crate::Result<ClearCall> {
-        anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
-
-        let (display_hash, msg) = match message.selector()? {
-            FixedBytes(clearCallCall::SELECTOR) => {
-                let decoded = clearCallCall::abi_decode(&message.data)?;
-                (
-                    Some(decoded.displayHash),
-                    message.replace_data(decoded.call),
-                )
-            }
-            _ => (None, message),
-        };
-
-        self.parse_call(msg, display_hash, registry, level)
-    }
-
+impl ClearCallContext {
     fn parse_call(
         &self,
         message: Message,
@@ -60,53 +36,8 @@ impl ClearCallContext {
     ) -> crate::Result<ClearCall> {
         anyhow::ensure!(registry.is_well_known_contract(&message.to), "Unknown contract: {}", message.to);
 
-        let display = if let Some(hash) = display_hash {
-
-            let selector = message.selector()?;
-
-            for display in &self.displays {
-                if !display.validate() {
-                    anyhow::bail!("Display validation failed");
-                }
-            }
-
-            let display = self
-                .displays
-                .iter()
-                .find(|d| {
-                    if let Ok(func) = SolFunction::parse(&d.abi) {
-                        func.selector() == selector && d.hash_struct() == hash
-                    } else {
-                        false
-                    }
-                })
-                .ok_or_else(|| anyhow::anyhow!(
-                    "Display not found: {:?} at address {} with display hash {:?}",
-                    selector,
-                    message.to,
-                    Some(self.displays.first().unwrap().hash_struct())
-                ))?
-                .clone();
-
-            display
-        } else {
-            let selector = message.selector()?;
-
-            let well_known_display = registry
-                .get_well_known_display(&message.to, &selector)
-                .ok_or_else(|| anyhow::anyhow!(
-                    "Display not found: {:?} at address {} with display hash {:?}",
-                    selector,
-                    message.to,
-                    None::<FixedBytes<32>>
-                ))?;
-
-            if !well_known_display.validate() {
-                anyhow::bail!("Display validation failed");
-            }
-
-            well_known_display
-        };
+        let selector = message.selector()?;
+        let display = self.find_display(selector, display_hash, &message.to, registry)?;
 
         let function_call = SolFunction::parse(&display.abi)?;
 
@@ -121,11 +52,11 @@ impl ClearCallContext {
 
         let data = function_call.decode(&message.data)?;
 
-        let fields = self.process_fields(&message, &display.fields, &data, registry, level)?;
+        let fields = self.process_fields_impl(&message, &display.fields, &data, registry, level, None)?;
 
         Ok(ClearCall {
-            title: display.title.clone(),
-            description: display.description.clone(),
+            title: display.title.clone().into(),
+            description: display.description.clone().into(),
             payable: function_call.state_mutability == StateMutability::Payable
                 && message.value != U256::ZERO,
             clear: display_hash.is_some(),
@@ -134,18 +65,50 @@ impl ClearCallContext {
         })
     }
 
-    fn process_fields(
+    fn find_display(
         &self,
-        message: &Message,
-        fields: &[Field],
-        data: &SolValue,
+        selector: FixedBytes<4>,
+        display_hash: Option<FixedBytes<32>>,
+        address: &Address,
         registry: &dyn Registry,
-        level: usize,
-    ) -> crate::Result<Vec<DisplayField>> {
-        self.process_fields_with_switch_value(message, fields, data, registry, level, None)
+    ) -> crate::Result<Display> {
+        let display = if let Some(hash) = display_hash {
+            // Look for display in the context's display list with matching selector and hash
+            let mut found_display = None;
+            for d in &self.displays {
+                let func = SolFunction::parse(&d.abi)?;
+                if func.selector() == selector && d.hash_struct() == hash {
+                    found_display = Some(d.clone());
+                    break;
+                }
+            }
+
+            found_display.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Display not found: selector {:?} at address {} with display hash {:?}",
+                    selector,
+                    address,
+                    hash
+                )
+            })?
+        } else {
+            // Look for well-known display in registry
+            registry
+                .get_well_known_display(address, &selector)
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Well Known Display not found: selector {:?} at address {}",
+                        selector,
+                        address
+                    )
+                })?
+        };
+
+        anyhow::ensure!(display.validate(), "Display validation failed");
+        Ok(display)
     }
 
-    fn process_fields_with_switch_value(
+    fn process_fields_impl(
         &self,
         message: &Message,
         fields: &[Field],
@@ -159,10 +122,6 @@ impl ClearCallContext {
         let mut display_fields = vec![];
 
         'fields: for field in fields {
-            let params = entries_to_map(&field.params)?;
-            let title = field.title.clone();
-            let description = field.description.clone();
-
             // Case matching logic:
             // - If switch_value is None: ALL fields should NOT have case (validation check)
             // - If switch_value is Some:
@@ -202,321 +161,70 @@ impl ClearCallContext {
                 if !field.case.is_empty() {
                     anyhow::bail!(
                         "Field '{}' has case array but no switch context. Fields with case must be children of a switch format.",
-                        title
+                        field.title
                     );
                 }
             }
 
-            match Format::from(&field.format)? {
-                Format::Address => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_address()?;
-
-                    display_fields.push(DisplayField::Address {
-                        title,
-                        description,
-                        value,
-                    });
-                }
-                Format::TokenAmount => {
-                    let amount =
-                        resolve_param_value(&params, "amount", message, data)?.as_uint()?;
-                    let token =
-                        resolve_param_value(&params, "token", message, data)?.as_address()?;
-                    let direction =
-                        resolve_optional_param_value(&params, "direction", message, data);
-
-                    let direction = if let Some(direction) = direction {
-                        Some(Direction::from_str(direction?.as_literal()?.as_str())?)
-                    } else {
-                        None
-                    };
-
-                    let natives = vec![
-                        address!("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"),
-                        address!("0x0000000000000000000000000000000000000000"),
-                    ];
-                    if natives.contains(&token) {
-                        display_fields.push(DisplayField::NativeAmount {
-                            title,
-                            description,
-                            amount,
-                            direction,
-                        })
-                    } else if registry.is_well_known_token(&token) {
-                        display_fields.push(DisplayField::TokenAmount {
-                            title,
-                            description,
-                            token,
-                            amount,
-                            direction,
-                        })
-                    } else {
-                        anyhow::bail!("Unknown token: {:?}", token);
-                    }
-                }
-                Format::NativeAmount => {
-                    let amount =
-                        resolve_param_value(&params, "amount", message, data)?.as_uint()?;
-                    let direction =
-                        resolve_optional_param_value(&params, "direction", message, data);
-
-                    let direction = if let Some(direction) = direction {
-                        Some(Direction::from_str(direction?.as_literal()?.as_str())?)
-                    } else {
-                        None
-                    };
-
-                    display_fields.push(DisplayField::NativeAmount {
-                        title,
-                        description,
-                        amount,
-                        direction,
-                    });
-                }
-                Format::Contract => {
-                    let contract =
-                        resolve_param_value(&params, "value", message, data)?.as_address()?;
-
-                    anyhow::ensure!(registry.is_well_known_contract(&contract), "Unknown contract: {}", contract);
-
-                    display_fields.push(DisplayField::Contract {
-                        title,
-                        description,
-                        contract,
-                    });
-                }
-                Format::Token => {
-                    let token =
-                        resolve_param_value(&params, "value", message, data)?.as_address()?;
-
-                    anyhow::ensure!(registry.is_well_known_token(&token), "Unknown token: {}", token);
-
-                    display_fields.push(DisplayField::Token {
-                        title,
-                        description,
-                        token,
-                    });
-                }
-                Format::Bytes => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_bytes()?;
-
-                    display_fields.push(DisplayField::Bytes {
-                        title,
-                        description,
-                        value: value.into(),
-                    });
-                }
-                Format::String => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_string()?;
-
-                    display_fields.push(DisplayField::String {
-                        title,
-                        description,
-                        value,
-                    });
-                }
-                Format::Call => {
-                    let to = resolve_param_value(&params, "to", message, data)?.as_address()?;
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
-                    let data = resolve_param_value(&params, "data", message, data)?.as_bytes()?;
-                    let msg = Message::new(message.to, to, value, data.into());
-                    let call = self.parse_clear_call(msg, registry, level + 1)?;
-
-                    display_fields.push(DisplayField::Call {
-                        title,
-                        description,
-                        call,
-                    });
-                }
-                Format::Boolean => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_bool()?;
-                    display_fields.push(DisplayField::Boolean {
-                        title,
-                        description,
-                        value,
-                    });
-                }
-                Format::Int => {
-                    let value = resolve_param_value(&params, "value", message, data)?.as_int()?;
-                    display_fields.push(DisplayField::Int {
-                        title,
-                        description,
-                        value,
-                    });
-                }
-                Format::Uint => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
-
-                    display_fields.push(DisplayField::Uint {
-                        title,
-                        description,
-                        value,
-                    });
-                }
-                Format::Duration => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
-
-                    display_fields.push(DisplayField::Duration {
-                        title,
-                        description,
-                        value: Duration::from_secs(value.try_into().err_ctx("Can't parse uint into u64")?),
-                    });
-                }
-                Format::Datetime => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
-
-                    display_fields.push(DisplayField::Datetime {
-                        title,
-                        description,
-                        value: Duration::from_secs(value.try_into().err_ctx("Can't parse uint into u64")?),
-                    });
-                }
-                Format::Percentage => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
-                    let basis =
-                        resolve_param_value(&params, "basis", message, data)?.as_uint()?;
-
-                    display_fields.push(DisplayField::Percentage {
-                        title,
-                        description,
-                        value,
-                        basis,
-                    });
-                }
-                Format::Bitmask => {
-                    let value =
-                        resolve_param_value(&params, "value", message, data)?.as_uint()?;
-                    let bit_indexes = map_to_values(&params, '#');
-
-                    let mut values: Vec<Label> = vec![];
-
-                    for entry in bit_indexes {
-                        let bit_index = entry.0.parse()?;
-                        if value.bit(bit_index) {
-                            values.push(entry.1.to_string());
-                        }
-                    }
-
-                    display_fields.push(DisplayField::Bitmask {
-                        title,
-                        description,
-                        values,
-                    });
-                }
-                Format::Match => {
-                    let mut match_data = vec![];
-                    decode_abi_data(&params, message, data, &mut match_data)?;
-                    decode_params_data(&params, message, data, &mut match_data)?;
-
-                    let new_data = SolValue::Tuple(match_data);
-
-                    let new_fields = self.process_fields_with_switch_value(
-                        message,
-                        &field.fields,
-                        &new_data,
-                        registry,
-                        level + 1,
-                        None,
-                    )?;
-
-                    display_fields.push(DisplayField::Match {
-                        title,
-                        description,
-                        values: new_fields,
-                    });
-                }
-                Format::Switch => {
-                    // Switch evaluates a value and passes it to child fields for case matching
-                    let switch_val = resolve_param_value(&params, "value", message, data)?;
-
-                    // Decode any additional data like match does
-                    let mut switch_data = vec![];
-                    decode_abi_data(&params, message, data, &mut switch_data)?;
-                    decode_params_data(&params, message, data, &mut switch_data)?;
-
-                    let new_data = if !switch_data.is_empty() {
-                        SolValue::Tuple(switch_data)
-                    } else {
-                        data.clone()
-                    };
-
-                    // Process child fields with the switch value for case matching
-                    let new_fields = self.process_fields_with_switch_value(
-                        message,
-                        &field.fields,
-                        &new_data,
-                        registry,
-                        level + 1,
-                        Some(switch_val),
-                    )?;
-
-                    display_fields.push(DisplayField::Match {
-                        title,
-                        description,
-                        values: new_fields,
-                    });
-                }
-                Format::Array => {
-                    let new_data_names = map_to_values(&params, '$');
-
-                    let mut arrays: Vec<(String, Vec<SolValue>)> = vec![];
-                    let mut length = 0;
-
-                    for (i, (name, reference)) in new_data_names.into_iter().enumerate() {
-                        let value = resolve_value(reference, message, data)?.as_array()?;
-                        if i == 0 {
-                            length = value.len();
-                        }
-                        anyhow::ensure!(value.len() == length, "Array length mismatch");
-                        arrays.push((name, value));
-                    }
-
-                    let mut values = vec![];
-
-                    for i in 0..length {
-                        let mut tuple: Vec<(Option<String>, SolValue)> = vec![];
-                        for (name, array) in &arrays {
-                            tuple.push((Some(name.clone()), array[i].clone()));
-                        }
-                        let new_data = SolValue::Tuple(tuple);
-                        let item_fields = self.process_fields_with_switch_value(
-                            message,
-                            &field.fields,
-                            &new_data,
-                            registry,
-                            level + 1,
-                            None,
-                        )?;
-                        values.push(item_fields);
-                    }
-
-                    display_fields.push(DisplayField::Array {
-                        title,
-                        description,
-                        values,
-                    });
-                }
-            };
+            // Use function-based dispatch for format processing
+            let format = Format::from(&field.format)?;
+            let ctx = ProcessingContext::new(
+                field,
+                message,
+                data,
+                registry,
+                self,
+                level,
+                switch_value.clone(),
+            )?;
+            let display_field = format.process(&ctx)?;
+            display_fields.push(display_field);
         }
-
-        // if fields.is_empty() {
-        //     return Err(SmthWentWrong("Fields not created".to_string()));
-        // }
 
         Ok(display_fields)
     }
 }
 
-fn entries_to_map(entries: &[crate::display::Entry]) -> crate::Result<BTreeMap<&str, &str>> {
+impl ClearCallProcessor for ClearCallContext {
+    fn parse_clear_call(
+        &self,
+        message: Message,
+        registry: &dyn Registry,
+        level: usize,
+    ) -> crate::Result<ClearCall> {
+        anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
+
+        let (display_hash, msg) = match message.selector()? {
+            FixedBytes(clearCallCall::SELECTOR) => {
+                let decoded = clearCallCall::abi_decode(&message.data)?;
+                (
+                    Some(decoded.displayHash),
+                    message.replace_data(decoded.call),
+                )
+            }
+            _ => (None, message),
+        };
+
+        self.parse_call(msg, display_hash, registry, level)
+    }
+
+    fn process_nested_fields(
+        &self,
+        message: &Message,
+        fields: &[Field],
+        data: &SolValue,
+        registry: &dyn Registry,
+        level: usize,
+        switch_value: Option<SolValue>,
+    ) -> crate::Result<Vec<DisplayField>> {
+        ClearCallContext::process_fields_impl(self, message, fields, data, registry, level, switch_value)
+    }
+}
+
+// Helper functions kept for backward compatibility if needed in tests
+#[allow(dead_code)]
+fn entries_to_map(entries: &[crate::display::Entry]) -> crate::Result<alloc::collections::BTreeMap<&str, &str>> {
+    use alloc::collections::BTreeMap;
     let mut map = BTreeMap::new();
     for entry in entries {
         if map.contains_key(entry.key.as_str()) {
@@ -528,16 +236,9 @@ fn entries_to_map(entries: &[crate::display::Entry]) -> crate::Result<BTreeMap<&
     Ok(map)
 }
 
-fn map_to_values<'a>(params: &BTreeMap<&str, &'a str>, prefix: char) -> Vec<(String, &'a str)> {
-    params
-        .iter()
-        .filter(|(key, _)| key.starts_with(prefix))
-        .map(|(key, value)| (key.strip_prefix(prefix).unwrap().to_string(), *value))
-        .collect()
-}
-
+#[allow(dead_code)]
 fn resolve_param_value(
-    params: &BTreeMap<&str, &str>,
+    params: &alloc::collections::BTreeMap<&str, &str>,
     key: &str,
     message: &Message,
     data: &SolValue,
@@ -549,8 +250,9 @@ fn resolve_param_value(
     resolve_value(param_value, message, data)
 }
 
+#[allow(dead_code)]
 fn resolve_optional_param_value(
-    params: &BTreeMap<&str, &str>,
+    params: &alloc::collections::BTreeMap<&str, &str>,
     key: &str,
     message: &Message,
     data: &SolValue,
@@ -560,49 +262,6 @@ fn resolve_optional_param_value(
     param_value.map(|param_value| resolve_value(param_value, message, data))
 }
 
-fn decode_abi_data(
-    params: &BTreeMap<&str, &str>,
-    message: &Message,
-    data: &SolValue,
-    match_data: &mut Vec<(Option<String>, SolValue)>,
-) -> crate::Result<()> {
-    if let (Some(abi), Some(value)) = (
-        resolve_optional_param_value(params, "abi", message, data),
-        resolve_optional_param_value(params, "value", message, data),
-    ) {
-        let abi_string = abi?.as_string()?;
-        let bytes_value = value?.as_bytes()?;
-
-        let sol_type = SolType::parse(&abi_string)?;
-
-        let dyn_type = DynSolType::from(&sol_type);
-        let decoded_dyn_value = dyn_type.abi_decode_params(&bytes_value)?;
-        let decoded_data = SolValue::from(decoded_dyn_value, &sol_type)?;
-
-        if let SolValue::Tuple(t) = decoded_data {
-            match_data.extend(t);
-        }
-    }
-    Ok(())
-}
-
-fn decode_params_data(
-    params: &BTreeMap<&str, &str>,
-    message: &Message,
-    data: &SolValue,
-    match_data: &mut Vec<(Option<String>, SolValue)>,
-) -> crate::Result<()> {
-    let new_data_names = map_to_values(params, '$');
-    if new_data_names.is_empty() {
-        return Ok(());
-    }
-
-    for (name, reference) in new_data_names {
-        let value = resolve_value(reference, message, data)?;
-        match_data.push((Some(name), value));
-    }
-    Ok(())
-}
 
 #[cfg(all(test, feature = "serde"))]
 #[cfg(feature = "serde_json")]
@@ -610,6 +269,7 @@ mod tests {
     use super::*;
     use crate::display::Display;
     use alloc::collections::BTreeMap;
+    use alloc::string::{String, ToString};
     use alloc::vec;
     use alloy_primitives::{address, uint, Address, I256};
 

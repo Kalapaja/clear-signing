@@ -2,6 +2,7 @@ use alloy_primitives::{Address, Bytes, U256};
 use anyhow::{Context, Result};
 use clap::Parser;
 use clear_signing::display::Display;
+use clear_signing::format::ClearCallProcessor;
 use clear_signing::{clear_call::ClearCallContext, resolver::Message};
 use clear_signing_format::{format_clear_call, NativeToken};
 use std::fs;

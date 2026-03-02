@@ -34,11 +34,8 @@ impl Message {
     }
 
     pub fn selector(&self) -> crate::Result<FixedBytes<4>> {
-        if self.data.len() >= 4 {
-            Ok(self.data[..4].try_into().map(FixedBytes::new)?)
-        } else {
-            anyhow::bail!("Invalid message selector")
-        }
+        anyhow::ensure!(self.data.len() >= 4, "Invalid message selector");
+        Ok(self.data[..4].try_into().map(FixedBytes::new)?)
     }
 }
 
@@ -72,37 +69,36 @@ pub fn resolve_value(
 }
 
 fn resolve_msg(members: &[Member], message: &Message) -> crate::Result<SolValue> {
-    if !members.len() == 1 {
-        anyhow::bail!(
-            "Message path must have exactly one field, got {}",
-            members.len()
-        );
-    }
+    anyhow::ensure!(
+        members.len() == 1,
+        "Message path must have exactly one field, got {}",
+        members.len()
+    );
 
-    if let Some(Member::Segment(Segment(name))) = members.first() {
-        match name.as_str() {
-            "sender" => Ok(SolValue::Address(message.sender)),
-            "to" => Ok(SolValue::Address(message.to)),
-            "value" => Ok(SolValue::Uint(message.value, 256)),
-            "data" => Ok(SolValue::Bytes(message.data.to_vec())),
-            _ => anyhow::bail!(
-                "Unknown message field '$msg.{}'. Available: $msg.sender, $msg.to, $msg.value, $msg.data",
-                name
-            ),
-        }
-    } else {
+    let Member::Segment(Segment(name)) = members.first()
+        .ok_or_else(|| anyhow::anyhow!("Message path must have a field name"))? else {
         anyhow::bail!("Message path must have a field name")
+    };
+
+    match name.as_str() {
+        "sender" => Ok(SolValue::Address(message.sender)),
+        "to" => Ok(SolValue::Address(message.to)),
+        "value" => Ok(SolValue::Uint(message.value, 256)),
+        "data" => Ok(SolValue::Bytes(message.data.to_vec())),
+        _ => anyhow::bail!(
+            "Unknown message field '$msg.{}'. Available: $msg.sender, $msg.to, $msg.value, $msg.data",
+            name
+        ),
     }
 }
 
 fn resolve_data(members: &[Member], data: &SolValue) -> crate::Result<SolValue> {
     let mut path = members.iter();
 
-    let mut value = if let Some(Member::Segment(segment)) = path.next() {
-        parse_segment(data, segment)?
-    } else {
+    let Some(Member::Segment(segment)) = path.next() else {
         anyhow::bail!("Parameter path must have a field name");
     };
+    let mut value = parse_segment(data, segment)?;
 
     for seg in path {
         value = match seg {
@@ -202,18 +198,12 @@ fn parse_slice(value: &SolValue, slice: &Slice) -> crate::Result<SolValue> {
 fn get_index(index: isize, len: usize) -> crate::Result<usize> {
     if index >= 0 {
         let idx = index.cast_unsigned();
-        if idx >= len {
-            anyhow::bail!("Index {} out of bounds for length {}", index, len)
-        } else {
-            Ok(idx)
-        }
+        anyhow::ensure!(idx < len, "Index {} out of bounds for length {}", index, len);
+        Ok(idx)
     } else {
         let idx = index.abs().cast_unsigned();
-        if len >= idx {
-            Ok(len - idx)
-        } else {
-            anyhow::bail!("Index {} out of bounds for length {}", index, len)
-        }
+        anyhow::ensure!(len >= idx, "Index {} out of bounds for length {}", index, len);
+        Ok(len - idx)
     }
 }
 

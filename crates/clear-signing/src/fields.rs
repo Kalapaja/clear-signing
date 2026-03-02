@@ -32,6 +32,10 @@ impl Direction {
             _ => anyhow::bail!("Unknown direction: {}", direction),
         }
     }
+
+    pub fn try_from_sol_value(value: crate::sol::SolValue) -> crate::Result<Self> {
+        Self::from_str(value.as_literal()?.as_str())
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -126,6 +130,11 @@ pub enum DisplayField {
         title: Label,
         description: Label,
         value: Address,
+    },
+    Switch {
+        title: Label,
+        description: Label,
+        fields: Vec<DisplayField>,
     },
 }
 

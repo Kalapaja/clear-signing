@@ -120,55 +120,6 @@ impl Display {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub enum Format {
-    TokenAmount,
-    NativeAmount,
-    Contract,
-    Token,
-    Address,
-    Bytes,
-    String,
-    Call,
-    Boolean,
-    Int,
-    Uint,
-    Percentage,
-    Duration,
-    Datetime,
-    Bitmask,
-    Match,
-    Array,
-    Switch,
-}
-
-impl Format {
-    pub fn from(format: &str) -> crate::Result<Self> {
-        match format {
-            "tokenAmount" => Ok(Format::TokenAmount),
-            "nativeAmount" => Ok(Format::NativeAmount),
-            "contract" => Ok(Format::Contract),
-            "token" => Ok(Format::Token),
-            "address" => Ok(Format::Address),
-            "bytes" => Ok(Format::Bytes),
-            "string" => Ok(Format::String),
-            "call" => Ok(Format::Call),
-            "boolean" => Ok(Format::Boolean),
-            "int" => Ok(Format::Int),
-            "uint" => Ok(Format::Uint),
-            "percentage" => Ok(Format::Percentage),
-            "duration" => Ok(Format::Duration),
-            "datetime" => Ok(Format::Datetime),
-            "bitmask" => Ok(Format::Bitmask),
-            "match" => Ok(Format::Match),
-            "array" => Ok(Format::Array),
-            "switch" => Ok(Format::Switch),
-            _ => anyhow::bail!("Unknown format: {}", format),
-        }
-    }
-}
 
 // EIP-712 type hashes (lazily computed)
 fn entry_typehash() -> B256 {
