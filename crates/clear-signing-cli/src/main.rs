@@ -1,15 +1,18 @@
 use alloy_primitives::{Address, Bytes, U256};
 use anyhow::{Context, Result};
 use clap::Parser;
-use clear_signing::display::Display;
-use clear_signing::format::ClearCallProcessor;
-use clear_signing::{clear_call::ClearCallContext, resolver::Message};
+use clear_signing::{parse_clear_call, Display, Message};
 use clear_signing_format::{format_clear_call, NativeToken};
 use std::fs;
 use std::path::PathBuf;
 
 mod provider;
 use provider::{ClearSigningProvider, ProviderRegistry};
+
+#[derive(serde::Deserialize)]
+struct DisplaySpecFile {
+    displays: Vec<Display>,
+}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -58,7 +61,7 @@ fn main() -> Result<()> {
         &fs::read_to_string(&contractlist_path).context("Failed to read contractlist.json")?,
     )?;
     let contracts = contracts.contracts;
-    let displays: clear_signing::display::DisplaySpecFile = serde_json::from_str(
+    let displays: DisplaySpecFile = serde_json::from_str(
         &fs::read_to_string(&displays_path).context("Failed to read displays.json")?,
     )?;
     let displays = displays.displays;
@@ -107,12 +110,8 @@ fn main() -> Result<()> {
                 data: tx.data,
             };
 
-            // Use displays from transactions.json as the context?
-            let context = ClearCallContext::new(tx.displays);
-
             // Parse ClearCall
-            let clear_call = context
-                .parse_clear_call(message, &registry, 0)
+            let clear_call = parse_clear_call(message, tx.displays, &registry)
                 .map_err(|e| anyhow::anyhow!(e))?;
 
             // Format output

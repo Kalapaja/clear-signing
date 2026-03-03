@@ -1,14 +1,14 @@
 use crate::display::{Display, Field};
 use crate::fields::{ClearCall, DisplayField};
-use crate::format::{ClearCallProcessor, Format, ProcessingContext};
+use crate::format::{Format, ProcessingContext};
 use crate::registry::Registry;
-use crate::resolver::{resolve_value, Message};
+use crate::resolver::{Message, resolve_value};
 use crate::sol::{SolFunction, SolValue, StateMutability};
 use alloc::vec;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, FixedBytes, U256};
-use alloy_sol_types::sol;
 use alloy_sol_types::SolCall;
+use alloy_sol_types::sol;
 
 const MAX_RECURSION_DEPTH: usize = 16;
 
@@ -16,12 +16,12 @@ sol! {
     function clearCall(bytes32 displayHash, bytes call) payable returns (bytes);
 }
 
-pub struct ClearCallContext {
+pub(crate) struct ClearCallContext {
     displays: Vec<Display>,
 }
 
 impl ClearCallContext {
-    pub fn new(displays: Vec<Display>) -> Self {
+    pub(crate) fn new(displays: Vec<Display>) -> Self {
         Self { displays }
     }
 }
@@ -34,7 +34,11 @@ impl ClearCallContext {
         registry: &dyn Registry,
         level: usize,
     ) -> crate::Result<ClearCall> {
-        anyhow::ensure!(registry.is_well_known_contract(&message.to), "Unknown contract: {}", message.to);
+        anyhow::ensure!(
+            registry.is_well_known_contract(&message.to),
+            "Unknown contract: {}",
+            message.to
+        );
 
         let selector = message.selector()?;
         let display = self.find_display(selector, display_hash, &message.to, registry)?;
@@ -44,24 +48,25 @@ impl ClearCallContext {
         match function_call.state_mutability {
             StateMutability::Pure => anyhow::bail!("Function is not writeable"),
             StateMutability::View => anyhow::bail!("Function is not writeable"),
-            StateMutability::Payable => {}
             StateMutability::NonPayable => {
                 anyhow::ensure!(message.value == U256::ZERO, "Function is not payable");
             }
+            StateMutability::Payable => {}
         }
 
         let data = function_call.decode(&message.data)?;
 
-        let fields = self.process_fields_impl(&message, &display.fields, &data, registry, level, None)?;
+        let fields =
+            self.process_fields_impl(&message, &display.fields, &data, registry, level, None)?;
 
         Ok(ClearCall {
-            title: display.title.clone().into(),
-            description: display.description.clone().into(),
+            title: display.title.into(),
+            description: display.description.into(),
             payable: function_call.state_mutability == StateMutability::Payable
                 && message.value != U256::ZERO,
             clear: display_hash.is_some(),
             fields,
-            labels: display.labels.clone(),
+            labels: display.labels.into(),
         })
     }
 
@@ -146,7 +151,9 @@ impl ClearCallContext {
                             Err(e) => {
                                 anyhow::bail!(
                                     "Error matching switch value {:?} against case '{}': {}",
-                                    switch_val, case_str, e
+                                    switch_val,
+                                    case_str,
+                                    e
                                 );
                             }
                         }
@@ -175,7 +182,6 @@ impl ClearCallContext {
                 registry,
                 self,
                 level,
-                switch_value.clone(),
             )?;
             let display_field = format.process(&ctx)?;
             display_fields.push(display_field);
@@ -183,10 +189,8 @@ impl ClearCallContext {
 
         Ok(display_fields)
     }
-}
 
-impl ClearCallProcessor for ClearCallContext {
-    fn parse_clear_call(
+    pub(crate) fn parse_clear_call_with_level(
         &self,
         message: Message,
         registry: &dyn Registry,
@@ -208,7 +212,7 @@ impl ClearCallProcessor for ClearCallContext {
         self.parse_call(msg, display_hash, registry, level)
     }
 
-    fn process_nested_fields(
+    pub(crate) fn process_nested_fields(
         &self,
         message: &Message,
         fields: &[Field],
@@ -217,13 +221,37 @@ impl ClearCallProcessor for ClearCallContext {
         level: usize,
         switch_value: Option<SolValue>,
     ) -> crate::Result<Vec<DisplayField>> {
-        ClearCallContext::process_fields_impl(self, message, fields, data, registry, level, switch_value)
+        ClearCallContext::process_fields_impl(
+            self,
+            message,
+            fields,
+            data,
+            registry,
+            level,
+            switch_value,
+        )
     }
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/// Parse a clear call from a message
+pub fn parse_clear_call(
+    message: Message,
+    displays: Vec<Display>,
+    registry: &dyn Registry,
+) -> crate::Result<ClearCall> {
+    let context = ClearCallContext::new(displays);
+    context.parse_clear_call_with_level(message, registry, 0)
 }
 
 // Helper functions kept for backward compatibility if needed in tests
 #[allow(dead_code)]
-fn entries_to_map(entries: &[crate::display::Entry]) -> crate::Result<alloc::collections::BTreeMap<&str, &str>> {
+pub(crate) fn entries_to_map(
+    entries: &[crate::display::Entry],
+) -> crate::Result<alloc::collections::BTreeMap<&str, &str>> {
     use alloc::collections::BTreeMap;
     let mut map = BTreeMap::new();
     for entry in entries {
@@ -237,7 +265,7 @@ fn entries_to_map(entries: &[crate::display::Entry]) -> crate::Result<alloc::col
 }
 
 #[allow(dead_code)]
-fn resolve_param_value(
+pub(crate) fn resolve_param_value(
     params: &alloc::collections::BTreeMap<&str, &str>,
     key: &str,
     message: &Message,
@@ -251,7 +279,7 @@ fn resolve_param_value(
 }
 
 #[allow(dead_code)]
-fn resolve_optional_param_value(
+pub(crate) fn resolve_optional_param_value(
     params: &alloc::collections::BTreeMap<&str, &str>,
     key: &str,
     message: &Message,
@@ -262,7 +290,6 @@ fn resolve_optional_param_value(
     param_value.map(|param_value| resolve_value(param_value, message, data))
 }
 
-
 #[cfg(all(test, feature = "serde"))]
 #[cfg(feature = "serde_json")]
 mod tests {
@@ -271,7 +298,7 @@ mod tests {
     use alloc::collections::BTreeMap;
     use alloc::string::{String, ToString};
     use alloc::vec;
-    use alloy_primitives::{address, uint, Address, I256};
+    use alloy_primitives::{Address, I256, address, uint};
 
     pub struct LocalRegistry {
         pub well_known_displays: BTreeMap<FixedBytes<4>, Display>,
@@ -281,8 +308,7 @@ mod tests {
 
     impl Registry for LocalRegistry {
         fn is_well_known_contract(&self, address: &Address) -> bool {
-            self.well_known_contracts.contains(address)
-                || self.well_known_tokens.contains(address)
+            self.well_known_contracts.contains(address) || self.well_known_tokens.contains(address)
         }
 
         fn is_well_known_token(&self, address: &Address) -> bool {
@@ -348,9 +374,14 @@ mod tests {
         ) payable;
     }
 
+    #[derive(serde::Deserialize)]
+    struct DisplaySpecFile {
+        displays: Vec<Display>,
+    }
+
     fn get_display(title: &str) -> Display {
         let json = include_str!("displays_test.json");
-        let displays: crate::display::DisplaySpecFile =
+        let displays: DisplaySpecFile =
             serde_json::from_str(json).expect("Failed to parse display_test.json");
         displays
             .displays
@@ -453,12 +484,7 @@ mod tests {
             vec![],
         );
 
-        let context = ClearCallContext {
-            displays: vec![display, f.inner_display],
-        };
-
-        let result = context
-            .parse_clear_call(message, &registry, 0)
+        let result = parse_clear_call(message, vec![display, f.inner_display], &registry)
             .expect("Failed to parse clear call");
 
         assert_eq!(result.fields.len(), 14);
@@ -599,12 +625,7 @@ mod tests {
             data: nested_data.into(),
         };
 
-        let context = ClearCallContext {
-            displays: vec![f.inner_display.clone()],
-        };
-
-        let result = context
-            .parse_clear_call(message, &registry, 0)
+        let result = parse_clear_call(message, vec![f.inner_display.clone()], &registry)
             .expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 2);
@@ -666,10 +687,7 @@ mod tests {
             data: call_data.into(),
         };
 
-        let context = ClearCallContext { displays: vec![] };
-
-        let result = context
-            .parse_clear_call(message, &registry, 0)
+        let result = parse_clear_call(message, vec![], &registry)
             .expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
@@ -707,10 +725,7 @@ mod tests {
             data: call_data.into(),
         };
 
-        let context = ClearCallContext { displays: vec![] };
-
-        let result = context
-            .parse_clear_call(message, &registry, 0)
+        let result = parse_clear_call(message, vec![], &registry)
             .expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 top-level field (Array)");
@@ -761,10 +776,7 @@ mod tests {
             data: call_data.into(),
         };
 
-        let context = ClearCallContext { displays: vec![] };
-
-        let result = context
-            .parse_clear_call(message, &registry, 0)
+        let result = parse_clear_call(message, vec![], &registry)
             .expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
@@ -821,10 +833,7 @@ mod tests {
             data: call_data.into(),
         };
 
-        let context = ClearCallContext { displays: vec![] };
-
-        let result = context
-            .parse_clear_call(message, &registry, 0)
+        let result = parse_clear_call(message, vec![], &registry)
             .expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
@@ -915,9 +924,7 @@ mod tests {
             data: multicall.abi_encode().into(),
         };
 
-        let context = ClearCallContext { displays: vec![] };
-
-        let result = context.parse_clear_call(message, &registry, 0).unwrap();
+        let result = parse_clear_call(message, vec![], &registry).unwrap();
 
         assert_eq!(result.fields.len(), 1);
         match &result.fields[0] {

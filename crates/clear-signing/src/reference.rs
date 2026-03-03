@@ -31,26 +31,6 @@ pub struct Identifier {
     pub members: Vec<Member>,
 }
 
-impl Identifier {
-    pub fn only_segments(&self) -> crate::Result<String> {
-        let mut result = String::new();
-
-        for member in &self.members {
-            match member {
-                Member::Segment(seg) => result.push_str(&seg.0),
-                Member::Index(_) => {
-                    anyhow::bail!("Expected segment member");
-                }
-                Member::Slice(_) => {
-                    anyhow::bail!("Expected segment member");
-                }
-            };
-        }
-
-        Ok(result)
-    }
-}
-
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Clone)]
 pub struct Segment(pub String);

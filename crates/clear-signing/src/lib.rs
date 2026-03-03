@@ -1,18 +1,31 @@
 #![no_std]
 extern crate alloc;
 
-pub mod clear_call;
-pub mod display;
-pub mod fields;
-pub mod format;
-pub mod reference;
-pub mod registry;
-pub mod resolver;
-pub mod sol;
+mod clear_call;
+mod display;
+mod fields;
+mod format;
+mod reference;
+mod registry;
+mod resolver;
+mod sol;
+
+pub use clear_call::parse_clear_call;
+
+// Re-export core types
+pub use fields::{ClearCall, DisplayField, Direction, Label};
+pub use display::{Display, Field, Entry, Labels};
+pub use resolver::Message;
+
+// Re-export traits
+pub use registry::Registry;
+
+// Re-export commonly used sol types
+pub use sol::SolFunction;
 
 pub type Result<T> = anyhow::Result<T>;
 
-pub trait ResultExt<T, E> {
+pub(crate) trait ResultExt<T, E> {
     fn err_ctx(self, msg: &str) -> Result<T>;
 }
 

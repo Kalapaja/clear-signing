@@ -7,8 +7,7 @@ use alloc::vec::Vec;
 use alloy_primitives::hex;
 use alloy_primitives::utils::format_units;
 use alloy_primitives::{Address, U256};
-use clear_signing::display::Labels;
-use clear_signing::fields::{ClearCall, Direction, DisplayField, Label};
+use clear_signing::{ClearCall, Direction, DisplayField, Label, Labels};
 use core::ops::Not;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -748,7 +747,7 @@ mod tests {
 
     #[test]
     fn test_format_clear_call() {
-        use clear_signing::fields::{ClearCall, DisplayField};
+        use clear_signing::{ClearCall, DisplayField};
         use core::time::Duration;
 
         let provider = MockMetadataProvider;

@@ -8,13 +8,7 @@ use serde::{Deserialize, Serialize};
 const MAX_STRING_LEN: usize = 256;
 const MAX_ARRAY_LEN: usize = 256;
 const MAX_ABI_LEN: usize = 1024;
-const MAX_FIELD_DEPTH: usize = 16; 
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
-pub struct DisplaySpecFile {
-    pub displays: Vec<Display>,
-}
+const MAX_FIELD_DEPTH: usize = 16;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq)]

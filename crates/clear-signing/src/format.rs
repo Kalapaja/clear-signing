@@ -1,5 +1,6 @@
+use crate::clear_call::ClearCallContext;
 use crate::display::{Entry, Field};
-use crate::fields::{ClearCall, Direction, DisplayField, Label};
+use crate::fields::{Direction, DisplayField, Label};
 use crate::registry::Registry;
 use crate::resolver::{resolve_value, Message};
 use crate::sol::{SolType, SolValue};
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 // FieldParams - Owned parameter structure
 // ============================================================================
 
-pub struct FieldParams {
+pub(crate) struct FieldParams {
     params: BTreeMap<String, String>,
 }
 
@@ -64,15 +65,14 @@ impl FieldParams {
 // ProcessingContext - Context for format processing
 // ============================================================================
 
-pub struct ProcessingContext<'a> {
-    pub field: &'a Field,
-    pub params: FieldParams,
-    pub message: &'a Message,
-    pub data: &'a SolValue,
-    pub registry: &'a dyn Registry,
-    pub clear_call_context: &'a dyn ClearCallProcessor,
-    pub level: usize,
-    pub switch_value: Option<SolValue>,
+pub(crate) struct ProcessingContext<'a> {
+    pub(crate) field: &'a Field,
+    pub(crate) params: FieldParams,
+    pub(crate) message: &'a Message,
+    pub(crate) data: &'a SolValue,
+    pub(crate) registry: &'a dyn Registry,
+    pub(crate) clear_call_context: &'a ClearCallContext,
+    pub(crate) level: usize,
 }
 
 impl<'a> ProcessingContext<'a> {
@@ -81,9 +81,8 @@ impl<'a> ProcessingContext<'a> {
         message: &'a Message,
         data: &'a SolValue,
         registry: &'a dyn Registry,
-        clear_call_context: &'a dyn ClearCallProcessor,
+        clear_call_context: &'a ClearCallContext,
         level: usize,
-        switch_value: Option<SolValue>,
     ) -> crate::Result<Self> {
         Ok(Self {
             field,
@@ -93,7 +92,6 @@ impl<'a> ProcessingContext<'a> {
             registry,
             clear_call_context,
             level,
-            switch_value,
         })
     }
 
@@ -126,28 +124,6 @@ impl<'a> ProcessingContext<'a> {
     }
 }
 
-// ============================================================================
-// ClearCallProcessor trait - Abstraction for recursive processing
-// ============================================================================
-
-pub trait ClearCallProcessor {
-    fn parse_clear_call(
-        &self,
-        message: Message,
-        registry: &dyn Registry,
-        level: usize,
-    ) -> crate::Result<ClearCall>;
-
-    fn process_nested_fields(
-        &self,
-        message: &Message,
-        fields: &[Field],
-        data: &SolValue,
-        registry: &dyn Registry,
-        level: usize,
-        switch_value: Option<SolValue>,
-    ) -> crate::Result<Vec<DisplayField>>;
-}
 
 // ============================================================================
 // Format enum
@@ -156,7 +132,7 @@ pub trait ClearCallProcessor {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub enum Format {
+pub(crate) enum Format {
     TokenAmount,
     NativeAmount,
     Contract,
@@ -230,7 +206,7 @@ impl Format {
 // Format Processor Functions
 // ============================================================================
 
-fn process_address(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_address(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_address()?;
     let (title, description) = ctx.labels();
 
@@ -241,7 +217,7 @@ fn process_address(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_token_amount(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_token_amount(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let amount = ctx.resolve_param("amount")?.as_uint()?;
     let token = ctx.resolve_param("token")?.as_address()?;
     let direction = ctx.resolve_optional_param("direction")?
@@ -275,7 +251,7 @@ fn process_token_amount(ctx: &ProcessingContext) -> crate::Result<DisplayField> 
     }
 }
 
-fn process_native_amount(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_native_amount(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let amount = ctx.resolve_param("amount")?.as_uint()?;
     let direction = ctx.resolve_optional_param("direction")?
         .map(Direction::try_from_sol_value)
@@ -291,7 +267,7 @@ fn process_native_amount(ctx: &ProcessingContext) -> crate::Result<DisplayField>
     })
 }
 
-fn process_contract(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_contract(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let contract = ctx.resolve_param("value")?.as_address()?;
 
     anyhow::ensure!(
@@ -306,7 +282,7 @@ fn process_contract(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_token(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_token(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let token = ctx.resolve_param("value")?.as_address()?;
 
     anyhow::ensure!(
@@ -321,7 +297,7 @@ fn process_token(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_bytes(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_bytes(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_bytes()?;
 
     Ok(DisplayField::Bytes {
@@ -331,7 +307,7 @@ fn process_bytes(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_string(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_string(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_string()?;
 
     Ok(DisplayField::String {
@@ -341,13 +317,13 @@ fn process_string(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_call(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_call(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let to = ctx.resolve_param("to")?.as_address()?;
     let value = ctx.resolve_param("value")?.as_uint()?;
     let data = ctx.resolve_param("data")?.as_bytes()?;
 
     let msg = Message::new(ctx.message.to, to, value, data.into());
-    let call = ctx.clear_call_context.parse_clear_call(msg, ctx.registry, ctx.level + 1)?;
+    let call = ctx.clear_call_context.parse_clear_call_with_level(msg, ctx.registry, ctx.level + 1)?;
 
     Ok(DisplayField::Call {
         title: ctx.title().to_string(),
@@ -356,7 +332,7 @@ fn process_call(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_boolean(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_boolean(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_bool()?;
 
     Ok(DisplayField::Boolean {
@@ -366,7 +342,7 @@ fn process_boolean(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_int(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_int(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_int()?;
 
     Ok(DisplayField::Int {
@@ -376,7 +352,7 @@ fn process_int(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_uint(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_uint(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_uint()?;
 
     Ok(DisplayField::Uint {
@@ -386,7 +362,7 @@ fn process_uint(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_percentage(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_percentage(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_uint()?;
     let basis = ctx.resolve_param("basis")?.as_uint()?;
 
@@ -398,7 +374,7 @@ fn process_percentage(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_duration(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_duration(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_uint()?;
 
     Ok(DisplayField::Duration {
@@ -408,7 +384,7 @@ fn process_duration(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_datetime(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_datetime(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_uint()?;
 
     Ok(DisplayField::Datetime {
@@ -418,7 +394,7 @@ fn process_datetime(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_bitmask(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_bitmask(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_uint()?;
     let bit_indexes = ctx.params.get_with_prefix('#');
 
@@ -438,7 +414,7 @@ fn process_bitmask(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_match(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_match(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let mut match_data = vec![];
     decode_abi_data(&ctx.params, ctx.message, ctx.data, &mut match_data)?;
     decode_params_data(&ctx.params, ctx.message, ctx.data, &mut match_data)?;
@@ -461,7 +437,7 @@ fn process_match(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_array(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_array(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let new_data_names = ctx.params.get_with_prefix('$');
 
     let mut arrays: Vec<(String, Vec<SolValue>)> = vec![];
@@ -502,7 +478,7 @@ fn process_array(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     })
 }
 
-fn process_switch(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+pub(crate) fn process_switch(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let switch_val = ctx.resolve_param("value")?;
 
     let mut switch_data = vec![];
@@ -535,7 +511,7 @@ fn process_switch(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
 // Helper functions
 // ============================================================================
 
-fn decode_abi_data(
+pub(crate) fn decode_abi_data(
     params: &FieldParams,
     message: &Message,
     data: &SolValue,
@@ -561,7 +537,7 @@ fn decode_abi_data(
     Ok(())
 }
 
-fn decode_params_data(
+pub(crate) fn decode_params_data(
     params: &FieldParams,
     message: &Message,
     data: &SolValue,
