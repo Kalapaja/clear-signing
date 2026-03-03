@@ -115,7 +115,6 @@ impl Display {
 }
 
 
-// EIP-712 type hashes (lazily computed)
 fn entry_typehash() -> B256 {
     keccak256("Entry(string key,string value)")
 }

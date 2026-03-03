@@ -19,29 +19,18 @@ use nom::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SolType {
-    /// Boolean.
     Bool,
-    /// Signed Integer.
     Int(usize),
-    /// Unsigned Integer.
     Uint(usize),
-    /// Fixed-size bytes, up to 32.
     FixedBytes(usize),
-    /// Address.
     Address,
-    /// Function.
     Function,
 
-    /// Dynamic bytes.
     Bytes,
-    /// String.
     String,
 
-    /// Dynamically sized array.
     Array(Box<Self>),
-    /// Fixed-sized array.
     FixedArray(Box<Self>, usize),
-    /// Tuple.
     Tuple(Vec<(Option<String>, Self)>),
 }
 
@@ -106,29 +95,18 @@ impl From<&SolType> for DynSolType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SolValue {
     Literal(String),
-    /// A boolean.
     Bool(bool),
-    /// A signed integer. The second parameter is the number of bits, not bytes.
     Int(I256, usize),
-    /// An unsigned integer. The second parameter is the number of bits, not bytes.
     Uint(U256, usize),
-    /// A fixed-length byte array. The second parameter is the number of bytes.
     FixedBytes(Word, usize),
-    /// An address.
     Address(Address),
-    /// A function pointer.
     Function(Function),
 
-    /// A dynamic-length byte array.
     Bytes(Vec<u8>),
-    /// A string.
     String(String),
 
-    /// A dynamically-sized array of values.
     Array(Vec<Self>),
-    /// A fixed-size array of values.
     FixedArray(Vec<Self>),
-    /// A tuple of values.
     Tuple(Vec<(Option<String>, Self)>),
 }
 
@@ -168,7 +146,6 @@ impl SolValue {
                 }
             }
 
-            // Literal matching logic
             (SolValue::Bool(v), SolValue::Literal(_)) => Ok(v == &other.as_bool()?),
             (SolValue::Int(v, _), SolValue::Literal(_)) => Ok(v == &other.as_int()?),
             (SolValue::Uint(v, _), SolValue::Literal(_)) => Ok(v == &other.as_uint()?),
@@ -542,24 +519,19 @@ mod tests {
             SolType::Tuple(params) => {
                 assert_eq!(params.len(), 3);
 
-                // 1. address add
                 assert_eq!(params[0].0.as_deref(), Some("add"));
                 assert!(matches!(params[0].1, SolType::Address));
 
-                // 2. uint256
                 assert_eq!(params[1].0, None);
                 assert!(matches!(params[1].1, SolType::Uint(256)));
 
-                // 3. tuple[][] calls
                 assert_eq!(params[2].0.as_deref(), Some("calls"));
 
-                // Verify array structure: Array(Array(Tuple(...)))
                 if let SolType::Array(inner) = &params[2].1 {
                     if let SolType::Array(inner2) = &**inner {
                         if let SolType::Tuple(tuple_params) = &**inner2 {
                             assert_eq!(tuple_params.len(), 3);
                             assert_eq!(tuple_params[0].0.as_deref(), Some("hashes"));
-                            // bytes32[] hashes
                             match &tuple_params[0].1 {
                                 SolType::Array(b) => {
                                     assert!(matches!(**b, SolType::FixedBytes(32)))
@@ -591,7 +563,6 @@ mod tests {
 
     #[test]
     fn test_complex_selector() {
-        // function doSomething(address add, uint256, (bytes32[] hashes, bool, bytes[] datas)[][] calls)
         let sig = "function doSomething(address add, uint256, (bytes32[] hashes, bool, bytes[] datas)[][] calls)";
         let func = SolFunction::parse(sig).expect("Failed to parse");
 
@@ -604,8 +575,6 @@ mod tests {
     fn test_selector() {
         let sig = "function foo(uint256 a, string b)";
         let func = SolFunction::parse(sig).unwrap();
-        // foo(uint256,string) -> 0x06023348
-        // Keccak256("foo(uint256,string)") = 06023348...
         let hash = keccak256("foo(uint256,string)");
         assert_eq!(func.selector(), Selector::from_slice(&hash[..4]));
     }
@@ -652,7 +621,6 @@ mod tests {
             panic!("Expected Tuple");
         }
 
-        // Must fail without root ()
         assert!(SolType::parse("uint256 amount").is_err());
     }
 
@@ -700,7 +668,6 @@ mod tests {
         let arr = val.as_array().unwrap();
         assert_eq!(arr.len(), 2);
 
-        // Check first byte
         if let SolValue::FixedBytes(word, size) = &arr[0] {
             assert_eq!(*size, 1);
             assert_eq!(word[0], 0x01);
@@ -732,8 +699,6 @@ mod tests {
         let arr = val.as_array().unwrap();
         assert_eq!(arr.len(), 32);
 
-        // 0x0102 is ...000102. So last two bytes are 0x01 and 0x02.
-        // It's big endian. So arr[30] == 0x01, arr[31] == 0x02.
         if let SolValue::FixedBytes(word, size) = &arr[30] {
             assert_eq!(*size, 1);
             assert_eq!(word[0], 0x01);
@@ -747,7 +712,6 @@ mod tests {
             panic!("Expected FixedBytes");
         }
 
-        // Test with smaller size (uint16)
         let val_16 = SolValue::Uint(U256::from(0x0304), 16);
         let arr_16 = val_16.as_array().unwrap();
         assert_eq!(arr_16.len(), 2);
@@ -840,7 +804,6 @@ mod tests {
         let val_fixed = SolValue::FixedBytes(word, 2);
         assert_eq!(val_fixed.as_bytes().unwrap(), vec![0x01, 0x02]);
 
-        // Test Uint with as_bytes
         let val_uint = SolValue::Uint(U256::from(0x010203), 24);
         assert_eq!(val_uint.as_bytes().unwrap(), vec![0x01, 0x02, 0x03]);
 

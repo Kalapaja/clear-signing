@@ -11,16 +11,10 @@ mod resolver;
 mod sol;
 
 pub use clear_call::parse_clear_call;
-
-// Re-export core types
 pub use fields::{ClearCall, DisplayField, Direction, Label};
 pub use display::{Display, Field, Entry, Labels};
 pub use resolver::Message;
-
-// Re-export traits
 pub use registry::Registry;
-
-// Re-export commonly used sol types
 pub use sol::SolFunction;
 
 pub type Result<T> = anyhow::Result<T>;

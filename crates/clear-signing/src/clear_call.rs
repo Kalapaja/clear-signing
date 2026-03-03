@@ -16,238 +16,206 @@ sol! {
     function clearCall(bytes32 displayHash, bytes call) payable returns (bytes);
 }
 
-pub(crate) struct ClearCallContext {
-    displays: Vec<Display>,
-}
+fn parse_call(
+    displays: &[Display],
+    message: Message,
+    display_hash: Option<FixedBytes<32>>,
+    registry: &dyn Registry,
+    level: usize,
+) -> crate::Result<ClearCall> {
+    anyhow::ensure!(
+        registry.is_well_known_contract(&message.to),
+        "Unknown contract: {}",
+        message.to
+    );
 
-impl ClearCallContext {
-    pub(crate) fn new(displays: Vec<Display>) -> Self {
-        Self { displays }
+    let selector = message.selector()?;
+    let display = find_display(displays, selector, display_hash, &message.to, registry)?;
+
+    let function_call = SolFunction::parse(&display.abi)?;
+
+    match function_call.state_mutability {
+        StateMutability::Pure => anyhow::bail!("Function is not writeable"),
+        StateMutability::View => anyhow::bail!("Function is not writeable"),
+        StateMutability::NonPayable => {
+            anyhow::ensure!(message.value == U256::ZERO, "Function is not payable");
+        }
+        StateMutability::Payable => {}
     }
+
+    let data = function_call.decode(&message.data)?;
+
+    let fields =
+        process_fields_impl(displays, &message, &display.fields, &data, registry, level, None)?;
+
+    Ok(ClearCall {
+        title: display.title.into(),
+        description: display.description.into(),
+        payable: function_call.state_mutability == StateMutability::Payable
+            && message.value != U256::ZERO,
+        clear: display_hash.is_some(),
+        fields,
+        labels: display.labels.into(),
+    })
 }
 
-impl ClearCallContext {
-    fn parse_call(
-        &self,
-        message: Message,
-        display_hash: Option<FixedBytes<32>>,
-        registry: &dyn Registry,
-        level: usize,
-    ) -> crate::Result<ClearCall> {
-        anyhow::ensure!(
-            registry.is_well_known_contract(&message.to),
-            "Unknown contract: {}",
-            message.to
-        );
-
-        let selector = message.selector()?;
-        let display = self.find_display(selector, display_hash, &message.to, registry)?;
-
-        let function_call = SolFunction::parse(&display.abi)?;
-
-        match function_call.state_mutability {
-            StateMutability::Pure => anyhow::bail!("Function is not writeable"),
-            StateMutability::View => anyhow::bail!("Function is not writeable"),
-            StateMutability::NonPayable => {
-                anyhow::ensure!(message.value == U256::ZERO, "Function is not payable");
+fn find_display(
+    displays: &[Display],
+    selector: FixedBytes<4>,
+    display_hash: Option<FixedBytes<32>>,
+    address: &Address,
+    registry: &dyn Registry,
+) -> crate::Result<Display> {
+    let display = if let Some(hash) = display_hash {
+        let mut found_display = None;
+        for d in displays {
+            let func = SolFunction::parse(&d.abi)?;
+            if func.selector() == selector && d.hash_struct() == hash {
+                found_display = Some(d.clone());
+                break;
             }
-            StateMutability::Payable => {}
         }
 
-        let data = function_call.decode(&message.data)?;
-
-        let fields =
-            self.process_fields_impl(&message, &display.fields, &data, registry, level, None)?;
-
-        Ok(ClearCall {
-            title: display.title.into(),
-            description: display.description.into(),
-            payable: function_call.state_mutability == StateMutability::Payable
-                && message.value != U256::ZERO,
-            clear: display_hash.is_some(),
-            fields,
-            labels: display.labels.into(),
-        })
-    }
-
-    fn find_display(
-        &self,
-        selector: FixedBytes<4>,
-        display_hash: Option<FixedBytes<32>>,
-        address: &Address,
-        registry: &dyn Registry,
-    ) -> crate::Result<Display> {
-        let display = if let Some(hash) = display_hash {
-            // Look for display in the context's display list with matching selector and hash
-            let mut found_display = None;
-            for d in &self.displays {
-                let func = SolFunction::parse(&d.abi)?;
-                if func.selector() == selector && d.hash_struct() == hash {
-                    found_display = Some(d.clone());
-                    break;
-                }
-            }
-
-            found_display.ok_or_else(|| {
+        found_display.ok_or_else(|| {
+            anyhow::anyhow!(
+                "Display not found: selector {:?} at address {} with display hash {:?}",
+                selector,
+                address,
+                hash
+            )
+        })?
+    } else {
+        registry
+            .get_well_known_display(address, &selector)
+            .ok_or_else(|| {
                 anyhow::anyhow!(
-                    "Display not found: selector {:?} at address {} with display hash {:?}",
+                    "Well Known Display not found: selector {:?} at address {}",
                     selector,
-                    address,
-                    hash
+                    address
                 )
             })?
-        } else {
-            // Look for well-known display in registry
-            registry
-                .get_well_known_display(address, &selector)
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "Well Known Display not found: selector {:?} at address {}",
-                        selector,
-                        address
-                    )
-                })?
-        };
+    };
 
-        anyhow::ensure!(display.validate(), "Display validation failed");
-        Ok(display)
-    }
-
-    fn process_fields_impl(
-        &self,
-        message: &Message,
-        fields: &[Field],
-        data: &SolValue,
-        registry: &dyn Registry,
-        level: usize,
-        switch_value: Option<SolValue>,
-    ) -> crate::Result<Vec<DisplayField>> {
-        anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
-
-        let mut display_fields = vec![];
-
-        'fields: for field in fields {
-            // Case matching logic:
-            // - If switch_value is None: ALL fields should NOT have case (validation check)
-            // - If switch_value is Some:
-            //   - Fields with empty case: always shown (considered as matched)
-            //   - Fields with non-empty case: shown only if any case value matches switch_value
-
-            if let Some(ref switch_val) = switch_value {
-                // We're in a switch context - apply case matching
-                if !field.case.is_empty() {
-                    // Field has case values - check if any matches using SolValue::matches()
-                    let mut matched = false;
-                    for case_str in &field.case {
-                        // Resolve the case value (it might be a reference like $msg.sender)
-                        let case_value = resolve_value(case_str, message, data)?;
-
-                        match switch_val.matches(&case_value) {
-                            Ok(true) => {
-                                matched = true;
-                                break;
-                            }
-                            Ok(false) => continue,
-                            Err(e) => {
-                                anyhow::bail!(
-                                    "Error matching switch value {:?} against case '{}': {}",
-                                    switch_val,
-                                    case_str,
-                                    e
-                                );
-                            }
-                        }
-                    }
-                    if !matched {
-                        continue 'fields; // Skip - no case matches
-                    }
-                }
-                // If field.case is empty, field is shown (default match)
-            } else {
-                // No switch context - fields should not have case specified
-                if !field.case.is_empty() {
-                    anyhow::bail!(
-                        "Field '{}' has case array but no switch context. Fields with case must be children of a switch format.",
-                        field.title
-                    );
-                }
-            }
-
-            // Use function-based dispatch for format processing
-            let format = Format::from(&field.format)?;
-            let ctx = ProcessingContext::new(
-                field,
-                message,
-                data,
-                registry,
-                self,
-                level,
-            )?;
-            let display_field = format.process(&ctx)?;
-            display_fields.push(display_field);
-        }
-
-        Ok(display_fields)
-    }
-
-    pub(crate) fn parse_clear_call_with_level(
-        &self,
-        message: Message,
-        registry: &dyn Registry,
-        level: usize,
-    ) -> crate::Result<ClearCall> {
-        anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
-
-        let (display_hash, msg) = match message.selector()? {
-            FixedBytes(clearCallCall::SELECTOR) => {
-                let decoded = clearCallCall::abi_decode(&message.data)?;
-                (
-                    Some(decoded.displayHash),
-                    message.replace_data(decoded.call),
-                )
-            }
-            _ => (None, message),
-        };
-
-        self.parse_call(msg, display_hash, registry, level)
-    }
-
-    pub(crate) fn process_nested_fields(
-        &self,
-        message: &Message,
-        fields: &[Field],
-        data: &SolValue,
-        registry: &dyn Registry,
-        level: usize,
-        switch_value: Option<SolValue>,
-    ) -> crate::Result<Vec<DisplayField>> {
-        ClearCallContext::process_fields_impl(
-            self,
-            message,
-            fields,
-            data,
-            registry,
-            level,
-            switch_value,
-        )
-    }
+    anyhow::ensure!(display.validate(), "Display validation failed");
+    Ok(display)
 }
 
-// ============================================================================
-// Public API
-// ============================================================================
+fn process_fields_impl(
+    displays: &[Display],
+    message: &Message,
+    fields: &[Field],
+    data: &SolValue,
+    registry: &dyn Registry,
+    level: usize,
+    switch_value: Option<SolValue>,
+) -> crate::Result<Vec<DisplayField>> {
+    anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
 
-/// Parse a clear call from a message
+    let mut display_fields = vec![];
+
+    'fields: for field in fields {
+        if let Some(ref switch_val) = switch_value {
+            if !field.case.is_empty() {
+                let mut matched = false;
+                for case_str in &field.case {
+                    let case_value = resolve_value(case_str, message, data)?;
+
+                    match switch_val.matches(&case_value) {
+                        Ok(true) => {
+                            matched = true;
+                            break;
+                        }
+                        Ok(false) => continue,
+                        Err(e) => {
+                            anyhow::bail!(
+                                "Error matching switch value {:?} against case '{}': {}",
+                                switch_val,
+                                case_str,
+                                e
+                            );
+                        }
+                    }
+                }
+                if !matched {
+                    continue 'fields;
+                }
+            }
+        } else {
+            if !field.case.is_empty() {
+                anyhow::bail!(
+                    "Field '{}' has case array but no switch context. Fields with case must be children of a switch format.",
+                    field.title
+                );
+            }
+        }
+
+        let format = Format::from(&field.format)?;
+        let ctx = ProcessingContext::new(
+            field,
+            message,
+            data,
+            registry,
+            displays,
+            level,
+        )?;
+        let display_field = format.process(&ctx)?;
+        display_fields.push(display_field);
+    }
+
+    Ok(display_fields)
+}
+
+pub(crate) fn parse_clear_call_with_level(
+    displays: &[Display],
+    message: Message,
+    registry: &dyn Registry,
+    level: usize,
+) -> crate::Result<ClearCall> {
+    anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
+
+    let (display_hash, msg) = match message.selector()? {
+        FixedBytes(clearCallCall::SELECTOR) => {
+            let decoded = clearCallCall::abi_decode(&message.data)?;
+            (
+                Some(decoded.displayHash),
+                message.replace_data(decoded.call),
+            )
+        }
+        _ => (None, message),
+    };
+
+    parse_call(displays, msg, display_hash, registry, level)
+}
+
+pub(crate) fn process_nested_fields(
+    displays: &[Display],
+    message: &Message,
+    fields: &[Field],
+    data: &SolValue,
+    registry: &dyn Registry,
+    level: usize,
+    switch_value: Option<SolValue>,
+) -> crate::Result<Vec<DisplayField>> {
+    process_fields_impl(
+        displays,
+        message,
+        fields,
+        data,
+        registry,
+        level,
+        switch_value,
+    )
+}
+
+
 pub fn parse_clear_call(
     message: Message,
     displays: Vec<Display>,
     registry: &dyn Registry,
 ) -> crate::Result<ClearCall> {
-    let context = ClearCallContext::new(displays);
-    context.parse_clear_call_with_level(message, registry, 0)
+    parse_clear_call_with_level(&displays, message, registry, 0)
 }
 
-// Helper functions kept for backward compatibility if needed in tests
 #[allow(dead_code)]
 pub(crate) fn entries_to_map(
     entries: &[crate::display::Entry],
@@ -291,7 +259,6 @@ pub(crate) fn resolve_optional_param_value(
 }
 
 #[cfg(all(test, feature = "serde"))]
-#[cfg(feature = "serde_json")]
 mod tests {
     use super::*;
     use crate::display::Display;
@@ -489,7 +456,6 @@ mod tests {
 
         assert_eq!(result.fields.len(), 14);
 
-        // 0: Addr (Literal title)
         match &result.fields[0] {
             DisplayField::Address { title, value, .. } => {
                 assert_eq!(title, "Addr Title");
@@ -497,7 +463,6 @@ mod tests {
             }
             _ => panic!(),
         }
-        // 1: Uint (Literal title)
         match &result.fields[1] {
             DisplayField::Uint { title, value, .. } => {
                 assert_eq!(title, "Uint Title");
@@ -505,27 +470,22 @@ mod tests {
             }
             _ => panic!(),
         }
-        // 2: Int
         match &result.fields[2] {
             DisplayField::Int { value, .. } => assert_eq!(*value, I256::from_raw(uint!(456_U256))),
             _ => panic!(),
         }
-        // 3: Bool
         match &result.fields[3] {
             DisplayField::Boolean { value, .. } => assert!(*value),
             _ => panic!(),
         }
-        // 4: String
         match &result.fields[4] {
             DisplayField::String { value, .. } => assert_eq!(value, "Hello"),
             _ => panic!(),
         }
-        // 5: Bytes
         match &result.fields[5] {
             DisplayField::Bytes { value, .. } => assert_eq!(value.as_ref(), &[0xca, 0xfe]),
             _ => panic!(),
         }
-        // 6: Percentage
         match &result.fields[6] {
             DisplayField::Percentage { value, basis, .. } => {
                 assert_eq!(*value, uint!(75_U256));
@@ -533,17 +493,14 @@ mod tests {
             }
             _ => panic!(),
         }
-        // 7: Duration
         match &result.fields[7] {
             DisplayField::Duration { value, .. } => assert_eq!(value.as_secs(), 3600),
             _ => panic!(),
         }
-        // 8: Datetime
         match &result.fields[8] {
             DisplayField::Datetime { value, .. } => assert_eq!(value.as_secs(), 3600),
             _ => panic!(),
         }
-        // 9: Bitmask (Binary 1001 -> Bit 0 and Bit 3)
         match &result.fields[9] {
             DisplayField::Bitmask { values, .. } => {
                 assert_eq!(values.len(), 2);
@@ -552,17 +509,14 @@ mod tests {
             }
             _ => panic!(),
         }
-        // 10: Token
         match &result.fields[10] {
             DisplayField::Token { token, .. } => assert_eq!(*token, f.main_token),
             _ => panic!(),
         }
-        // 11: Contract
         match &result.fields[11] {
             DisplayField::Contract { contract, .. } => assert_eq!(*contract, f.param_addr),
             _ => panic!(),
         }
-        // 12: TokenAmt
         match &result.fields[12] {
             DisplayField::TokenAmount { token, amount, .. } => {
                 assert_eq!(*token, f.main_token);
@@ -570,7 +524,6 @@ mod tests {
             }
             _ => panic!(),
         }
-        // 13: NativeAmt
         match &result.fields[13] {
             DisplayField::NativeAmount { amount, .. } => assert_eq!(*amount, uint!(123_U256)),
             _ => panic!(),
@@ -584,7 +537,6 @@ mod tests {
 
         let display = get_display("Nested");
 
-        // Setup Registry
         let registry = setup_test_registry(
             vec![display_addr, f.inner_target],
             vec![f.erc20_token],
@@ -630,7 +582,6 @@ mod tests {
 
         assert_eq!(result.fields.len(), 2);
 
-        // 0: Call (Wrapped)
         match &result.fields[0] {
             DisplayField::Call { call, .. } => {
                 assert_eq!(call.title, "Inner");
@@ -641,22 +592,18 @@ mod tests {
             }
             _ => panic!("Expected Call field"),
         }
-        // 1: ERC20 (Unwrapped from Registry)
         match &result.fields[1] {
             DisplayField::Call { call, .. } => {
                 assert_eq!(call.title, "ERC20");
                 assert_eq!(call.fields.len(), 3);
-                // Sender: $msg.sender (which is message.sender = display_addr in this context)
                 match &call.fields[0] {
                     DisplayField::Address { value, .. } => assert_eq!(*value, display_addr),
                     _ => panic!(),
                 }
-                // Receiver: $data.to
                 match &call.fields[1] {
                     DisplayField::Address { value, .. } => assert_eq!(*value, f.receiver_addr),
                     _ => panic!(),
                 }
-                // Amount: tokenAmount
                 match &call.fields[2] {
                     DisplayField::TokenAmount { token, amount, .. } => {
                         assert_eq!(*token, f.erc20_token);
@@ -676,7 +623,6 @@ mod tests {
 
         let display = get_display("Match Test");
 
-        // Setup Registry
         let registry = setup_test_registry(vec![display_addr], vec![], vec![(display)]);
 
         let call_data = matchCallCall { val: uint!(1_U256) }.abi_encode();
@@ -733,13 +679,11 @@ mod tests {
         match &result.fields[0] {
             DisplayField::Array { values, .. } => {
                 assert_eq!(values.len(), 2, "Expected 2 items in array");
-                // Item 0
                 assert_eq!(values[0].len(), 1, "Expected 1 field in first item");
                 match &values[0][0] {
                     DisplayField::Uint { value, .. } => assert_eq!(*value, uint!(10_U256)),
                     _ => panic!("Expected Uint 10"),
                 }
-                // Item 1
                 assert_eq!(values[1].len(), 1, "Expected 1 field in second item");
                 match &values[1][0] {
                     DisplayField::Uint { value, .. } => assert_eq!(*value, uint!(20_U256)),
@@ -760,7 +704,6 @@ mod tests {
 
         let registry = setup_test_registry(vec![display_addr], vec![], vec![display]);
 
-        // (address, uint256)
         let mut encoded_params = vec![0u8; 64];
         encoded_params[12..32].copy_from_slice(recipient.as_slice());
         encoded_params[32..64].copy_from_slice(&amount.to_be_bytes::<32>());
@@ -781,12 +724,10 @@ mod tests {
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
-        // Field 0: Match (from Format::Match with abi)
         match &result.fields[0] {
             DisplayField::Match { values, .. } => {
                 assert_eq!(values.len(), 2, "Expected 2 inner fields in Abi Match");
 
-                // Inner Field 0: Recipient
                 match &values[0] {
                     DisplayField::Address { value, .. } => {
                         assert_eq!(*value, recipient);
@@ -794,7 +735,6 @@ mod tests {
                     _ => panic!("Expected Address field as first inner field"),
                 }
 
-                // Inner Field 1: Amount
                 match &values[1] {
                     DisplayField::Uint { value, .. } => {
                         assert_eq!(*value, amount);
@@ -817,7 +757,6 @@ mod tests {
 
         let registry = setup_test_registry(vec![display_addr], vec![], vec![display]);
 
-        // (address, uint256)
         let mut encoded_params = vec![0u8; 64];
         encoded_params[12..32].copy_from_slice(recipient.as_slice());
         encoded_params[32..64].copy_from_slice(&amount.to_be_bytes::<32>());
@@ -838,12 +777,10 @@ mod tests {
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
-        // Field 0: Match (from Format::Match with abi)
         match &result.fields[0] {
             DisplayField::Match { values, .. } => {
                 assert_eq!(values.len(), 3, "Expected 3 inner fields in Abi Match");
 
-                // Inner Field 0: Sender Copy (from parent data via $msg.sender)
                 match &values[0] {
                     DisplayField::Address { value, .. } => {
                         assert_eq!(*value, sender);
@@ -851,7 +788,6 @@ mod tests {
                     _ => panic!("Expected Address field as first inner field"),
                 }
 
-                // Inner Field 1: Decoded Recipient (from ABI decode)
                 match &values[1] {
                     DisplayField::Address { value, .. } => {
                         assert_eq!(*value, recipient);
@@ -859,7 +795,6 @@ mod tests {
                     _ => panic!("Expected Address field as second inner field"),
                 }
 
-                // Inner Field 2: Decoded Amount (from ABI decode)
                 match &values[2] {
                     DisplayField::Uint { value, .. } => {
                         assert_eq!(*value, amount);
@@ -937,7 +872,6 @@ mod tests {
                             assert_eq!(call.title, "ERC20");
                             assert_eq!(call.fields.len(), 3);
 
-                            // Field 0: Sender
                             match &call.fields[0] {
                                 DisplayField::Address { value, .. } => {
                                     assert_eq!(*value, multicall_address);
@@ -945,7 +879,6 @@ mod tests {
                                 _ => panic!("Expected Address field for Sender"),
                             }
 
-                            // Field 1: Receiver
                             match &call.fields[1] {
                                 DisplayField::Address { value, .. } => {
                                     assert_eq!(*value, token);
@@ -953,7 +886,6 @@ mod tests {
                                 _ => panic!("Expected Address field for Receiver"),
                             }
 
-                            // Field 2: Amount
                             match &call.fields[2] {
                                 DisplayField::TokenAmount {
                                     token: t, amount, ..

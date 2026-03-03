@@ -407,7 +407,6 @@ mod tests {
     fn test_resolve_array_slice() {
         let (message, data) = create_test_context();
 
-        // Full slice
         let result = resolve_value("$data.items[:]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -418,7 +417,6 @@ mod tests {
             ])
         );
 
-        // Slice from start
         let result = resolve_value("$data.items[1:]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -428,7 +426,6 @@ mod tests {
             ])
         );
 
-        // Slice to end
         let result = resolve_value("$data.items[:2]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -438,7 +435,6 @@ mod tests {
             ])
         );
 
-        // Slice middle
         let result = resolve_value("$data.items[1:2]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -495,11 +491,9 @@ mod tests {
     fn test_resolve_invalid_path() {
         let (message, data) = create_test_context();
 
-        // Invalid prefix
         let result = resolve_value("$invalid.field", &message, &data);
         assert!(result.is_err());
 
-        // Missing path
         let result = resolve_value("$msg", &message, &data);
         assert!(result.is_err());
     }
@@ -508,11 +502,9 @@ mod tests {
     fn test_resolve_type_mismatch() {
         let (message, data) = create_test_context();
 
-        // Can't index into uint256
         let result = resolve_value("$data.amount[0]", &message, &data);
         assert!(result.is_err());
 
-        // Can't slice uint256
         let result = resolve_value("$data.amount[1:2]", &message, &data);
         assert!(result.is_err());
     }

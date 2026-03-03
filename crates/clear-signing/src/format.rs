@@ -1,4 +1,5 @@
-use crate::clear_call::ClearCallContext;
+use crate::clear_call::{parse_clear_call_with_level, process_nested_fields};
+use crate::display::Display;
 use crate::display::{Entry, Field};
 use crate::fields::{Direction, DisplayField, Label};
 use crate::registry::Registry;
@@ -15,9 +16,6 @@ use core::time::Duration;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-// ============================================================================
-// FieldParams - Owned parameter structure
-// ============================================================================
 
 pub(crate) struct FieldParams {
     params: BTreeMap<String, String>,
@@ -61,9 +59,6 @@ impl FieldParams {
     }
 }
 
-// ============================================================================
-// ProcessingContext - Context for format processing
-// ============================================================================
 
 pub(crate) struct ProcessingContext<'a> {
     pub(crate) field: &'a Field,
@@ -71,7 +66,7 @@ pub(crate) struct ProcessingContext<'a> {
     pub(crate) message: &'a Message,
     pub(crate) data: &'a SolValue,
     pub(crate) registry: &'a dyn Registry,
-    pub(crate) clear_call_context: &'a ClearCallContext,
+    pub(crate) displays: &'a [Display],
     pub(crate) level: usize,
 }
 
@@ -81,7 +76,7 @@ impl<'a> ProcessingContext<'a> {
         message: &'a Message,
         data: &'a SolValue,
         registry: &'a dyn Registry,
-        clear_call_context: &'a ClearCallContext,
+        displays: &'a [Display],
         level: usize,
     ) -> crate::Result<Self> {
         Ok(Self {
@@ -90,7 +85,7 @@ impl<'a> ProcessingContext<'a> {
             message,
             data,
             registry,
-            clear_call_context,
+            displays,
             level,
         })
     }
@@ -115,7 +110,6 @@ impl<'a> ProcessingContext<'a> {
         self.params.resolve_optional(key, self.message, self.data)
     }
 
-    /// Helper to get title and description as strings for DisplayField creation
     pub fn labels(&self) -> (crate::fields::Label, crate::fields::Label) {
         (
             self.field.title.clone(),
@@ -125,9 +119,6 @@ impl<'a> ProcessingContext<'a> {
 }
 
 
-// ============================================================================
-// Format enum
-// ============================================================================
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
@@ -202,9 +193,6 @@ impl Format {
     }
 }
 
-// ============================================================================
-// Format Processor Functions
-// ============================================================================
 
 pub(crate) fn process_address(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_address()?;
@@ -323,7 +311,7 @@ pub(crate) fn process_call(ctx: &ProcessingContext) -> crate::Result<DisplayFiel
     let data = ctx.resolve_param("data")?.as_bytes()?;
 
     let msg = Message::new(ctx.message.to, to, value, data.into());
-    let call = ctx.clear_call_context.parse_clear_call_with_level(msg, ctx.registry, ctx.level + 1)?;
+    let call = parse_clear_call_with_level(ctx.displays, msg, ctx.registry, ctx.level + 1)?;
 
     Ok(DisplayField::Call {
         title: ctx.title().to_string(),
@@ -421,7 +409,8 @@ pub(crate) fn process_match(ctx: &ProcessingContext) -> crate::Result<DisplayFie
 
     let new_data = SolValue::Tuple(match_data);
 
-    let new_fields = ctx.clear_call_context.process_nested_fields(
+    let new_fields = process_nested_fields(
+        ctx.displays,
         ctx.message,
         ctx.nested_fields(),
         &new_data,
@@ -460,7 +449,8 @@ pub(crate) fn process_array(ctx: &ProcessingContext) -> crate::Result<DisplayFie
             tuple.push((Some(name.clone()), array[i].clone()));
         }
         let new_data = SolValue::Tuple(tuple);
-        let item_fields = ctx.clear_call_context.process_nested_fields(
+        let item_fields = process_nested_fields(
+            ctx.displays,
             ctx.message,
             ctx.nested_fields(),
             &new_data,
@@ -491,7 +481,8 @@ pub(crate) fn process_switch(ctx: &ProcessingContext) -> crate::Result<DisplayFi
         ctx.data.clone()
     };
 
-    let new_fields = ctx.clear_call_context.process_nested_fields(
+    let new_fields = process_nested_fields(
+        ctx.displays,
         ctx.message,
         ctx.nested_fields(),
         &new_data,
@@ -507,9 +498,6 @@ pub(crate) fn process_switch(ctx: &ProcessingContext) -> crate::Result<DisplayFi
     })
 }
 
-// ============================================================================
-// Helper functions
-// ============================================================================
 
 pub(crate) fn decode_abi_data(
     params: &FieldParams,

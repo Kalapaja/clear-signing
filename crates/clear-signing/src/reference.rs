@@ -148,22 +148,18 @@ mod tests {
 
     #[test]
     fn test_param() {
-        // Invalid references are now Errors (Literal cannot start with $)
         assert!(Reference::parse("$").is_err());
         assert!(Reference::parse("$par@m").is_err());
         assert!(Reference::parse("$par,m").is_err());
         assert!(Reference::parse("$param.").is_err());
         assert!(Reference::parse("$param..field").is_err());
 
-        // Literals can be anything ASCII (except starting with $)
         assert_eq!(
             Reference::parse("hello world").unwrap(),
             Reference::Literal("hello world".into())
         );
-        // Non-ASCII literals should fail
         assert!(Reference::parse("🌟 emoji").is_err());
 
-        // Valid references
         match Reference::parse("$param").unwrap() {
             Reference::Identifier {
                 identifier,
@@ -191,7 +187,6 @@ mod tests {
 
     #[test]
     fn test_index() {
-        // Invalid reference starting with $ is Error
         assert!(Reference::parse("$param[]").is_err());
 
         match Reference::parse("$param[1]").unwrap() {
