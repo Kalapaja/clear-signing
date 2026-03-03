@@ -1,18 +1,10 @@
 use crate::ResultExt;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use nom::combinator::{all_consuming, map, map_res, verify};
-use nom::multi::many0;
-use nom::{
-    branch::alt, bytes::complete::take_while1,
-    character::complete::{char, digit1},
-    combinator::{opt, recognize},
-    sequence::{delimited, preceded},
-    IResult,
-    Parser,
-};
+use winnow::{ascii::digit1, combinator::{alt, delimited, opt, preceded, repeat}, token::take_while, ModalResult, Parser};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use winnow::error::ContextError;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Clone)]
@@ -69,76 +61,64 @@ impl Reference {
             return Ok(Reference::Literal("".into()));
         }
 
-        let parsed = all_consuming(parse_value).parse(path)
-            .err_ctx("Nom parse error")?;
-        Ok(parsed.1)
+        let parsed = parse_value.parse(path)
+            .err_ctx("Winnow parse error")?;
+        Ok(parsed)
     }
 }
 
-fn parse_identifier(input: &str) -> IResult<&str, String> {
-    map(
-        take_while1(|c: char| c.is_ascii_alphanumeric() || c == '_'),
-        |s: &str| s.to_string(),
-    )
-    .parse(input)
+fn parse_identifier<'s>(input: &mut &'s str) -> ModalResult<&'s str, ContextError> {
+    take_while(1.., |c: char| c.is_ascii_alphanumeric() || c == '_')
+        .parse_next(input)
 }
 
-fn parse_reference(input: &str) -> IResult<&str, Reference> {
-    all_consuming(map(
-        (
-            preceded(char('$'), parse_identifier),
-            many0(alt((parse_bracket, preceded(char('.'), parse_segment)))),
-        ),
-        |(container, members)| Reference::Identifier {
-            identifier: Identifier { container, members },
-            reference: input.to_string(),
-        },
-    ))
-    .parse(input)
-}
+fn parse_reference(input: &mut &str) -> ModalResult<Reference, ContextError> {
+    let start = *input;
+    let container = preceded('$', parse_identifier).parse_next(input)?;
+    let members = repeat(0.., alt((parse_bracket, preceded('.', parse_segment))))
+        .parse_next(input)?;
 
-fn parse_literal(input: &str) -> IResult<&str, Reference> {
-    map(
-        verify(take_while1(|c: char| c.is_ascii()), |s: &str| {
-            !s.starts_with('$')
-        }),
-        |s: &str| Reference::Literal(s.to_string()),
-    )
-    .parse(input)
-}
-
-fn parse_value(input: &str) -> IResult<&str, Reference> {
-    alt((parse_reference, parse_literal)).parse(input)
-}
-
-fn parse_segment(input: &str) -> IResult<&str, Member> {
-    map(parse_identifier, |s| Member::segment(&s)).parse(input)
-}
-
-fn parse_isize(input: &str) -> IResult<&str, isize> {
-    map_res(recognize((opt(char('-')), digit1)), |s: &str| {
-        s.parse::<isize>()
+    Ok(Reference::Identifier {
+        identifier: Identifier { container: container.to_string(), members },
+        reference: start.to_string(),
     })
-    .parse(input)
 }
 
-fn parse_index_inner(input: &str) -> IResult<&str, Member> {
-    map(parse_isize, Member::index).parse(input)
+fn parse_literal(input: &mut &str) -> ModalResult<Reference, ContextError> {
+    take_while(1.., |c: char| c.is_ascii())
+        .verify(|s: &str| !s.starts_with('$'))
+        .map(|s: &str| Reference::Literal(s.to_string()))
+        .parse_next(input)
 }
 
-fn parse_slice_inner(input: &str) -> IResult<&str, Member> {
-    let (input, (start, _, end)) = (opt(parse_isize), char(':'), opt(parse_isize)).parse(input)?;
-
-    Ok((input, Member::slice(start, end)))
+fn parse_value(input: &mut &str) -> ModalResult<Reference, ContextError> {
+    alt((parse_reference, parse_literal)).parse_next(input)
 }
 
-fn parse_bracket(input: &str) -> IResult<&str, Member> {
-    delimited(
-        char('['),
-        alt((parse_slice_inner, parse_index_inner)),
-        char(']'),
-    )
-    .parse(input)
+fn parse_segment(input: &mut &str) -> ModalResult<Member, ContextError> {
+    let s = parse_identifier.parse_next(input)?;
+    Ok(Member::segment(s))
+}
+
+fn parse_isize(input: &mut &str) -> ModalResult<isize, ContextError> {
+    (opt('-'), digit1)
+        .take()
+        .try_map(|s: &str| s.parse::<isize>())
+        .parse_next(input)
+}
+
+fn parse_index_inner(input: &mut &str) -> ModalResult<Member, ContextError> {
+    let idx = parse_isize.parse_next(input)?;
+    Ok(Member::index(idx))
+}
+
+fn parse_slice_inner(input: &mut &str) -> ModalResult<Member, ContextError> {
+    let (start, _, end) = (opt(parse_isize), ':', opt(parse_isize)).parse_next(input)?;
+    Ok(Member::slice(start, end))
+}
+
+fn parse_bracket(input: &mut &str) -> ModalResult<Member, ContextError> {
+    delimited('[', alt((parse_slice_inner, parse_index_inner)), ']').parse_next(input)
 }
 
 #[cfg(test)]

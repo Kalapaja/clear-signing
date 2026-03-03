@@ -40,8 +40,9 @@ impl FieldParams {
     pub fn get_with_prefix(&self, prefix: char) -> BTreeMap<String, String> {
         self.params
             .iter()
-            .filter(|(k, _)| k.starts_with(prefix))
-            .map(|(k, v)| (k.strip_prefix(prefix).unwrap().to_string(), v.clone()))
+            .filter_map(|(k, v)| {
+                k.strip_prefix(prefix).map(|stripped| (stripped.to_string(), v.clone()))
+            })
             .collect()
     }
 
