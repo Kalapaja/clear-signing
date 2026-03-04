@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./Display.sol";
 
 library OneInchSwapDisplayHash {
-    bytes32 public constant ONE_INCH_SWAP_DISPLAY_HASH = 0x84a0b18a51bceb41741e908d8f4d47938e7bcf14fc1e2e8e10a45b4644d6d5f3;
+    bytes32 public constant ONE_INCH_SWAP_DISPLAY_HASH = 0x3d740fcba0f95f11d2e13d8030793e381233d40432c354600b65a90e0072a52a;
 
     function ONE_INCH_SWAP_DISPLAY() pure public returns (bytes32) {
         return Display.display(

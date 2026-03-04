@@ -3,6 +3,7 @@ use crate::sol::SolValue;
 use alloc::string::ToString;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 
+pub const CLEAR_CALL_SELECTOR: [u8; 4] = [0x0a, 0xb7, 0x93, 0xe2];
 const CONTAINER_MSG: &str = "msg";
 const CONTAINER_DATA: &str = "data";
 
@@ -24,18 +25,31 @@ impl Message {
         }
     }
 
-    pub fn replace_data(&self, data: Bytes) -> Self {
-        Self {
-            sender: self.sender,
-            to: self.to,
-            value: self.value,
-            data,
+    fn prefix(&self) -> crate::Result<FixedBytes<4>> {
+        anyhow::ensure!(self.data.len() >= 4, "Invalid message selector");
+        Ok(FixedBytes::new(self.data[..4].try_into()?))
+    }
+
+    pub fn display_hash(&self) -> crate::Result<Option<FixedBytes<32>>> {
+        if self.prefix()? == CLEAR_CALL_SELECTOR {
+            anyhow::ensure!(self.data.len() >= 36, "Invalid display hash");
+            Ok(Some(FixedBytes::new(self.data[4..36].try_into()?)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn call_data(&self) -> crate::Result<Bytes> {
+        if self.prefix()? == CLEAR_CALL_SELECTOR {
+            anyhow::ensure!(self.data.len() >= 36, "Invalid call data");
+            Ok(self.data.slice(36..))
+        } else {
+            Ok(self.data.clone())
         }
     }
 
     pub fn selector(&self) -> crate::Result<FixedBytes<4>> {
-        anyhow::ensure!(self.data.len() >= 4, "Invalid message selector");
-        Ok(self.data[..4].try_into().map(FixedBytes::new)?)
+        Ok(FixedBytes::new(self.call_data()?[..4].try_into()?))
     }
 }
 
@@ -75,8 +89,10 @@ fn resolve_msg(members: &[Member], message: &Message) -> crate::Result<SolValue>
         members.len()
     );
 
-    let Member::Segment(Segment(name)) = members.first()
-        .ok_or_else(|| anyhow::anyhow!("Message path must have a field name"))? else {
+    let Member::Segment(Segment(name)) = members
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("Message path must have a field name"))?
+    else {
         anyhow::bail!("Message path must have a field name")
     };
 
@@ -198,11 +214,21 @@ fn parse_slice(value: &SolValue, slice: &Slice) -> crate::Result<SolValue> {
 fn get_index(index: isize, len: usize) -> crate::Result<usize> {
     if index >= 0 {
         let idx = index.cast_unsigned();
-        anyhow::ensure!(idx < len, "Index {} out of bounds for length {}", index, len);
+        anyhow::ensure!(
+            idx < len,
+            "Index {} out of bounds for length {}",
+            index,
+            len
+        );
         Ok(idx)
     } else {
         let idx = index.abs().cast_unsigned();
-        anyhow::ensure!(len >= idx, "Index {} out of bounds for length {}", index, len);
+        anyhow::ensure!(
+            len >= idx,
+            "Index {} out of bounds for length {}",
+            index,
+            len
+        );
         Ok(len - idx)
     }
 }

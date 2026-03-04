@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./Display.sol";
 
 library SwapExactTokensForTokensDisplayHash {
-    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = 0xb0b7356db751844a64a9e452c8982a4c058a3a1fee1f304ea287e96caf285330;
+    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = 0x1adf387d370fcd9bf610451410a5e18e2b02a5d8bf521de92887283b1c23d123;
 
     function SWAP_EXACT_TOKENS_FOR_TOKENS() pure public returns (bytes32) {
         return Display.display(

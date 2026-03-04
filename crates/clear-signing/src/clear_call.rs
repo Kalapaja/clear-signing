@@ -7,53 +7,61 @@ use crate::sol::{SolFunction, SolValue, StateMutability};
 use alloc::vec;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, FixedBytes, U256};
-use alloy_sol_types::SolCall;
-use alloy_sol_types::sol;
 
 const MAX_RECURSION_DEPTH: usize = 16;
 
-sol! {
-    function clearCall(bytes32 displayHash, bytes call) payable returns (bytes);
-}
-
-fn parse_call(
+pub(crate) fn parse_message(
     displays: &[Display],
-    message: Message,
-    display_hash: Option<FixedBytes<32>>,
+    message: &Message,
     registry: &dyn Registry,
     level: usize,
 ) -> crate::Result<ClearCall> {
+    anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
+    let selector = message.selector()?;
+
     anyhow::ensure!(
         registry.is_well_known_contract(&message.to),
         "Unknown contract: {}",
         message.to
     );
 
-    let selector = message.selector()?;
-    let display = find_display(displays, selector, display_hash, &message.to, registry)?;
+    let display = find_display(
+        displays,
+        selector,
+        message.display_hash()?,
+        &message.to,
+        registry,
+    )?;
 
     let function_call = SolFunction::parse(&display.abi)?;
 
     match function_call.state_mutability {
         StateMutability::Pure => anyhow::bail!("Function is not writeable"),
         StateMutability::View => anyhow::bail!("Function is not writeable"),
+        StateMutability::Payable => {}
         StateMutability::NonPayable => {
             anyhow::ensure!(message.value == U256::ZERO, "Function is not payable");
         }
-        StateMutability::Payable => {}
     }
 
-    let data = function_call.decode(&message.data)?;
+    let data = function_call.decode(&message.call_data()?)?;
 
-    let fields =
-        process_fields_impl(displays, &message, &display.fields, &data, registry, level, None)?;
+    let fields = process_fields(
+        displays,
+        &message,
+        &display.fields,
+        &data,
+        registry,
+        level,
+        None,
+    )?;
 
     Ok(ClearCall {
         title: display.title.into(),
         description: display.description.into(),
         payable: function_call.state_mutability == StateMutability::Payable
             && message.value != U256::ZERO,
-        clear: display_hash.is_some(),
+        clear: message.display_hash()?.is_some(),
         fields,
         labels: display.labels.into(),
     })
@@ -100,7 +108,7 @@ fn find_display(
     Ok(display)
 }
 
-fn process_fields_impl(
+pub(crate) fn process_fields(
     displays: &[Display],
     message: &Message,
     fields: &[Field],
@@ -150,112 +158,12 @@ fn process_fields_impl(
         }
 
         let format = Format::from(&field.format)?;
-        let ctx = ProcessingContext::new(
-            field,
-            message,
-            data,
-            registry,
-            displays,
-            level,
-        )?;
+        let ctx = ProcessingContext::new(field, message, data, registry, displays, level)?;
         let display_field = format.process(&ctx)?;
         display_fields.push(display_field);
     }
 
     Ok(display_fields)
-}
-
-pub(crate) fn parse_clear_call_with_level(
-    displays: &[Display],
-    message: Message,
-    registry: &dyn Registry,
-    level: usize,
-) -> crate::Result<ClearCall> {
-    anyhow::ensure!(level <= MAX_RECURSION_DEPTH, "Max recursion depth exceeded");
-
-    let (display_hash, msg) = match message.selector()? {
-        FixedBytes(clearCallCall::SELECTOR) => {
-            let decoded = clearCallCall::abi_decode(&message.data)?;
-            (
-                Some(decoded.displayHash),
-                message.replace_data(decoded.call),
-            )
-        }
-        _ => (None, message),
-    };
-
-    parse_call(displays, msg, display_hash, registry, level)
-}
-
-pub(crate) fn process_nested_fields(
-    displays: &[Display],
-    message: &Message,
-    fields: &[Field],
-    data: &SolValue,
-    registry: &dyn Registry,
-    level: usize,
-    switch_value: Option<SolValue>,
-) -> crate::Result<Vec<DisplayField>> {
-    process_fields_impl(
-        displays,
-        message,
-        fields,
-        data,
-        registry,
-        level,
-        switch_value,
-    )
-}
-
-
-pub fn parse_clear_call(
-    message: Message,
-    displays: Vec<Display>,
-    registry: &dyn Registry,
-) -> crate::Result<ClearCall> {
-    parse_clear_call_with_level(&displays, message, registry, 0)
-}
-
-#[allow(dead_code)]
-pub(crate) fn entries_to_map(
-    entries: &[crate::display::Entry],
-) -> crate::Result<alloc::collections::BTreeMap<&str, &str>> {
-    use alloc::collections::BTreeMap;
-    let mut map = BTreeMap::new();
-    for entry in entries {
-        if map.contains_key(entry.key.as_str()) {
-            anyhow::bail!("Duplicate entry key: {}", entry.key);
-        }
-
-        map.insert(entry.key.as_str(), entry.value.as_str());
-    }
-    Ok(map)
-}
-
-#[allow(dead_code)]
-pub(crate) fn resolve_param_value(
-    params: &alloc::collections::BTreeMap<&str, &str>,
-    key: &str,
-    message: &Message,
-    data: &SolValue,
-) -> crate::Result<SolValue> {
-    let param_value = params
-        .get(key)
-        .ok_or_else(|| anyhow::anyhow!("Param {} not found", key))?;
-
-    resolve_value(param_value, message, data)
-}
-
-#[allow(dead_code)]
-pub(crate) fn resolve_optional_param_value(
-    params: &alloc::collections::BTreeMap<&str, &str>,
-    key: &str,
-    message: &Message,
-    data: &SolValue,
-) -> Option<crate::Result<SolValue>> {
-    let param_value = params.get(key);
-
-    param_value.map(|param_value| resolve_value(param_value, message, data))
 }
 
 #[cfg(all(test, feature = "serde"))]
@@ -266,6 +174,8 @@ mod tests {
     use alloc::string::{String, ToString};
     use alloc::vec;
     use alloy_primitives::{Address, I256, address, uint};
+    use alloy_sol_types::{SolCall, sol};
+    use crate::resolver::CLEAR_CALL_SELECTOR;
 
     pub struct LocalRegistry {
         pub well_known_displays: BTreeMap<FixedBytes<4>, Display>,
@@ -418,11 +328,10 @@ mod tests {
         let abi = display.abi.clone();
         let complex_data = call_args.abi_encode();
         let display_hash = display.hash_struct();
-        let clear_data = clearCallCall {
-            displayHash: display_hash,
-            call: complex_data.into(),
-        }
-        .abi_encode();
+
+        let mut clear_data = Vec::from(CLEAR_CALL_SELECTOR);
+        clear_data.extend_from_slice(display_hash.as_ref());
+        clear_data.extend_from_slice(&complex_data);
 
         let sol_func = SolFunction::parse(&abi).unwrap();
         assert_eq!(
@@ -451,7 +360,7 @@ mod tests {
             vec![],
         );
 
-        let result = parse_clear_call(message, vec![display, f.inner_display], &registry)
+        let result = parse_message(&vec![display, f.inner_display], &message, &registry, 0)
             .expect("Failed to parse clear call");
 
         assert_eq!(result.fields.len(), 14);
@@ -540,7 +449,7 @@ mod tests {
         let registry = setup_test_registry(
             vec![display_addr, f.inner_target],
             vec![f.erc20_token],
-            vec![(display), (f.erc20_display)],
+            vec![(display.clone()), (f.erc20_display.clone())],
         );
 
         let inner_call_data = simpleCallCall {
@@ -549,11 +458,9 @@ mod tests {
         .abi_encode();
 
         let inner_display_hash = f.inner_display.hash_struct();
-        let inner_wrapped_data = clearCallCall {
-            displayHash: inner_display_hash,
-            call: inner_call_data.into(),
-        }
-        .abi_encode();
+        let mut inner_wrapped_data = Vec::from(CLEAR_CALL_SELECTOR);
+        inner_wrapped_data.extend_from_slice(inner_display_hash.as_ref());
+        inner_wrapped_data.extend_from_slice(&inner_call_data);
 
         let erc20_call_data = transferCall {
             to: f.receiver_addr,
@@ -577,8 +484,13 @@ mod tests {
             data: nested_data.into(),
         };
 
-        let result = parse_clear_call(message, vec![f.inner_display.clone()], &registry)
-            .expect("Failed to parse");
+        let result = parse_message(
+            &vec![display, f.inner_display.clone(), f.erc20_display],
+            &message,
+            &registry,
+            0,
+        )
+        .expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 2);
 
@@ -623,7 +535,7 @@ mod tests {
 
         let display = get_display("Match Test");
 
-        let registry = setup_test_registry(vec![display_addr], vec![], vec![(display)]);
+        let registry = setup_test_registry(vec![display_addr], vec![], vec![(display.clone())]);
 
         let call_data = matchCallCall { val: uint!(1_U256) }.abi_encode();
         let message = Message {
@@ -633,8 +545,8 @@ mod tests {
             data: call_data.into(),
         };
 
-        let result = parse_clear_call(message, vec![], &registry)
-            .expect("Failed to parse");
+        let result =
+            parse_message(&vec![display], &message, &registry, 0).expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
@@ -658,7 +570,7 @@ mod tests {
 
         let display = get_display("Array");
 
-        let registry = setup_test_registry(vec![display_addr], vec![], vec![display]);
+        let registry = setup_test_registry(vec![display_addr], vec![], vec![display.clone()]);
 
         let call_data = arrayCallCall {
             nums: vec![uint!(10_U256), uint!(20_U256)],
@@ -671,8 +583,8 @@ mod tests {
             data: call_data.into(),
         };
 
-        let result = parse_clear_call(message, vec![], &registry)
-            .expect("Failed to parse");
+        let result =
+            parse_message(&vec![display], &message, &registry, 0).expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 top-level field (Array)");
 
@@ -702,7 +614,7 @@ mod tests {
 
         let display = get_display("Abi Test");
 
-        let registry = setup_test_registry(vec![display_addr], vec![], vec![display]);
+        let registry = setup_test_registry(vec![display_addr], vec![], vec![display.clone()]);
 
         let mut encoded_params = vec![0u8; 64];
         encoded_params[12..32].copy_from_slice(recipient.as_slice());
@@ -719,8 +631,7 @@ mod tests {
             data: call_data.into(),
         };
 
-        let result = parse_clear_call(message, vec![], &registry)
-            .expect("Failed to parse");
+        let result = parse_message(&vec![], &message, &registry, 0).expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
@@ -755,7 +666,7 @@ mod tests {
 
         let display = get_display("Abi Test New Locals");
 
-        let registry = setup_test_registry(vec![display_addr], vec![], vec![display]);
+        let registry = setup_test_registry(vec![display_addr], vec![], vec![display.clone()]);
 
         let mut encoded_params = vec![0u8; 64];
         encoded_params[12..32].copy_from_slice(recipient.as_slice());
@@ -772,8 +683,8 @@ mod tests {
             data: call_data.into(),
         };
 
-        let result = parse_clear_call(message, vec![], &registry)
-            .expect("Failed to parse");
+        let result =
+            parse_message(&vec![display], &message, &registry, 0).expect("Failed to parse");
 
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
@@ -849,7 +760,7 @@ mod tests {
         let registry = setup_test_registry(
             vec![multicall_address],
             vec![token],
-            vec![multilcall_display.clone(), erc20_display],
+            vec![multilcall_display.clone(), erc20_display.clone()],
         );
 
         let message = Message {
@@ -859,7 +770,13 @@ mod tests {
             data: multicall.abi_encode().into(),
         };
 
-        let result = parse_clear_call(message, vec![], &registry).unwrap();
+        let result = parse_message(
+            &vec![multilcall_display, erc20_display],
+            &message,
+            &registry,
+            0,
+        )
+        .unwrap();
 
         assert_eq!(result.fields.len(), 1);
         match &result.fields[0] {

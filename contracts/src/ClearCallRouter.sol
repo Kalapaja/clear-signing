@@ -9,16 +9,16 @@ contract ClearCallRouter is IUniswapV2Router {
     ClearCallRouter internal immutable ROUTER = ClearCallRouter(this);
     bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH;
 
-    function clearCall(
-        bytes32 displayHash,
-        bytes calldata call
-    ) external payable returns (bytes memory) {
-        bytes4 selector = bytes4(call[:4]);
+    function clearCall() external payable returns (bytes memory) {
+        // Extract displayHash from bytes 4-35 (after the clearCall selector)
+        bytes32 displayHash = bytes32(msg.data[4:36]);
+        // Extract call selector from bytes 36-39
+        bytes4 callSelector = bytes4(msg.data[36:40]);
 
-        _validateDisplayHash(selector, displayHash);
+        _validateDisplayHash(callSelector, displayHash);
 
-        // 2. Execute the actual call & bubble up errors (OpenZeppelin Address.sol pattern)
-        (bool success, bytes memory returndata) = address(this).delegatecall(call);
+        // Execute the actual call using msg.data[36:] (selector + params)
+        (bool success, bytes memory returndata) = address(this).delegatecall(msg.data[36:]);
         if (!success) {
             if (returndata.length > 0) {
                 // Bubble up the revert reason

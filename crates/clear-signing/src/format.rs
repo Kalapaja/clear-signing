@@ -1,4 +1,4 @@
-use crate::clear_call::{parse_clear_call_with_level, process_nested_fields};
+use crate::clear_call::{parse_message, process_fields};
 use crate::display::Display;
 use crate::display::{Entry, Field};
 use crate::fields::{Direction, DisplayField, Label};
@@ -312,7 +312,7 @@ pub(crate) fn process_call(ctx: &ProcessingContext) -> crate::Result<DisplayFiel
     let data = ctx.resolve_param("data")?.as_bytes()?;
 
     let msg = Message::new(ctx.message.to, to, value, data.into());
-    let call = parse_clear_call_with_level(ctx.displays, msg, ctx.registry, ctx.level + 1)?;
+    let call = parse_message(ctx.displays, &msg, ctx.registry, ctx.level + 1)?;
 
     Ok(DisplayField::Call {
         title: ctx.title().to_string(),
@@ -410,7 +410,7 @@ pub(crate) fn process_match(ctx: &ProcessingContext) -> crate::Result<DisplayFie
 
     let new_data = SolValue::Tuple(match_data);
 
-    let new_fields = process_nested_fields(
+    let new_fields = process_fields(
         ctx.displays,
         ctx.message,
         ctx.nested_fields(),
@@ -450,7 +450,7 @@ pub(crate) fn process_array(ctx: &ProcessingContext) -> crate::Result<DisplayFie
             tuple.push((Some(name.clone()), array[i].clone()));
         }
         let new_data = SolValue::Tuple(tuple);
-        let item_fields = process_nested_fields(
+        let item_fields = process_fields(
             ctx.displays,
             ctx.message,
             ctx.nested_fields(),
@@ -482,7 +482,7 @@ pub(crate) fn process_switch(ctx: &ProcessingContext) -> crate::Result<DisplayFi
         ctx.data.clone()
     };
 
-    let new_fields = process_nested_fields(
+    let new_fields = process_fields(
         ctx.displays,
         ctx.message,
         ctx.nested_fields(),

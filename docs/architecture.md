@@ -485,10 +485,10 @@ The wallet processes the display specification in a deterministic sequence to ge
 1. **Context Initialization**:
     - The wallet receives the **Envelope** (the top-level transaction, e.g., UserOperation) and it reads the function
       ABI to find the corresponding display specification for the target contract.
-    - **Call Classification**: Calls are classified as **Clear Calls** (executed via
-      `clearCall(bytes32 displayHash, bytes call)`) or **Legacy Calls**. Only Clear Calls trigger the rich display
-      logic, and the wallet **MUST** verify that the `displayHash` argument matches the hash of the display
-      specification.
+    - **Call Classification**: Calls are classified as **Clear Calls** or **Legacy Calls**. Clear Calls are identified
+      by the magic number prefix `0x0ab793e2` (the `clearCall()` function selector), followed by a 32-byte display hash
+      and the actual call data. Only Clear Calls trigger the rich display logic, and the wallet **MUST** verify that the
+      display hash (bytes 4-35) matches the hash of the display specification.
     - The **$msg context** MUST be initialized. For the top-level call, `$msg` maps to the Envelope parameters.
     - The **$data context** MUST be initialized. For the top-level call, `$data` maps to the function arguments from
       `$msg.data`.
@@ -530,13 +530,13 @@ The wallet processes the display specification in a deterministic sequence to ge
       Denial of Service attacks.
     - A new, ephemeral `$msg` context is created for the inner call from calling parameters.
     - The wallet looks up the display specification for this inner call by matching the function selector (derived from
-      `$msg.data[:4]`) against the `display.abi` and verifying the display hash matches the `displayHash` parameter in
-      the `clearCall`, then recursively renders it.
+      `$msg.data[:4]`) against the `display.abi` and verifying the display hash (bytes 4-35 of the packed format)
+      matches the expected hash, then recursively renders it.
 
 5. **Verification**:
-    - **Integrity Check**: The wallet calculates the hash of the *exact* display specification used so it can be passed
-      to `clearCall`. It **MUST** verify that this calculated hash matches the `displayHash` argument passed to the
-      `clearCall` function in the transaction data.
+    - **Integrity Check**: The wallet calculates the hash of the *exact* display specification used so it can be
+      embedded in the packed format. It **MUST** verify that this calculated hash matches the display hash stored in
+      bytes 4-35 of the transaction data.
     - **Constraint Check**: The wallet verifies that all "Safety Rules" (e.g., Token resolution) passed. If any check
       failed, the transaction **MUST** be considered unverified and the user warned (or prevented from signing,
       depending on wallet policy).
@@ -645,11 +645,28 @@ interface IDisplayRegistry {
 
 ### 5.3 Mechanism (`clearCall`)
 
-Contracts implement a dedicated entry point for secure execution:
+Contracts implement a dedicated entry point for secure execution using a packed byte format. The `clearCall()` function
+is a fallback function (no explicit parameters) that receives transaction data in the following packed format:
+
+**Packed Format Structure:**
+```
+Bytes 0-3:    Magic number (0x0ab793e2) - the clearCall() function selector
+Bytes 4-35:   Display hash (32 bytes) - EIP-712 hash of the display specification
+Bytes 36+:    Actual call data (function selector + parameters of the inner function)
+```
+
+This packed format is more gas-efficient than traditional ABI-encoded parameters, reducing overhead to approximately
+2,700 gas while maintaining full security guarantees.
+
+**Implementation Example:**
 
 ```solidity
-function clearCall(bytes32 displayHash, bytes calldata call) external returns (bytes memory) {
-    bytes4 selector = bytes4(call[: 4]);
+function clearCall() external payable returns (bytes memory) {
+    // Extract displayHash from bytes 4-35 (after the clearCall selector)
+    bytes32 displayHash = bytes32(msg.data[4:36]);
+    // Extract call selector from bytes 36-39
+    bytes4 selector = bytes4(msg.data[36:40]);
+
     // 1. Verify that the provided display hash matches the expected hash for this selector
     if (selector == this.transfer.selector) {
         require(displayHash == TRANSFER_DISPLAY_HASH, "Invalid display hash");
@@ -657,8 +674,8 @@ function clearCall(bytes32 displayHash, bytes calldata call) external returns (b
         revert("Unknown function selector");
     }
 
-    // 2. Execute the actual call & bubble up errors (OpenZeppelin Address.sol pattern)
-    (bool success, bytes memory returndata) = address(this).delegatecall(call);
+    // 2. Execute the actual call using msg.data[36:] (selector + params)
+    (bool success, bytes memory returndata) = address(this).delegatecall(msg.data[36:]);
     if (!success) {
         if (returndata.length > 0) {
             // Bubble up the revert reason
@@ -675,9 +692,14 @@ function clearCall(bytes32 displayHash, bytes calldata call) external returns (b
 }
 ```
 
-1. **Verification**: The contract **MUST** check if `displayHash` matches the immutable hash of the *expected* display
-   configuration (combined with its own domain separator).
-2. **Execution**: If the hash matches, the contract executes the `call` via `delegatecall` or internal call.
+**Execution Flow:**
+
+1. **Format Parsing**: The contract extracts the display hash (bytes 4-35) and inner call selector (bytes 36-39) from
+   the packed `msg.data`.
+2. **Verification**: The contract **MUST** check if `displayHash` matches the immutable hash of the *expected* display
+   specification for the given function selector.
+3. **Execution**: If the hash matches, the contract executes the inner call (starting at byte 36) via `delegatecall` or
+   internal call.
 
 ## 6. Stateless Wallet Requests
 
@@ -737,7 +759,7 @@ sequenceDiagram
     
     Note over Dapp, Wallet: 3. Request
     User->>Dapp: Initiate Action
-    Dapp->>Wallet: clearCall(displayHash=0, ...) + Display Spec
+    Dapp->>Wallet: Packed format (0x0ab793e2 || displayHash=0 || calldata) + Display Spec
 
     Note over Wallet, User: 4. Verify & Display
     Wallet->>Wallet: Verify address is well-known token/contract
@@ -746,7 +768,7 @@ sequenceDiagram
     Note over Wallet, User: 5. Sign
     User->>Wallet: Approve
     Wallet->>Wallet: Calculate real displayHash
-    Wallet->>Wallet: Re-encode calldata with valid displayHash
+    Wallet->>Wallet: Patch bytes 4-35 with calculated displayHash
     Wallet->>Wallet: Sign Transaction
 
     Note over Dapp, Contract: 6. Execute
@@ -869,13 +891,14 @@ Implementing on-chain verification like `clearCall` adds computational steps (se
 delegatecall, or internal decoding). Three implementation approaches have been measured with different overhead
 characteristics:
 
-- **Fallback approach**: ~2,700 gas overhead - uses magic number prefix with pure
-  assembly
+- **Fallback approach (recommended)**: ~2,700 gas overhead - uses packed byte format with magic number prefix
+  (0x0ab793e2)
 - **Internal decoding**: ~9,000 gas overhead - manual parameter extraction
 - **Delegatecall wrapper**: ~10,000 gas overhead - highest but most explicit
 
-The fallback approach offers the best gas efficiency with consistent overhead regardless of function complexity, while
-maintaining full security guarantees. These figures come from the `GasMeasurement` test.
+The fallback approach with packed byte format is the recommended implementation. It offers the best gas efficiency with
+consistent overhead regardless of function complexity, while maintaining full security guarantees. These figures come
+from the `GasMeasurement` test.
 
 #### 9.3.2 Developer Dependency
 
@@ -885,11 +908,10 @@ maintaining, and committing to their display specifications.
 #### 9.3.3 Block Explorer Display
 
 - **ABI-Based Decoding**: Block explorers like Etherscan decode transactions using the contract's ABI, not the display
-  specification. When viewing `clearCall` transactions on-chain, users see the wrapper function signature
-  `clearCall(bytes32 displayHash, bytes calldata call)` rather than the semantic intent (e.g., "Transfer 100 DAI to
-  Alice").
-- **Explorer Support**: Block explorers MUST implement support for `clearCall` unwrapping to maintain transparency for
-  post-execution audits.
+  specification. When viewing `clearCall` transactions on-chain, users see the fallback function signature
+  `clearCall()` with packed byte data rather than the semantic intent (e.g., "Transfer 100 DAI to Alice").
+- **Explorer Support**: Block explorers MUST implement support for `clearCall` unwrapping (parsing the packed byte
+  format to extract the inner call) to maintain transparency for post-execution audits.
 
 ## 10. Roadmap
 
@@ -900,10 +922,11 @@ interactions and improving integration with existing Ethereum standards.
 - **EIP-5267 Integration**: Consider including the EIP-712 domain separator in the display hash calculation.
 - **EIP-712 Envelope**: Implementing support for signing the entire EIP-712 message as an envelope.
 - **ERC-4337 Envelope**: Implement support of user operation as envelope.
-- **Proof of Clear Call**: The dApp may initially send a transaction with a zeroed `displayHash`. The wallet then
-  resolves the corresponding display specification, calculates its cryptographic hash, and injects it into the
-  transaction before signing. This ensures that the user's intent is verified and that the transaction is only valid if
-  the wallet's clear-signing interpretation matches the contract's expectations.
+- **Proof of Clear Call**: The dApp may initially send a transaction with bytes 4-35 (the display hash position) set
+  to zero in the packed format. The wallet then resolves the corresponding display specification, calculates its
+  cryptographic hash, and patches bytes 4-35 with the calculated hash before signing. This ensures that the user's
+  intent is verified and that the transaction is only valid if the wallet's clear-signing interpretation matches the
+  contract's expectations.
 
 ## 11. Conclusion
 
