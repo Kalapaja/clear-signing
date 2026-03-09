@@ -7,8 +7,7 @@ use alloc::vec::Vec;
 use alloy_primitives::hex;
 use alloy_primitives::utils::format_units;
 use alloy_primitives::{Address, U256};
-use clear_signing::display::Labels;
-use clear_signing::fields::{ClearCall, Direction, DisplayField, Label};
+use clear_signing::{ClearCall, Direction, DisplayField, Label, Labels};
 use core::ops::Not;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -24,6 +23,8 @@ pub struct Token {
     pub chain_id: u64,
     /// Token contract address
     pub address: Address,
+    /// Optional token ID (e.g., for NFTs)
+    pub token_id: Option<U256>,
     /// Token name (e.g., "Wrapped Ether")
     pub name: String,
     /// Token symbol (e.g., "WETH")
@@ -99,7 +100,7 @@ pub struct NativeToken {
 }
 
 pub trait MetadataProvider {
-    fn get_token(&self, address: Address) -> Option<Token>;
+    fn get_token(&self, address: Address, token_id: Option<U256>) -> Option<Token>;
     fn get_contract(&self, address: Address) -> Option<Contract>;
     fn get_native_token(&self) -> NativeToken;
     fn get_address_name(&self, address: Address) -> Option<String>;
@@ -179,10 +180,10 @@ fn format_field(
     };
 
     match field {
-        DisplayField::Match {
+        DisplayField::Map {
             title,
             description,
-            values,
+            fields: values,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
@@ -201,7 +202,7 @@ fn format_field(
         DisplayField::Array {
             title,
             description,
-            values,
+            fields: values,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
@@ -225,6 +226,7 @@ fn format_field(
             token,
             amount,
             direction,
+            token_id,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
@@ -243,29 +245,35 @@ fn format_field(
                 None => "",
             };
 
+            let token_suffix = if let Some(id) = token_id {
+                format!(" #{}", id)
+            } else {
+                "".to_string()
+            };
+
             if *amount
                 >= U256::from_be_bytes(hex!(
                     "8000000000000000000000000000000000000000000000000000000000000000"
                 ))
             {
                 let symbol = provider
-                    .get_token(*token)
+                    .get_token(*token, *token_id)
                     .map(|t| t.symbol)
                     .unwrap_or_else(|| "Unknown Token".to_string());
                 lines.push(format!("{}  {}Unlimited {}", indent, dir_prefix, symbol));
-            } else if let Some(token_meta) = provider.get_token(*token) {
+            } else if let Some(token_meta) = provider.get_token(*token, *token_id) {
                 let formatted = format_units(*amount, token_meta.decimals)
                     .unwrap_or_else(|_| amount.to_string());
                 let formatted = trim_formatted_amount(formatted);
                 lines.push(format!(
-                    "{}  {}{} {}",
-                    indent, dir_prefix, formatted, token_meta.symbol
-                ));
+                    "{}  {}{} {}{}",
+                    indent, dir_prefix, formatted, token_meta.symbol, token_suffix
+                ).trim_end().to_string());
             } else {
                 lines.push(format!(
-                    "{}  {}{} (Unknown Token)",
-                    indent, dir_prefix, amount
-                ));
+                    "{}  {}{} (Unknown Token){}",
+                    indent, dir_prefix, amount, token_suffix
+                ).trim_end().to_string());
             }
         }
         DisplayField::NativeAmount {
@@ -354,6 +362,7 @@ fn format_field(
             title,
             description,
             token,
+            token_id,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
@@ -365,13 +374,19 @@ fn format_field(
                     lines.push(format!("{}{}", indent, desc));
                 }
             }
-            if let Some(token_meta) = provider.get_token(*token) {
+            let token_suffix = if let Some(id) = token_id {
+                format!(" #{}", id)
+            } else {
+                "".to_string()
+            };
+
+            if let Some(token_meta) = provider.get_token(*token, *token_id) {
                 lines.push(format!(
-                    "{}  {} ({})",
-                    indent, token_meta.name, token_meta.symbol
+                    "{}  {} ({}){}",
+                    indent, token_meta.name, token_meta.symbol, token_suffix
                 ));
             } else {
-                lines.push(format!("{}  {} (Unknown Token)", indent, token));
+                lines.push(format!("{}  {} {}", indent, token, token_suffix));
             }
         }
         DisplayField::Contract {
@@ -574,6 +589,58 @@ fn format_field(
             }
             lines.push(format!("{}  {}", indent, value));
         }
+        DisplayField::Units {
+            title,
+            description,
+            value,
+            decimals,
+        } => {
+            let title = resolve(title);
+            if !title.is_empty() {
+                lines.push(format_title(&title, &indent));
+            }
+            if detailed {
+                let desc = resolve(description);
+                if !desc.is_empty() {
+                    lines.push(format!("{}{}", indent, desc));
+                }
+            }
+            let decimals: usize = decimals.try_into().unwrap_or(0);
+            let s = value.to_string();
+            let formatted = if decimals == 0 {
+                s
+            } else if s.len() <= decimals {
+                let mut padded = "0.".to_string();
+                for _ in 0..(decimals - s.len()) {
+                    padded.push('0');
+                }
+                padded.push_str(&s);
+                trim_formatted_amount(padded)
+            } else {
+                let (integer, fractional) = s.split_at(s.len() - decimals);
+                trim_formatted_amount(format!("{}.{}", integer, fractional))
+            };
+            lines.push(format!("{}  {}", indent, formatted));
+        }
+        DisplayField::Switch {
+            title,
+            description,
+            fields,
+        } => {
+            let title = resolve(title);
+            if !title.is_empty() {
+                lines.push(format_title(&title, &indent));
+            }
+            if detailed {
+                let desc = resolve(description);
+                if !desc.is_empty() {
+                    lines.push(format!("{}{}", indent, desc));
+                }
+            }
+            for field in fields {
+                format_field(field, provider, level, lines, labels, detailed, locale);
+            }
+        }
     }
 }
 
@@ -678,7 +745,7 @@ mod tests {
     struct MockMetadataProvider;
 
     impl MetadataProvider for MockMetadataProvider {
-        fn get_token(&self, address: Address) -> Option<Token> {
+        fn get_token(&self, address: Address, token_id: Option<U256>) -> Option<Token> {
             if address == TOKEN_ADDR {
                 Some(Token {
                     chain_id: 1,
@@ -687,6 +754,7 @@ mod tests {
                     symbol: "TST".to_string(),
                     decimals: 18,
                     logo_uri: None,
+                    token_id,
                 })
             } else {
                 None
@@ -729,7 +797,7 @@ mod tests {
 
     #[test]
     fn test_format_clear_call() {
-        use clear_signing::fields::{ClearCall, DisplayField};
+        use clear_signing::{ClearCall, DisplayField};
         use core::time::Duration;
 
         let provider = MockMetadataProvider;
@@ -754,6 +822,7 @@ mod tests {
                     token: TOKEN_ADDR,
                     amount: U256::from(2000_000000000000000000u128), // 2000 DAI
                     direction: Some(Direction::Out),
+                    token_id: None,
                 },
                 DisplayField::TokenAmount {
                     title: "Amount No Dir".to_string(),
@@ -761,11 +830,21 @@ mod tests {
                     token: TOKEN_ADDR,
                     amount: U256::from(1000_000000000000000000u128), // 1000 DAI
                     direction: None,
+                    token_id: None,
                 },
                 DisplayField::Token {
                     title: "Token Out".to_string(),
                     description: "".to_string(),
                     token: TOKEN_ADDR,
+                    token_id: None,
+                },
+                DisplayField::TokenAmount {
+                    title: "NFT Transfer".to_string(),
+                    description: "".to_string(),
+                    token: TOKEN_ADDR,
+                    amount: U256::from(1000000000000000000u64), // 1 TST
+                    direction: Some(Direction::Out),
+                    token_id: Some(U256::from(42)),
                 },
                 DisplayField::Contract {
                     title: "Router".to_string(),
@@ -796,7 +875,7 @@ mod tests {
                 DisplayField::Array {
                     title: "Array".to_string(),
                     description: "Array description".to_string(),
-                    values: vec![
+                    fields: vec![
                         vec![DisplayField::String {
                             title: "Item 1".to_string(),
                             description: "".to_string(),
@@ -857,13 +936,14 @@ mod tests {
                             token: TOKEN_ADDR,
                             amount: U256::MAX,
                             direction: Some(Direction::In),
+                            token_id: None,
                         }],
                     },
                 },
-                DisplayField::Match {
-                    title: "Match Group".to_string(),
+                DisplayField::Map {
+                    title: "Map Group".to_string(),
                     description: "Group description".to_string(),
-                    values: vec![
+                    fields: vec![
                         DisplayField::String {
                             title: "Inner Field 1".to_string(),
                             description: "".to_string(),
@@ -875,6 +955,12 @@ mod tests {
                             value: "Inner Value 2".to_string(),
                         },
                     ],
+                },
+                DisplayField::Units {
+                    title: "Price".to_string(),
+                    description: "Price in USD".to_string(),
+                    value: U256::from(1234567),
+                    decimals: U256::from(6),
                 },
             ],
         };
@@ -896,6 +982,8 @@ mod tests {
             "  1000 TST",
             "Token Out",
             "  Test Token (TST)",
+            "NFT Transfer",
+            "  --> 1 TST #42",
             "Router",
             "  Test Contract",
             "Use Wrappers",
@@ -933,12 +1021,15 @@ mod tests {
             "",
             "  Allowance",
             "    <-- Unlimited TST",
-            "Match Group",
+            "Map Group",
             "Group description",
             "Inner Field 1",
             "  Inner Value 1",
             "Inner Field 2",
             "  Inner Value 2",
+            "Price",
+            "Price in USD",
+            "  1.234567",
         ];
         let expected = expected_lines.join("\n");
 

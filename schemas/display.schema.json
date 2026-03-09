@@ -68,8 +68,9 @@
                 "percentage",
                 "duration",
                 "datetime",
-                "match",
+                "map",
                 "bitmask",
+                "units",
                 "string",
                 "bytes",
                 "int",
@@ -80,7 +81,8 @@
                 "nativeAmount",
                 "tokenAmount",
                 "call",
-                "array"
+                "array",
+                "switch"
               ]
             },
             {
@@ -95,19 +97,17 @@
             "$ref": "#/definitions/Entry"
           }
         },
-        "checks": {
+        "case": {
           "type": "array",
-          "description": "2D array: OR of AND groups. Each group is ANDed, groups are ORed",
+          "description": "Array of case values for branching. Field is shown if parent context value matches any case value. Empty array means always show.",
           "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/Check"
-            }
-          }
+            "type": "string"
+          },
+          "default": []
         },
         "fields": {
           "type": "array",
-          "description": "Nested child fields (recursive). Used for array and match formats to define explicit scope.",
+          "description": "Nested child fields (recursive). Used for array and map formats to define explicit scope.",
           "items": {
             "$ref": "#/definitions/Field"
           }
@@ -156,6 +156,10 @@
                     { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } }
                   ]}
                 ]
+              },
+              "tokenId": {
+                "type": "object",
+                "properties": { "key": { "const": "tokenId" } }
               }
             }
           }
@@ -201,7 +205,21 @@
           }
         },
         {
-          "if": { "properties": { "format": { "const": "match" } } },
+          "if": { "properties": { "format": { "const": "units" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } },
+                  { "contains": { "type": "object", "properties": { "key": { "const": "decimals" } } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "map" } } },
           "then": {
             "properties": {
               "params": {
@@ -216,6 +234,17 @@
             "properties": {
               "params": {
                 "type": "array"
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "switch" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
               }
             }
           }
@@ -265,12 +294,29 @@
           }
         },
         {
-          "if": { "properties": { "format": { "enum": ["address", "token", "contract", "string", "bytes"] } } },
+          "if": { "properties": { "format": { "enum": ["address", "contract", "string", "bytes"] } } },
           "then": {
             "properties": {
               "params": {
                 "type": "array",
                 "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "token" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } }
+                ]
+              },
+              "tokenId": {
+                "type": "object",
+                "properties": { "key": { "const": "tokenId" } }
               }
             }
           }
@@ -311,27 +357,6 @@
       "properties": {
         "key": { "$ref": "#/definitions/Key" },
         "value": { "$ref": "#/definitions/Value" }
-      },
-      "additionalProperties": false
-    },
-    "Check": {
-      "type": "object",
-      "required": [ "left" ],
-      "properties": {
-        "left": {
-          "type": "string",
-          "description": "Left operand (reference or literal)"
-        },
-        "op": {
-          "type": "string",
-          "enum": ["eq", "ne"],
-          "default": "eq",
-          "description": "Comparison operator: eq (equals), ne (not equals), empty defaults to eq"
-        },
-        "right": {
-          "type": "string",
-          "description": "Right operand (reference or literal)"
-        }
       },
       "additionalProperties": false
     },

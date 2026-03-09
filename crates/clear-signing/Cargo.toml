@@ -4,14 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["serde", "serde_json"]
+default = ["serde"]
 serde = ["dep:serde"]
-serde_json = ["dep:serde_json", "serde"]
 
 [dependencies]
 alloy-primitives = { version = "1.5", default-features = false }
 alloy-sol-types = { version = "1.5", default-features = false }
 alloy-dyn-abi = { version = "1.5", default-features = false }
-nom = { version = "8", default-features = false, features = ["alloc"] }
+winnow = { version = "0.7", default-features = false, features = ["alloc"] }
+anyhow = { version = "1.0", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }
-serde_json = { version = "1.0.149", default-features = false, features = ["alloc"], optional = true }
+
+[dev-dependencies]
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }

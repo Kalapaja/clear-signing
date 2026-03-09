@@ -2,16 +2,17 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 library Display {
+    enum Direction { None, In, Out }
+
     bytes32 public constant ENTRY_TH = keccak256("Entry(string key,string value)");
-    bytes32 public constant CHECK_TH = keccak256("Check(string left,string op,string right)");
     bytes32 public constant LABELS_TH = keccak256(
         "Labels(string locale,Entry[] items)Entry(string key,string value)"
     );
     bytes32 public constant FIELD_TH = keccak256(
-        "Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Check(string left,string op,string right)Entry(string key,string value)"
+        "Field(string title,string description,string format,string[] case,Entry[] params,Field[] fields)Entry(string key,string value)"
     );
     bytes32 public constant DISPLAY_TH = keccak256(
-        "Display(string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)"
+        "Display(string abi,string title,string description,Field[] fields,Labels[] labels)Entry(string key,string value)Field(string title,string description,string format,string[] case,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)"
     );
 
     function display(
@@ -46,21 +47,6 @@ library Display {
         );
     }
 
-    function check(
-        string memory left,
-        string memory op,
-        string memory right
-    ) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                CHECK_TH,
-                keccak256(bytes(left)),
-                keccak256(bytes(op)),
-                keccak256(bytes(right))
-            )
-        );
-    }
-
     function labels(
         string memory locale,
         bytes memory items
@@ -78,7 +64,7 @@ library Display {
         string memory title,
         string memory description,
         string memory format,
-        bytes memory checks,
+        bytes memory case_,
         bytes memory params,
         bytes memory fields
     ) internal pure returns (bytes32) {
@@ -88,7 +74,7 @@ library Display {
                 keccak256(bytes(title)),
                 keccak256(bytes(description)),
                 keccak256(bytes(format)),
-                keccak256(checks),
+                keccak256(case_),
                 keccak256(params),
                 keccak256(fields)
             )
@@ -98,14 +84,14 @@ library Display {
     function booleanField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory value
     ) internal pure returns (bytes32) {
         return field(
             title,
             description,
             "boolean",
-            checks,
+            case_,
             abi.encodePacked(entry("value", value)),
             ""
         );
@@ -114,19 +100,69 @@ library Display {
     function tokenAmountField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory token,
         string memory amount
     ) internal pure returns (bytes32) {
+        return tokenAmountField(title, description, case_, token, amount, "", Direction.None);
+    }
+
+    function tokenAmountField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory token,
+        string memory amount,
+        string memory tokenId,
+        Direction direction
+    ) internal pure returns (bytes32) {
+        bytes memory params = abi.encodePacked(
+            entry("token", token),
+            entry("amount", amount)
+        );
+        if (bytes(tokenId).length > 0) {
+            params = abi.encodePacked(params, entry("tokenId", tokenId));
+        }
+        string memory dirStr = _directionToString(direction);
+        if (bytes(dirStr).length > 0) {
+            params = abi.encodePacked(params, entry("direction", dirStr));
+        }
         return field(
             title,
             description,
             "tokenAmount",
-            checks,
-            abi.encodePacked(
-                entry("token", token),
-                entry("amount", amount)
-            ),
+            case_,
+            params,
+            ""
+        );
+    }
+
+    function tokenField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory token
+    ) internal pure returns (bytes32) {
+        return tokenField(title, description, case_, token, "");
+    }
+
+    function tokenField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory token,
+        string memory tokenId
+    ) internal pure returns (bytes32) {
+        bytes memory params = abi.encodePacked(entry("value", token));
+        if (bytes(tokenId).length > 0) {
+            params = abi.encodePacked(params, entry("tokenId", tokenId));
+        }
+        return field(
+            title,
+            description,
+            "token",
+            case_,
+            params,
             ""
         );
     }
@@ -134,15 +170,30 @@ library Display {
     function nativeAmountField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory amount
     ) internal pure returns (bytes32) {
+        return nativeAmountField(title, description, case_, amount, Direction.None);
+    }
+
+    function nativeAmountField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory amount,
+        Direction direction
+    ) internal pure returns (bytes32) {
+        bytes memory params = abi.encodePacked(entry("amount", amount));
+        string memory dirStr = _directionToString(direction);
+        if (bytes(dirStr).length > 0) {
+            params = abi.encodePacked(params, entry("direction", dirStr));
+        }
         return field(
             title,
             description,
             "nativeAmount",
-            checks,
-            abi.encodePacked(entry("amount", amount)),
+            case_,
+            params,
             ""
         );
     }
@@ -150,7 +201,7 @@ library Display {
     function callField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory target,
         string memory value,
         string memory data
@@ -159,7 +210,7 @@ library Display {
             title,
             description,
             "call",
-            checks,
+            case_,
             abi.encodePacked(
                 entry("target", target),
                 entry("value", value),
@@ -172,14 +223,14 @@ library Display {
     function addressField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory address_
     ) internal pure returns (bytes32) {
         return field(
             title,
             description,
             "address",
-            checks,
+            case_,
             abi.encodePacked(entry("value", address_)),
             ""
         );
@@ -188,14 +239,14 @@ library Display {
     function datetimeField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory timestamp
     ) internal pure returns (bytes32) {
         return field(
             title,
             description,
             "datetime",
-            checks,
+            case_,
             abi.encodePacked(entry("value", timestamp)),
             ""
         );
@@ -204,15 +255,95 @@ library Display {
     function durationField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory seconds_
     ) internal pure returns (bytes32) {
         return field(
             title,
             description,
             "duration",
-            checks,
+            case_,
             abi.encodePacked(entry("value", seconds_)),
+            ""
+        );
+    }
+
+    function stringField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory value
+    ) internal pure returns (bytes32) {
+        return field(
+            title,
+            description,
+            "string",
+            case_,
+            abi.encodePacked(entry("value", value)),
+            ""
+        );
+    }
+
+    function bytesField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory value
+    ) internal pure returns (bytes32) {
+        return field(
+            title,
+            description,
+            "bytes",
+            case_,
+            abi.encodePacked(entry("value", value)),
+            ""
+        );
+    }
+
+    function intField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory value
+    ) internal pure returns (bytes32) {
+        return field(
+            title,
+            description,
+            "int",
+            case_,
+            abi.encodePacked(entry("value", value)),
+            ""
+        );
+    }
+
+    function uintField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory value
+    ) internal pure returns (bytes32) {
+        return field(
+            title,
+            description,
+            "uint",
+            case_,
+            abi.encodePacked(entry("value", value)),
+            ""
+        );
+    }
+
+    function contractField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory address_
+    ) internal pure returns (bytes32) {
+        return field(
+            title,
+            description,
+            "contract",
+            case_,
+            abi.encodePacked(entry("value", address_)),
             ""
         );
     }
@@ -220,7 +351,7 @@ library Display {
     function percentageField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory value,
         string memory basis
     ) internal pure returns (bytes32) {
@@ -228,7 +359,7 @@ library Display {
             title,
             description,
             "percentage",
-            checks,
+            case_,
             abi.encodePacked(
                 entry("value", value),
                 entry("basis", basis)
@@ -240,7 +371,7 @@ library Display {
     function bitmaskField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         string memory value,
         bytes memory bitLabels
     ) internal pure returns (bytes32) {
@@ -248,7 +379,7 @@ library Display {
             title,
             description,
             "bitmask",
-            checks,
+            case_,
             abi.encodePacked(
                 entry("value", value),
                 bitLabels
@@ -257,18 +388,55 @@ library Display {
         );
     }
 
-    function matchField(
+    function unitsField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
+        string memory value,
+        string memory decimals
+    ) internal pure returns (bytes32) {
+        return field(
+            title,
+            description,
+            "units",
+            case_,
+            abi.encodePacked(
+                entry("value", value),
+                entry("decimals", decimals)
+            ),
+            ""
+        );
+    }
+
+    function switchField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
+        string memory value,
+        bytes memory fields
+    ) internal pure returns (bytes32) {
+        return field(
+            title,
+            description,
+            "switch",
+            case_,
+            abi.encodePacked(entry("value", value)),
+            fields
+        );
+    }
+
+    function mapField(
+        string memory title,
+        string memory description,
+        bytes memory case_,
         bytes memory params,
         bytes memory fields
     ) internal pure returns (bytes32) {
         return field(
             title,
             description,
-            "match",
-            checks,
+            "map",
+            case_,
             params,
             fields
         );
@@ -277,7 +445,7 @@ library Display {
     function arrayField(
         string memory title,
         string memory description,
-        bytes memory checks,
+        bytes memory case_,
         bytes memory params,
         bytes memory fields
     ) internal pure returns (bytes32) {
@@ -285,9 +453,18 @@ library Display {
             title,
             description,
             "array",
-            checks,
+            case_,
             params,
             fields
         );
+    }
+    
+    function _directionToString(Direction direction) private pure returns (string memory) {
+        if (direction == Direction.In) {
+            return "in";
+        } else if (direction == Direction.Out) {
+            return "out";
+        }
+        return "";
     }
 }

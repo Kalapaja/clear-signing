@@ -2,21 +2,18 @@
   "$schema": "../../schemas/display.schema.json",
   "displays": [
     {
-      "title": "Transfer",
       "abi": "function transfer(address receiver, uint256 amount)",
+      "title": "Transfer",
       "fields": [
-        {
-          "title": "$labels.amount",
-          "format": "tokenAmount",
-          "params": [
-            {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$data.amount"}
-          ]
-        },
         {
           "title": "$labels.sender",
           "format": "address",
           "params": [{"key": "value", "value": "$msg.sender"}]
+        },
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$data.amount"}]
         },
         {
           "title": "$labels.receiver",
@@ -28,9 +25,9 @@
         {
           "locale": "en",
           "items": [
-            {"key": "receiver", "value": "To"},
+            {"key": "receiver", "value": "Receiver"},
             {"key": "amount", "value": "Amount"},
-            {"key": "sender", "value": "From"}
+            {"key": "sender", "value": "Sender"}
           ]
         }
       ]
@@ -40,14 +37,6 @@
       "abi": "function approve(address spender, uint256 amount)",
       "fields": [
         {
-          "title": "$labels.amount",
-          "format": "tokenAmount",
-          "params": [
-            {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$data.amount"}
-          ]
-        },
-        {
           "title": "$labels.sender",
           "format": "address",
           "params": [{"key": "value", "value": "$msg.sender"}]
@@ -56,6 +45,11 @@
           "title": "$labels.spender",
           "format": "contract",
           "params": [{"key": "value", "value": "$data.spender"}]
+        },
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$data.amount"}]
         }
       ],
       "labels": [
@@ -64,28 +58,34 @@
           "items": [
             {"key": "spender", "value": "Spender"},
             {"key": "amount", "value": "Amount"},
-            {"key": "sender", "value": "From"}
+            {"key": "sender", "value": "Sender"}
           ]
         }
       ]
     },
     {
-      "title": "$labels.aggregate",
-      "abi": "function aggregate((address to, bytes data)[] calls)",
+      "abi": "function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes data)",
+      "title": "NFT Transfer",
       "fields": [
         {
-          "title": "$labels.calls",
-          "format": "array",
-          "params": [{"key": "$call", "value": "$data.calls"}],
-          "fields": [
-            {
-              "format": "call",
-              "params": [
-                {"key": "to", "value": "$data.call.to"},
-                {"key": "data", "value": "$data.call.data"},
-                {"key": "value", "value": "0"}
-              ]
-            }
+          "title": "$labels.sender",
+          "format": "address",
+          "params": [{"key": "value", "value": "$data.from"}]
+        },
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [
+            {"key": "token", "value": "$msg.to"},
+            {"key": "tokenId", "value": "$data.id"},
+            {"key": "amount", "value": "$data.value"}
+          ]
+        },
+        {
+          "title": "$labels.receiver",
+          "format": "address",
+          "params": [
+            {"key": "value", "value": "$data.to"}
           ]
         }
       ],
@@ -93,9 +93,9 @@
         {
           "locale": "en",
           "items": [
-            {"key": "calls", "value": "Calls"},
-            {"key": "call", "value": "Call"},
-            {"key": "aggregate", "value": "Mutlicall"}
+            {"key": "receiver", "value": "Receiver"},
+            {"key": "amount", "value": "Amount"},
+            {"key": "sender", "value": "Sender"}
           ]
         }
       ]

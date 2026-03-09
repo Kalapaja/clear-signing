@@ -1,5 +1,5 @@
-use alloy_primitives::{Address, FixedBytes};
-use clear_signing::{display::Display, registry::Registry, sol::SolFunction};
+use alloy_primitives::{Address, FixedBytes, U256};
+use clear_signing::{Display, Registry, SolFunction};
 use clear_signing_format::{Contract, MetadataProvider, NativeToken, Token};
 use serde::{Deserialize, Serialize};
 
@@ -55,8 +55,11 @@ impl<'a> Registry for ProviderRegistry<'a> {
 }
 
 impl MetadataProvider for ClearSigningProvider {
-    fn get_token(&self, address: Address) -> Option<Token> {
-        self.tokens.iter().find(|t| t.address == address).cloned()
+    fn get_token(&self, address: Address, token_id: Option<U256>) -> Option<Token> {
+        self.tokens
+            .iter()
+            .find(|t| t.address == address && (t.token_id.is_none() || t.token_id == token_id))
+            .cloned()
     }
 
     fn get_contract(&self, address: Address) -> Option<Contract> {
@@ -71,7 +74,7 @@ impl MetadataProvider for ClearSigningProvider {
     }
 
     fn get_address_name(&self, address: Address) -> Option<String> {
-        if let Some(token) = self.get_token(address) {
+        if let Some(token) = self.get_token(address, None) {
             return Some(token.name);
         }
         if let Some(contract) = self.get_contract(address) {

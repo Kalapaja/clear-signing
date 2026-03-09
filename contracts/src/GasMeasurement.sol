@@ -6,7 +6,6 @@ contract GasMeasurement {
     error InvalidDisplayHash();
     error CallFailed();
 
-    bytes4 public  constant CLEAR_CALL_MAGIC_NUMBER = 0x12345678;
     bytes4 private constant TARGET_TRANSFER_SELECTOR = GasMeasurement.transfer.selector;
     bytes4 private constant TARGET_SWAP_SELECTOR = GasMeasurement.swap.selector;
 
@@ -63,22 +62,17 @@ contract GasMeasurement {
         }
     }
 
-    fallback() external payable {
-        bytes4 selector = bytes4(msg.data[0:4]);
+    function clearCall() external payable {
         bytes32 displayHash = bytes32(msg.data[4:36]);
         bytes4 callSelector = bytes4(msg.data[36:40]);
 
-        if (selector == CLEAR_CALL_MAGIC_NUMBER) {
-            if (callSelector == TARGET_TRANSFER_SELECTOR) {
-                if (displayHash != TARGET_TRANSFER_DISPLAY_HASH) {
-                    revert InvalidDisplayHash();
-                }
-            } else if (callSelector == TARGET_SWAP_SELECTOR) {
-                if (displayHash != TARGET_SWAP_DISPLAY_HASH) {
-                    revert InvalidDisplayHash();
-                }
-            } else {
-                revert InvalidSelector();
+        if (callSelector == TARGET_TRANSFER_SELECTOR) {
+            if (displayHash != TARGET_TRANSFER_DISPLAY_HASH) {
+                revert InvalidDisplayHash();
+            }
+        } else if (callSelector == TARGET_SWAP_SELECTOR) {
+            if (displayHash != TARGET_SWAP_DISPLAY_HASH) {
+                revert InvalidDisplayHash();
             }
         } else {
             revert InvalidSelector();

@@ -1,6 +1,4 @@
 use crate::display::Labels;
-use crate::error::ParseError;
-use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, Bytes, I256, U256};
@@ -27,15 +25,16 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn from_str(direction: &str) -> Result<Self, ParseError> {
+    pub fn from_str(direction: &str) -> crate::Result<Self> {
         match direction {
             "in" => Ok(Direction::In),
             "out" => Ok(Direction::Out),
-            _ => Err(ParseError::SmthWentWrong(format!(
-                "Unknown direction: {}",
-                direction
-            ))),
+            _ => anyhow::bail!("Unknown direction: {}", direction),
         }
+    }
+
+    pub fn try_from_sol_value(value: crate::sol::SolValue) -> crate::Result<Self> {
+        Self::from_str(value.as_literal()?.as_str())
     }
 }
 
@@ -48,15 +47,15 @@ pub enum DisplayField {
         description: Label,
         call: ClearCall,
     },
-    Match {
+    Map {
         title: Label,
         description: Label,
-        values: Vec<DisplayField>,
+        fields: Vec<DisplayField>,
     },
     Array {
         title: Label,
         description: Label,
-        values: Vec<Vec<DisplayField>>,
+        fields: Vec<Vec<DisplayField>>,
     },
     Contract {
         title: Label,
@@ -67,11 +66,13 @@ pub enum DisplayField {
         title: Label,
         description: Label,
         token: Address,
+        token_id: Option<U256>,
     },
     TokenAmount {
         title: Label,
         description: Label,
         token: Address,
+        token_id: Option<U256>,
         amount: U256,
         direction: Option<Direction>,
     },
@@ -131,6 +132,17 @@ pub enum DisplayField {
         title: Label,
         description: Label,
         value: Address,
+    },
+    Units {
+        title: Label,
+        description: Label,
+        value: U256,
+        decimals: U256,
+    },
+    Switch {
+        title: Label,
+        description: Label,
+        fields: Vec<DisplayField>,
     },
 }
 

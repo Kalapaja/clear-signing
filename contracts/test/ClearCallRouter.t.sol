@@ -107,7 +107,12 @@ contract ClearCallRouterTest is Test {
             IUniswapV2Router.swapExactTokensForTokens.selector, amountIn, amountOutMin, path, to, deadline
         );
 
-        return abi.encodeWithSelector(ClearCallRouter.clearCall.selector, displayHash, innerCall);
+        // Packed format: magic selector (4 bytes) || display hash (32 bytes) || inner call data
+        return abi.encodePacked(
+            ClearCallRouter.clearCall.selector,  // bytes 0-3: magic selector
+            displayHash,                          // bytes 4-35: display hash
+            innerCall                             // bytes 36+: actual call data
+        );
     }
 
     // 1. msg.sender Preservation

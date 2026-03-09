@@ -12,11 +12,11 @@ contract GasMeasurementTest is Test {
     bytes callData;
     bytes clearCallDelegatecallData;
     bytes clearCallInternalData;
-    bytes clearCallFallbackData;
+    bytes clearCallPackedData;
     bytes callDataSwap;
     bytes clearCallDelegatecallSwapData;
     bytes clearCallInternalSwapData;
-    bytes clearCallFallbackSwapData;
+    bytes clearCallPackedSwapData;
     address[] path;
 
     function setUp() public {
@@ -27,7 +27,7 @@ contract GasMeasurementTest is Test {
         callData = _getTransferCallData(amount, to);
         clearCallDelegatecallData = _wrapClearDelegate(router.TARGET_TRANSFER_DISPLAY_HASH(), callData);
         clearCallInternalData = _wrapClearInternal(router.TARGET_TRANSFER_DISPLAY_HASH(), callData);
-        clearCallFallbackData = _wrapClearFallback(router.TARGET_TRANSFER_DISPLAY_HASH(), callData);
+        clearCallPackedData = _wrapClearPacked(router.TARGET_TRANSFER_DISPLAY_HASH(), callData);
 
         path = new address[](5);
         path[0] = address(0x1);
@@ -38,7 +38,7 @@ contract GasMeasurementTest is Test {
         callDataSwap = _getSwapCallData(100, 90, path, to, 123);
         clearCallDelegatecallSwapData = _wrapClearDelegate(router.TARGET_SWAP_DISPLAY_HASH(), callDataSwap);
         clearCallInternalSwapData = _wrapClearInternal(router.TARGET_SWAP_DISPLAY_HASH(), callDataSwap);
-        clearCallFallbackSwapData = _wrapClearFallback(router.TARGET_SWAP_DISPLAY_HASH(), callDataSwap);
+        clearCallPackedSwapData = _wrapClearPacked(router.TARGET_SWAP_DISPLAY_HASH(), callDataSwap);
     }
 
     function test_Gas_Transfer_DirectCall() public {
@@ -59,8 +59,8 @@ contract GasMeasurementTest is Test {
         assertEq(bytesToUint(result), 4760);
     }
 
-    function test_Gas_Transfer_ClearCall_Fallback() public {
-        (bool success, bytes memory result) = address(router).call(clearCallFallbackData);
+    function test_Gas_Transfer_ClearCall_Packed() public {
+        (bool success, bytes memory result) = address(router).call(clearCallPackedData);
         assert(success);
         assertEq(bytesToUint(result), 4760);
     }
@@ -83,8 +83,8 @@ contract GasMeasurementTest is Test {
         assertEq(bytesToUint(result), 4978);
     }
 
-    function test_Gas_Swap_ClearCall_Fallback() public {
-        (bool success, bytes memory result) = address(router).call(clearCallFallbackSwapData);
+    function test_Gas_Swap_ClearCall_Packed() public {
+        (bool success, bytes memory result) = address(router).call(clearCallPackedSwapData);
         assert(success);
         assertEq(bytesToUint(result), 4978);
     }
@@ -97,8 +97,8 @@ contract GasMeasurementTest is Test {
         return abi.encodeWithSelector(router.clearCallInternal.selector, displayHash, innerCall);
     }
 
-    function _wrapClearFallback(bytes32 displayHash, bytes memory innerCall) internal view returns (bytes memory) {
-        return abi.encodePacked(router.CLEAR_CALL_MAGIC_NUMBER(), displayHash, innerCall);
+    function _wrapClearPacked(bytes32 displayHash, bytes memory innerCall) internal view returns (bytes memory) {
+        return abi.encodePacked(router.clearCall.selector, displayHash, innerCall);
     }
 
     function _getTransferCallData(uint256 amount, address to) internal pure returns (bytes memory) {

@@ -353,7 +353,7 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
 - **Labels & i18n**: User-facing strings are stored in locale-specific bundles and accessed via the global `$labels`
   variable.
 - **Explicit Scoping**: The display format uses a recursive structure where some fields MAY contain nested `fields`. 
-  Control flow types like `match` and `array` create new scopes by processing their own `fields` array with a new `$data`
+  Control flow types like `map` and `array` create new scopes by processing their own `fields` array with a new `$data`
   context. This recursive structure naturally aligns with EIP-712's type system while maintaining efficiency for hardware
   wallets.
 - **Sensitivity to Safety**: Wallets **MUST** reject any display specification that contains unknown fields or
@@ -365,7 +365,6 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
 - **`Field`**: Defines a single parameter to be displayed. It includes the title key, the formatter type, parameters
   mapping, visibility checks, and optionally nested fields for recursive structures.
 - **`Labels`**: A collection of localized strings.
-- **`Check`**: Defines a conditional check with `left`, `op` (`eq` or `ne`), and `right` operands.
 - **`Entry`**: A simple key-value pair for parameters and label items.
 
 **Example Structure:**
@@ -380,7 +379,7 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
       "title": "$labels.amount",
       "description": "Amount to transfer",
       "format": "tokenAmount",
-      "checks": [],
+      "case": [],
       "params": [
         {
           "key": "token",
@@ -426,6 +425,7 @@ Wallets **MUST** implement standard formatting for these primitives:
 - **`bitmask`**: Integer → List of titles for set bits. Bit labels are defined in `params` using the `#{BIT_INDEX}`
   syntax (e.g., `#0`, `#1`). Values can be literals or references to `$labels`.
 - **`string`**, **`bytes`**, **`int` / `uint`**: Standard representation
+- **`units`**: Requires `value` (number) and `decimals` (scale) → "1.234567" (e.g., value=1234567, decimals=6)
 
 **Address Types**
 The `address` type is treated with specific resolution rules:
@@ -433,46 +433,40 @@ The `address` type is treated with specific resolution rules:
 - **`address`**: Base type. Resolves to a name via local contacts, ENS, or other directories.
 - **`contract`**: **MUST** be a **Well-Known Contract** (e.g., from [Contract Lists](#3-address-verification)).
 - **`token`**: **MUST** be a **Well-Known Token** — a token verified via community-curated Token Lists (
-  e.g., [Uniswap Token List](https://tokenlists.org/)) that confirm the token's identity and authenticity.
+  e.g., [Uniswap Token List](https://tokenlists.org/)) that confirm the token's identity and authenticity. Optional `tokenId`
+  parameter for NFT tokens.
 
 **Composite Display Types**
 Wallets **MUST** support these standard higher-level types:
 
 - **`nativeAmount`**: (Amount) → "100 ETH"
-- **`tokenAmount`**: (Token Address + Amount) → "100 DAI"
+- **`tokenAmount`**: (Token Address + Amount, optional Token ID) → "100 DAI" or "--> 1 TST #42"
 - **`call`**: (Target + Value + Data) → Decoded nested call. Essential for multisigs and account abstraction.
 
 **Control Flow Types**
 These types create a new `$data` scope from their `params` and recursively process their `fields` array. The `$msg`
 context remains unchanged:
 
-- **`match`**: Acts as a **conditional branch**. It supports mapping values into a new scope's `$data` using:
+- **`map`**: Acts as a **data scope transformation**. It supports mapping values into a new scope's `$data` using:
     - **Named Parameters**: Parameters starting with `$` (e.g., `$param`) map values or literals into the scope's
       `$data`.
-    - **ABI Decoding**: By providing **`abi`** (signature) and **`value`** (bytes) parameters, `match` decodes the bytes
+    - **ABI Decoding**: By providing **`abi`** (signature) and **`value`** (bytes) parameters, `map` decodes the bytes
       and maps the resulting fields into `$data`.
     - The `fields` property defines what fields should be rendered in this scope.
-- **`array`**: Behaves identically to `match`, except it iterates in a loop, creating a new scope for each array
+- **`array`**: Behaves identically to `map`, except it iterates in a loop, creating a new scope for each array
   element. The `fields` property defines the template that is rendered for each iteration.
+- **`switch`**: Acts as a **conditional wrapper**. It provides a `value` parameter which is then used by its child `fields`
+  to determine visibility based on their `case` arrays.
 
-**Conditional Rendering (`checks`)**
-Every field can define **`checks`**, which is a 2D array of check objects. The evaluation follows an **OR-of-ANDs**
-logic:
+**Conditional Rendering (`switch` and `case`)**
+Every field can define **`case`**, which is an array of strings. The evaluation follows a **match-against-switch** logic:
 
-- The first dimension (array of groups) is evaluated using the **OR** operator. At least one group must pass for the
-  field to be displayed.
-- The second dimension (array of checks within a group) is evaluated using the **AND** operator. All checks within a
-  group must pass for the group to be considered successful.
+- A field with a non-empty `case` array MUST be a child of a field with the `switch` format.
+- The `switch` format resolves a `value` parameter.
+- The child field is only displayed if the `switch` value matches at least one value in its `case` array.
+- Case values are resolved as expressions (literals or references).
 
-Each **`Check`** consists of:
-
-- **`left`**: The left operand (literal or reference).
-- **`op`**: The operator, either **`eq`** (equals, default) or **`ne`** (not equals).
-- **`right`**: The right operand (literal or reference). If omitted, it is compared against the `left` operand itself
-  (effectively checking if the reference exists).
-
-Fields with empty `checks` are displayed by default. Fields with non-empty `checks` are evaluated against the current
-context and only displayed if at least one check group passes.
+Fields with empty `case` are displayed by default (unless they are within a `switch` and other fields match).
 
 **Safety Rule**: If a wallet fails to resolve an address marked as `token` or `contract` to a known, verified entity,
 **execution MUST stop**. This prevents phishing by ensuring users never sign interactions with "Unknown Contracts" when
@@ -485,10 +479,10 @@ The wallet processes the display specification in a deterministic sequence to ge
 1. **Context Initialization**:
     - The wallet receives the **Envelope** (the top-level transaction, e.g., UserOperation) and it reads the function
       ABI to find the corresponding display specification for the target contract.
-    - **Call Classification**: Calls are classified as **Clear Calls** (executed via
-      `clearCall(bytes32 displayHash, bytes call)`) or **Legacy Calls**. Only Clear Calls trigger the rich display
-      logic, and the wallet **MUST** verify that the `displayHash` argument matches the hash of the display
-      specification.
+    - **Call Classification**: Calls are classified as **Clear Calls** or **Legacy Calls**. Clear Calls are identified
+      by the magic number prefix `0x0ab793e2` (the `clearCall()` function selector), followed by a 32-byte display hash
+      and the actual call data. Only Clear Calls trigger the rich display logic, and the wallet **MUST** verify that the
+      display hash (bytes 4-35) matches the hash of the display specification.
     - The **$msg context** MUST be initialized. For the top-level call, `$msg` maps to the Envelope parameters.
     - The **$data context** MUST be initialized. For the top-level call, `$data` maps to the function arguments from
       `$msg.data`.
@@ -497,18 +491,18 @@ The wallet processes the display specification in a deterministic sequence to ge
     - Field processing accepts the `$msg` and `$data` contexts and recursively processes a `fields` array to return a
       list of formatted fields to display.
     - The wallet iterates through the provided `fields` array (initially from the display spec's top-level `fields`).
-    - **Conditional Filtering (`checks`)**: The `checks` 2D array controls field visibility using **OR-of-ANDs** logic.
-        - Fields with empty `checks` are displayed by default.
-        - Fields with non-empty `checks` are evaluated against the current context. A field is displayed if at least one
-          group of checks (where all checks in the group pass) evaluates to true.
-    - **Scoped Processing (`match` and `array`)**: When a field is of type `match` or `array`:
+    - **Conditional Filtering (`case`)**: When a field is a child of a `switch` format, visibility is
+      controlled by the `case` array.
+        - Fields with empty `case` are displayed by default.
+        - Fields with non-empty `case` are evaluated against the current `switch` value. A field is displayed if
+          at least one value in its `case` array matches the resolved `switch` value.
+    - **Scoped Processing (`map`, `array`, `switch`)**: When a field is of type `map`, `array`, or `switch`:
         - A new `$data` context is created based on the field's `params`.
         - The wallet recursively processes the field's `fields` array (not the display's top-level fields).
         - This creates explicit scoping: only fields defined in `field.fields` are rendered within that scope.
-
 3. **Variable Resolution Rules**:
     - **$msg**: The transaction context. It remains **constant** throughout the entire display rendering (including
-      inside `match` and `array` scopes), unless a nested `call` context is entered.
+      inside `map`, `array`, and `switch` scopes), unless a nested `call` context is entered.
         - **$msg.to**: The contract receiving the call.
         - **$msg.sender**: The immediate caller.
         - **$msg.value**: The native value attached to *this specific call*.
@@ -516,10 +510,9 @@ The wallet processes the display specification in a deterministic sequence to ge
     - **$data**: The primary storage for resolving parameter values.
         - **Top-Level**: Initialized by decoding the function arguments from calldata (`$msg.data`) according to the
           `abi`. (e.g., `transfer(address to, uint256 amount)` -> `$data.to`, `$data.amount`).
-        - **Scoped Contexts**: When entering a `match` or `array` scope, a **new** `$data` object is created. It
-          contains **only** the parameters explicitly mapped in the field definition (starting with `$` or decoded via
-          `abi`).
-          It does **not** inherit variables from the parent scope.
+        - **Scoped Contexts**: When entering a `map`, `array`, or `switch` scope, a **new** `$data` object is
+          created. It contains **only** the parameters explicitly mapped in the field definition (starting with `$` or
+          decoded via `abi`). It does **not** inherit variables from the parent scope.
     - **Resolution Failure**: If a referenced path (e.g., `$data.missingParam`) does not exist in the context,
       execution **MUST stop**, effectively rejecting the display.
 
@@ -530,13 +523,13 @@ The wallet processes the display specification in a deterministic sequence to ge
       Denial of Service attacks.
     - A new, ephemeral `$msg` context is created for the inner call from calling parameters.
     - The wallet looks up the display specification for this inner call by matching the function selector (derived from
-      `$msg.data[:4]`) against the `display.abi` and verifying the display hash matches the `displayHash` parameter in
-      the `clearCall`, then recursively renders it.
+      `$msg.data[:4]`) against the `display.abi` and verifying the display hash (bytes 4-35 of the packed format)
+      matches the expected hash, then recursively renders it.
 
 5. **Verification**:
-    - **Integrity Check**: The wallet calculates the hash of the *exact* display specification used so it can be passed
-      to `clearCall`. It **MUST** verify that this calculated hash matches the `displayHash` argument passed to the
-      `clearCall` function in the transaction data.
+    - **Integrity Check**: The wallet calculates the hash of the *exact* display specification used so it can be
+      embedded in the packed format. It **MUST** verify that this calculated hash matches the display hash stored in
+      bytes 4-35 of the transaction data.
     - **Constraint Check**: The wallet verifies that all "Safety Rules" (e.g., Token resolution) passed. If any check
       failed, the transaction **MUST** be considered unverified and the user warned (or prevented from signing,
       depending on wallet policy).
@@ -575,12 +568,11 @@ displayHash = hashStruct(Display)
 To ensure interoperability, the following type strings **MUST** be used for EIP-712 `hashStruct` calculation:
 
 - **`Display`**:
-  `Display(string abi,string title,string description,Field[] fields,Labels[] labels)Check(string left,string op,string right)Entry(string key,string value)Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)`
+  `Display(string abi,string title,string description,Field[] fields,Labels[] labels)Entry(string key,string value)Field(string title,string description,string format,string[] case,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)`
 - **`Field`**:
-  `Field(string title,string description,string format,Check[][] checks,Entry[] params,Field[] fields)Check(string left,string op,string right)Entry(string key,string value)`
+  `Field(string title,string description,string format,string[] case,Entry[] params,Field[] fields)Entry(string key,string value)`
 - **`Labels`**: `Labels(string locale,Entry[] items)Entry(string key,string value)`
 - **`Entry`**: `Entry(string key,string value)`
-- **`Check`**: `Check(string left,string op,string right)`
 
 **Example Calculation (Solidity)**:
 Contracts verify the display hash by computing it at compile time as a constant. The hash must be computed using only
@@ -599,7 +591,7 @@ bytes32 constant TRANSFER_DISPLAY_HASH = keccak256(
                 keccak256(bytes("$labels.amount")),
                 keccak256(bytes("Amount to transfer")),
                 keccak256(bytes("tokenAmount")),
-                keccak256(bytes("")), // checks (empty)
+                keccak256(bytes("")), // case (empty)
                 keccak256(abi.encodePacked(
                     keccak256(abi.encode(ENTRY_TH, keccak256(bytes("token")), keccak256(bytes("$msg.to")))),
                     keccak256(abi.encode(ENTRY_TH, keccak256(bytes("amount")), keccak256(bytes("$data.amount"))))
@@ -645,11 +637,28 @@ interface IDisplayRegistry {
 
 ### 5.3 Mechanism (`clearCall`)
 
-Contracts implement a dedicated entry point for secure execution:
+Contracts implement a dedicated entry point for secure execution using a packed byte format. The `clearCall()` function
+is a fallback function (no explicit parameters) that receives transaction data in the following packed format:
+
+**Packed Format Structure:**
+```
+Bytes 0-3:    Magic number (0x0ab793e2) - the clearCall() function selector
+Bytes 4-35:   Display hash (32 bytes) - EIP-712 hash of the display specification
+Bytes 36+:    Actual call data (function selector + parameters of the inner function)
+```
+
+This packed format is more gas-efficient than traditional ABI-encoded parameters, reducing overhead to approximately
+2,700 gas while maintaining full security guarantees.
+
+**Implementation Example:**
 
 ```solidity
-function clearCall(bytes32 displayHash, bytes calldata call) external returns (bytes memory) {
-    bytes4 selector = bytes4(call[: 4]);
+function clearCall() external payable returns (bytes memory) {
+    // Extract displayHash from bytes 4-35 (after the clearCall selector)
+    bytes32 displayHash = bytes32(msg.data[4:36]);
+    // Extract call selector from bytes 36-39
+    bytes4 selector = bytes4(msg.data[36:40]);
+
     // 1. Verify that the provided display hash matches the expected hash for this selector
     if (selector == this.transfer.selector) {
         require(displayHash == TRANSFER_DISPLAY_HASH, "Invalid display hash");
@@ -657,8 +666,8 @@ function clearCall(bytes32 displayHash, bytes calldata call) external returns (b
         revert("Unknown function selector");
     }
 
-    // 2. Execute the actual call & bubble up errors (OpenZeppelin Address.sol pattern)
-    (bool success, bytes memory returndata) = address(this).delegatecall(call);
+    // 2. Execute the actual call using msg.data[36:] (selector + params)
+    (bool success, bytes memory returndata) = address(this).delegatecall(msg.data[36:]);
     if (!success) {
         if (returndata.length > 0) {
             // Bubble up the revert reason
@@ -675,9 +684,14 @@ function clearCall(bytes32 displayHash, bytes calldata call) external returns (b
 }
 ```
 
-1. **Verification**: The contract **MUST** check if `displayHash` matches the immutable hash of the *expected* display
-   configuration (combined with its own domain separator).
-2. **Execution**: If the hash matches, the contract executes the `call` via `delegatecall` or internal call.
+**Execution Flow:**
+
+1. **Format Parsing**: The contract extracts the display hash (bytes 4-35) and inner call selector (bytes 36-39) from
+   the packed `msg.data`.
+2. **Verification**: The contract **MUST** check if `displayHash` matches the immutable hash of the *expected* display
+   specification for the given function selector.
+3. **Execution**: If the hash matches, the contract executes the inner call (starting at byte 36) via `delegatecall` or
+   internal call.
 
 ## 6. Stateless Wallet Requests
 
@@ -737,7 +751,7 @@ sequenceDiagram
     
     Note over Dapp, Wallet: 3. Request
     User->>Dapp: Initiate Action
-    Dapp->>Wallet: clearCall(displayHash=0, ...) + Display Spec
+    Dapp->>Wallet: Packed format (0x0ab793e2 || displayHash=0 || calldata) + Display Spec
 
     Note over Wallet, User: 4. Verify & Display
     Wallet->>Wallet: Verify address is well-known token/contract
@@ -746,7 +760,7 @@ sequenceDiagram
     Note over Wallet, User: 5. Sign
     User->>Wallet: Approve
     Wallet->>Wallet: Calculate real displayHash
-    Wallet->>Wallet: Re-encode calldata with valid displayHash
+    Wallet->>Wallet: Patch bytes 4-35 with calculated displayHash
     Wallet->>Wallet: Sign Transaction
 
     Note over Dapp, Contract: 6. Execute
@@ -869,13 +883,14 @@ Implementing on-chain verification like `clearCall` adds computational steps (se
 delegatecall, or internal decoding). Three implementation approaches have been measured with different overhead
 characteristics:
 
-- **Fallback approach**: ~2,700 gas overhead - uses magic number prefix with pure
-  assembly
+- **Fallback approach (recommended)**: ~2,700 gas overhead - uses packed byte format with magic number prefix
+  (0x0ab793e2)
 - **Internal decoding**: ~9,000 gas overhead - manual parameter extraction
 - **Delegatecall wrapper**: ~10,000 gas overhead - highest but most explicit
 
-The fallback approach offers the best gas efficiency with consistent overhead regardless of function complexity, while
-maintaining full security guarantees. These figures come from the `GasMeasurement` test.
+The fallback approach with packed byte format is the recommended implementation. It offers the best gas efficiency with
+consistent overhead regardless of function complexity, while maintaining full security guarantees. These figures come
+from the `GasMeasurement` test.
 
 #### 9.3.2 Developer Dependency
 
@@ -885,25 +900,19 @@ maintaining, and committing to their display specifications.
 #### 9.3.3 Block Explorer Display
 
 - **ABI-Based Decoding**: Block explorers like Etherscan decode transactions using the contract's ABI, not the display
-  specification. When viewing `clearCall` transactions on-chain, users see the wrapper function signature
-  `clearCall(bytes32 displayHash, bytes calldata call)` rather than the semantic intent (e.g., "Transfer 100 DAI to
-  Alice").
-- **Explorer Support**: Block explorers MUST implement support for `clearCall` unwrapping to maintain transparency for
-  post-execution audits.
+  specification. When viewing `clearCall` transactions on-chain, users see the fallback function signature
+  `clearCall()` with packed byte data rather than the semantic intent (e.g., "Transfer 100 DAI to Alice").
+- **Explorer Support**: Block explorers MUST implement support for `clearCall` unwrapping (parsing the packed byte
+  format to extract the inner call) to maintain transparency for post-execution audits.
 
 ## 10. Roadmap
 
 The Clear Signing architecture is an evolving standard. Future work will focus on expanding the scope of verifiable
 interactions and improving integration with existing Ethereum standards.
 
-- **NFT Support**: Introducing standard display types and formats for non-fungible tokens (ERC-721 and ERC-1155).
 - **EIP-5267 Integration**: Consider including the EIP-712 domain separator in the display hash calculation.
 - **EIP-712 Envelope**: Implementing support for signing the entire EIP-712 message as an envelope.
 - **ERC-4337 Envelope**: Implement support of user operation as envelope.
-- **Proof of Clear Call**: The dApp may initially send a transaction with a zeroed `displayHash`. The wallet then
-  resolves the corresponding display specification, calculates its cryptographic hash, and injects it into the
-  transaction before signing. This ensures that the user's intent is verified and that the transaction is only valid if
-  the wallet's clear-signing interpretation matches the contract's expectations.
 
 ## 11. Conclusion
 

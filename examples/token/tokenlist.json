@@ -14,7 +14,13 @@
       "name": "Tether USD",
       "symbol": "USDT",
       "decimals": 6
+    },
+    {
+      "chainId": 1,
+      "address": "0x495f947276749Ce646f68AC8c248420045cb7b5e",
+      "name": "OpenSea Shared Storefront",
+      "symbol": "OPENSTORE",
+      "decimals": 0
     }
   ]
 }
-

@@ -1,9 +1,9 @@
-use crate::error::ParseError;
 use crate::reference::{Index, Member, Reference, Segment, Slice};
 use crate::sol::SolValue;
 use alloc::string::ToString;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 
+pub const CLEAR_CALL_SELECTOR: [u8; 4] = [0x0a, 0xb7, 0x93, 0xe2];
 const CONTAINER_MSG: &str = "msg";
 const CONTAINER_DATA: &str = "data";
 
@@ -25,23 +25,31 @@ impl Message {
         }
     }
 
-    pub fn replace_data(&self, data: Bytes) -> Self {
-        Self {
-            sender: self.sender,
-            to: self.to,
-            value: self.value,
-            data,
+    fn prefix(&self) -> crate::Result<FixedBytes<4>> {
+        anyhow::ensure!(self.data.len() >= 4, "Invalid message selector");
+        Ok(FixedBytes::new(self.data[..4].try_into()?))
+    }
+
+    pub fn display_hash(&self) -> crate::Result<Option<FixedBytes<32>>> {
+        if self.prefix()? == CLEAR_CALL_SELECTOR {
+            anyhow::ensure!(self.data.len() >= 36, "Invalid display hash");
+            Ok(Some(FixedBytes::new(self.data[4..36].try_into()?)))
+        } else {
+            Ok(None)
         }
     }
 
-    pub fn selector(&self) -> Result<FixedBytes<4>, ParseError> {
-        if self.data.len() >= 4 {
-            Ok(self.data[..4].try_into().map(FixedBytes::new)?)
+    pub fn call_data(&self) -> crate::Result<Bytes> {
+        if self.prefix()? == CLEAR_CALL_SELECTOR {
+            anyhow::ensure!(self.data.len() >= 36, "Invalid call data");
+            Ok(self.data.slice(36..))
         } else {
-            Err(ParseError::SmthWentWrong(
-                "Invalid message selector".to_string(),
-            ))
+            Ok(self.data.clone())
         }
+    }
+
+    pub fn selector(&self) -> crate::Result<FixedBytes<4>> {
+        Ok(FixedBytes::new(self.call_data()?[..4].try_into()?))
     }
 }
 
@@ -49,7 +57,7 @@ pub fn resolve_value(
     reference: &str,
     message: &Message,
     data: &SolValue,
-) -> Result<SolValue, ParseError> {
+) -> crate::Result<SolValue> {
     match Reference::parse(reference)? {
         Reference::Literal(val) => Ok(SolValue::Literal(val)),
         Reference::Identifier {
@@ -64,52 +72,49 @@ pub fn resolve_value(
                 let value = resolve_data(&identifier.members, data)?;
                 Ok(value)
             }
-            _ => Err(ParseError::SmthWentWrong(alloc::format!(
+            _ => anyhow::bail!(
                 "Invalid variable reference container: {}. Valid containers: ${}, ${}",
                 identifier.container,
                 CONTAINER_MSG,
                 CONTAINER_DATA
-            ))),
+            ),
         },
     }
 }
 
-fn resolve_msg(members: &[Member], message: &Message) -> Result<SolValue, ParseError> {
-    if !members.len() == 1 {
-        return Err(ParseError::SmthWentWrong(alloc::format!(
-            "Message path must have exactly one field, got {}",
-            members.len()
-        )));
-    }
+fn resolve_msg(members: &[Member], message: &Message) -> crate::Result<SolValue> {
+    anyhow::ensure!(
+        members.len() == 1,
+        "Message path must have exactly one field, got {}",
+        members.len()
+    );
 
-    if let Some(Member::Segment(Segment(name))) = members.first() {
-        match name.as_str() {
-            "sender" => Ok(SolValue::Address(message.sender)),
-            "to" => Ok(SolValue::Address(message.to)),
-            "value" => Ok(SolValue::Uint(message.value, 256)),
-            "data" => Ok(SolValue::Bytes(message.data.to_vec())),
-            _ => Err(ParseError::SmthWentWrong(alloc::format!(
-                "Unknown message field '$msg.{}'. Available: $msg.sender, $msg.to, $msg.value, $msg.data",
-                name
-            ))),
-        }
-    } else {
-        Err(ParseError::SmthWentWrong(
-            "Message path must have a field name".into(),
-        ))
+    let Member::Segment(Segment(name)) = members
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("Message path must have a field name"))?
+    else {
+        anyhow::bail!("Message path must have a field name")
+    };
+
+    match name.as_str() {
+        "sender" => Ok(SolValue::Address(message.sender)),
+        "to" => Ok(SolValue::Address(message.to)),
+        "value" => Ok(SolValue::Uint(message.value, 256)),
+        "data" => Ok(SolValue::Bytes(message.data.to_vec())),
+        _ => anyhow::bail!(
+            "Unknown message field '$msg.{}'. Available: $msg.sender, $msg.to, $msg.value, $msg.data",
+            name
+        ),
     }
 }
 
-fn resolve_data(members: &[Member], data: &SolValue) -> Result<SolValue, ParseError> {
+fn resolve_data(members: &[Member], data: &SolValue) -> crate::Result<SolValue> {
     let mut path = members.iter();
 
-    let mut value = if let Some(Member::Segment(segment)) = path.next() {
-        parse_segment(data, segment)?
-    } else {
-        return Err(ParseError::SmthWentWrong(
-            "Parameter path must have a field name".into(),
-        ));
+    let Some(Member::Segment(segment)) = path.next() else {
+        anyhow::bail!("Parameter path must have a field name");
     };
+    let mut value = parse_segment(data, segment)?;
 
     for seg in path {
         value = match seg {
@@ -122,18 +127,13 @@ fn resolve_data(members: &[Member], data: &SolValue) -> Result<SolValue, ParseEr
     Ok(value)
 }
 
-fn parse_segment(value: &SolValue, segment: &Segment) -> Result<SolValue, ParseError> {
+fn parse_segment(value: &SolValue, segment: &Segment) -> crate::Result<SolValue> {
     match value {
         SolValue::Tuple(entries) => {
             if let Ok(index) = segment.0.parse::<usize>() {
                 Ok(entries
                     .get(index)
-                    .ok_or_else(|| {
-                        ParseError::ReferenceNotFound(alloc::format!(
-                            "Parameter index {} out of bounds",
-                            index
-                        ))
-                    })?
+                    .ok_or_else(|| anyhow::anyhow!("Parameter index {} out of bounds", index))?
                     .1
                     .clone())
             } else {
@@ -141,22 +141,14 @@ fn parse_segment(value: &SolValue, segment: &Segment) -> Result<SolValue, ParseE
                     .iter()
                     .find(|(name, _)| name.as_deref() == Some(segment.0.as_str()))
                     .map(|(_, val)| val.clone())
-                    .ok_or_else(|| {
-                        ParseError::ReferenceNotFound(alloc::format!(
-                            "Field '{}' not found in tuple",
-                            segment.0
-                        ))
-                    })
+                    .ok_or_else(|| anyhow::anyhow!("Field '{}' not found in tuple", segment.0))
             }
         }
-        _ => Err(ParseError::SmthWentWrong(alloc::format!(
-            "Invalid value type for field access: {}",
-            segment.0
-        ))),
+        _ => anyhow::bail!("Invalid value type for field access: {}", segment.0),
     }
 }
 
-fn parse_index(value: &SolValue, index: &Index) -> Result<SolValue, ParseError> {
+fn parse_index(value: &SolValue, index: &Index) -> crate::Result<SolValue> {
     match value {
         SolValue::Bytes(bytes) => {
             let index = get_index(index.0, bytes.len())?;
@@ -176,14 +168,14 @@ fn parse_index(value: &SolValue, index: &Index) -> Result<SolValue, ParseError> 
             let index = get_index(index.0, values.len())?;
             Ok(values[index].clone())
         }
-        _ => Err(ParseError::SmthWentWrong(alloc::format!(
+        _ => anyhow::bail!(
             "Cannot index into type {}: only arrays, bytes, and strings support indexing",
             index.0
-        ))),
+        ),
     }
 }
 
-fn parse_slice(value: &SolValue, slice: &Slice) -> Result<SolValue, ParseError> {
+fn parse_slice(value: &SolValue, slice: &Slice) -> crate::Result<SolValue> {
     match value {
         SolValue::Bytes(bytes) => {
             let len = bytes.len();
@@ -211,37 +203,33 @@ fn parse_slice(value: &SolValue, slice: &Slice) -> Result<SolValue, ParseError> 
             let end = get_index(slice.1.unwrap_or(len.cast_signed()) - 1, len)?;
             Ok(SolValue::Array(values[start..=end].to_vec()))
         }
-        _ => Err(ParseError::SmthWentWrong(alloc::format!(
+        _ => anyhow::bail!(
             "Cannot slice type {:?} {:?}: only arrays, bytes, and strings support slicing",
             slice.0,
             slice.1,
-        ))),
+        ),
     }
 }
 
-fn get_index(index: isize, len: usize) -> Result<usize, ParseError> {
+fn get_index(index: isize, len: usize) -> crate::Result<usize> {
     if index >= 0 {
         let idx = index.cast_unsigned();
-        if idx >= len {
-            Err(ParseError::SmthWentWrong(alloc::format!(
-                "Index {} out of bounds for length {}",
-                index,
-                len
-            )))
-        } else {
-            Ok(idx)
-        }
+        anyhow::ensure!(
+            idx < len,
+            "Index {} out of bounds for length {}",
+            index,
+            len
+        );
+        Ok(idx)
     } else {
         let idx = index.abs().cast_unsigned();
-        if len >= idx {
-            Ok(len - idx)
-        } else {
-            Err(ParseError::SmthWentWrong(alloc::format!(
-                "Index {} out of bounds for length {}",
-                index,
-                len
-            )))
-        }
+        anyhow::ensure!(
+            len >= idx,
+            "Index {} out of bounds for length {}",
+            index,
+            len
+        );
+        Ok(len - idx)
     }
 }
 
@@ -349,8 +337,6 @@ mod tests {
         let (message, data) = create_test_context();
         let result = resolve_value("$msg.invalid", &message, &data);
         assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(matches!(err, ParseError::SmthWentWrong(_)));
     }
 
     #[test]
@@ -447,7 +433,6 @@ mod tests {
     fn test_resolve_array_slice() {
         let (message, data) = create_test_context();
 
-        // Full slice
         let result = resolve_value("$data.items[:]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -458,7 +443,6 @@ mod tests {
             ])
         );
 
-        // Slice from start
         let result = resolve_value("$data.items[1:]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -468,7 +452,6 @@ mod tests {
             ])
         );
 
-        // Slice to end
         let result = resolve_value("$data.items[:2]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -478,7 +461,6 @@ mod tests {
             ])
         );
 
-        // Slice middle
         let result = resolve_value("$data.items[1:2]", &message, &data).unwrap();
         assert_eq!(
             result,
@@ -535,11 +517,9 @@ mod tests {
     fn test_resolve_invalid_path() {
         let (message, data) = create_test_context();
 
-        // Invalid prefix
         let result = resolve_value("$invalid.field", &message, &data);
         assert!(result.is_err());
 
-        // Missing path
         let result = resolve_value("$msg", &message, &data);
         assert!(result.is_err());
     }
@@ -548,11 +528,9 @@ mod tests {
     fn test_resolve_type_mismatch() {
         let (message, data) = create_test_context();
 
-        // Can't index into uint256
         let result = resolve_value("$data.amount[0]", &message, &data);
         assert!(result.is_err());
 
-        // Can't slice uint256
         let result = resolve_value("$data.amount[1:2]", &message, &data);
         assert!(result.is_err());
     }
