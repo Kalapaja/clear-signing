@@ -313,6 +313,10 @@
                 "allOf": [
                   { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } }
                 ]
+              },
+              "tokenId": {
+                "type": "object",
+                "properties": { "key": { "const": "tokenId" } }
               }
             }
           }

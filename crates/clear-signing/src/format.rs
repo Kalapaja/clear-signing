@@ -496,7 +496,6 @@ pub(crate) fn process_switch(ctx: &ProcessingContext) -> crate::Result<DisplayFi
     let switch_val = ctx.resolve_param("value")?;
 
     let mut switch_data = vec![];
-    decode_abi_data(&ctx.params, ctx.message, ctx.data, &mut switch_data)?;
     decode_params_data(&ctx.params, ctx.message, ctx.data, &mut switch_data)?;
 
     let new_data = if !switch_data.is_empty() {
