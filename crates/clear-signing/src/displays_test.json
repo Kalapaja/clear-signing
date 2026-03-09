@@ -151,12 +151,12 @@
     },
     {
       "abi": "function matchCall(uint256 val) payable",
-      "title": "Match Test",
-      "description": "Testing Format::Match",
+      "title": "Map Test",
+      "description": "Testing Format::Map",
       "fields": [
         {
           "title": "Branch 1",
-          "format": "match",
+          "format": "map",
           "params": [{"key": "$check", "value": "100"}],
           "fields": [
             {
@@ -212,11 +212,11 @@
     {
       "abi": "function abiCall(bytes data) payable",
       "title": "Abi Test",
-      "description": "Testing Format::Match with abi",
+      "description": "Testing Format::Map with abi",
       "fields": [
         {
           "title": "Decoded",
-          "format": "match",
+          "format": "map",
           "params": [
             {"key": "value", "value": "$data.data"},
             {"key": "abi", "value": "(address recipient, uint256 amount)"}
@@ -239,11 +239,11 @@
     {
       "abi": "function abiCall(bytes data) payable",
       "title": "Abi Test New Locals",
-      "description": "Testing Format::Match with abi with new locals from parent",
+      "description": "Testing Format::Map with abi with new locals from parent",
       "fields": [
         {
           "title": "Decoded",
-          "format": "match",
+          "format": "map",
           "params": [
             {"key": "value", "value": "$data.data"},
             {"key": "abi", "value": "(address recipient, uint256 amount)"},

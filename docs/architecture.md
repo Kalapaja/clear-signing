@@ -353,7 +353,7 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
 - **Labels & i18n**: User-facing strings are stored in locale-specific bundles and accessed via the global `$labels`
   variable.
 - **Explicit Scoping**: The display format uses a recursive structure where some fields MAY contain nested `fields`. 
-  Control flow types like `match` and `array` create new scopes by processing their own `fields` array with a new `$data`
+  Control flow types like `map` and `array` create new scopes by processing their own `fields` array with a new `$data`
   context. This recursive structure naturally aligns with EIP-712's type system while maintaining efficiency for hardware
   wallets.
 - **Sensitivity to Safety**: Wallets **MUST** reject any display specification that contains unknown fields or
@@ -447,13 +447,13 @@ Wallets **MUST** support these standard higher-level types:
 These types create a new `$data` scope from their `params` and recursively process their `fields` array. The `$msg`
 context remains unchanged:
 
-- **`match`**: Acts as a **conditional branch**. It supports mapping values into a new scope's `$data` using:
+- **`map`**: Acts as a **data scope transformation**. It supports mapping values into a new scope's `$data` using:
     - **Named Parameters**: Parameters starting with `$` (e.g., `$param`) map values or literals into the scope's
       `$data`.
-    - **ABI Decoding**: By providing **`abi`** (signature) and **`value`** (bytes) parameters, `match` decodes the bytes
+    - **ABI Decoding**: By providing **`abi`** (signature) and **`value`** (bytes) parameters, `map` decodes the bytes
       and maps the resulting fields into `$data`.
     - The `fields` property defines what fields should be rendered in this scope.
-- **`array`**: Behaves identically to `match`, except it iterates in a loop, creating a new scope for each array
+- **`array`**: Behaves identically to `map`, except it iterates in a loop, creating a new scope for each array
   element. The `fields` property defines the template that is rendered for each iteration.
 - **`switch`**: Acts as a **conditional wrapper**. It provides a `value` parameter which is then used by its child `fields`
   to determine visibility based on their `case` arrays.
@@ -496,14 +496,13 @@ The wallet processes the display specification in a deterministic sequence to ge
         - Fields with empty `case` are displayed by default.
         - Fields with non-empty `case` are evaluated against the current `switch` value. A field is displayed if
           at least one value in its `case` array matches the resolved `switch` value.
-    - **Scoped Processing (`match`, `array`, `switch`)**: When a field is of type `match`, `array`, or `switch`:
+    - **Scoped Processing (`map`, `array`, `switch`)**: When a field is of type `map`, `array`, or `switch`:
         - A new `$data` context is created based on the field's `params`.
         - The wallet recursively processes the field's `fields` array (not the display's top-level fields).
         - This creates explicit scoping: only fields defined in `field.fields` are rendered within that scope.
-
 3. **Variable Resolution Rules**:
     - **$msg**: The transaction context. It remains **constant** throughout the entire display rendering (including
-      inside `match`, `array`, and `switch` scopes), unless a nested `call` context is entered.
+      inside `map`, `array`, and `switch` scopes), unless a nested `call` context is entered.
         - **$msg.to**: The contract receiving the call.
         - **$msg.sender**: The immediate caller.
         - **$msg.value**: The native value attached to *this specific call*.
@@ -511,7 +510,7 @@ The wallet processes the display specification in a deterministic sequence to ge
     - **$data**: The primary storage for resolving parameter values.
         - **Top-Level**: Initialized by decoding the function arguments from calldata (`$msg.data`) according to the
           `abi`. (e.g., `transfer(address to, uint256 amount)` -> `$data.to`, `$data.amount`).
-        - **Scoped Contexts**: When entering a `match`, `array`, or `switch` scope, a **new** `$data` object is
+        - **Scoped Contexts**: When entering a `map`, `array`, or `switch` scope, a **new** `$data` object is
           created. It contains **only** the parameters explicitly mapped in the field definition (starting with `$` or
           decoded via `abi`). It does **not** inherit variables from the parent scope.
     - **Resolution Failure**: If a referenced path (e.g., `$data.missingParam`) does not exist in the context,

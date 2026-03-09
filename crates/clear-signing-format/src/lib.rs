@@ -180,10 +180,10 @@ fn format_field(
     };
 
     match field {
-        DisplayField::Match {
+        DisplayField::Map {
             title,
             description,
-            values,
+            fields: values,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
@@ -202,7 +202,7 @@ fn format_field(
         DisplayField::Array {
             title,
             description,
-            values,
+            fields: values,
         } => {
             let title = resolve(title);
             if !title.is_empty() {
@@ -875,7 +875,7 @@ mod tests {
                 DisplayField::Array {
                     title: "Array".to_string(),
                     description: "Array description".to_string(),
-                    values: vec![
+                    fields: vec![
                         vec![DisplayField::String {
                             title: "Item 1".to_string(),
                             description: "".to_string(),
@@ -940,10 +940,10 @@ mod tests {
                         }],
                     },
                 },
-                DisplayField::Match {
-                    title: "Match Group".to_string(),
+                DisplayField::Map {
+                    title: "Map Group".to_string(),
                     description: "Group description".to_string(),
-                    values: vec![
+                    fields: vec![
                         DisplayField::String {
                             title: "Inner Field 1".to_string(),
                             description: "".to_string(),
@@ -1021,7 +1021,7 @@ mod tests {
             "",
             "  Allowance",
             "    <-- Unlimited TST",
-            "Match Group",
+            "Map Group",
             "Group description",
             "Inner Field 1",
             "  Inner Value 1",

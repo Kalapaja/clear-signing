@@ -241,7 +241,7 @@ library Display {
         );
     }
 
-    function matchField(
+    function mapField(
         string memory title,
         string memory description,
         bytes memory case_,
@@ -251,7 +251,7 @@ library Display {
         return field(
             title,
             description,
-            "match",
+            "map",
             case_,
             params,
             fields

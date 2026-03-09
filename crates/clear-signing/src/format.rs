@@ -141,7 +141,7 @@ pub(crate) enum Format {
     Datetime,
     Bitmask,
     Units,
-    Match,
+    Map,
     Array,
     Switch,
 }
@@ -165,7 +165,7 @@ impl Format {
             "datetime" => Ok(Format::Datetime),
             "bitmask" => Ok(Format::Bitmask),
             "units" => Ok(Format::Units),
-            "match" => Ok(Format::Match),
+            "map" => Ok(Format::Map),
             "array" => Ok(Format::Array),
             "switch" => Ok(Format::Switch),
             _ => anyhow::bail!("Unknown format: {}", format),
@@ -190,7 +190,7 @@ impl Format {
             Format::Datetime => process_datetime(ctx),
             Format::Bitmask => process_bitmask(ctx),
             Format::Units => process_units(ctx),
-            Format::Match => process_match(ctx),
+            Format::Map => process_map(ctx),
             Format::Array => process_array(ctx),
             Format::Switch => process_switch(ctx),
         }
@@ -426,12 +426,12 @@ pub(crate) fn process_bitmask(ctx: &ProcessingContext) -> crate::Result<DisplayF
     })
 }
 
-pub(crate) fn process_match(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
-    let mut match_data = vec![];
-    decode_abi_data(&ctx.params, ctx.message, ctx.data, &mut match_data)?;
-    decode_params_data(&ctx.params, ctx.message, ctx.data, &mut match_data)?;
+pub(crate) fn process_map(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+    let mut map_data = vec![];
+    decode_abi_data(&ctx.params, ctx.message, ctx.data, &mut map_data)?;
+    decode_params_data(&ctx.params, ctx.message, ctx.data, &mut map_data)?;
 
-    let new_data = SolValue::Tuple(match_data);
+    let new_data = SolValue::Tuple(map_data);
 
     let new_fields = process_fields(
         ctx.displays,
@@ -443,10 +443,10 @@ pub(crate) fn process_match(ctx: &ProcessingContext) -> crate::Result<DisplayFie
         None,
     )?;
 
-    Ok(DisplayField::Match {
+    Ok(DisplayField::Map {
         title: ctx.title().to_string(),
         description: ctx.description().to_string(),
-        values: new_fields,
+        fields: new_fields,
     })
 }
 
@@ -488,7 +488,7 @@ pub(crate) fn process_array(ctx: &ProcessingContext) -> crate::Result<DisplayFie
     Ok(DisplayField::Array {
         title: ctx.title().to_string(),
         description: ctx.description().to_string(),
-        values,
+        fields: values,
     })
 }
 
@@ -527,7 +527,7 @@ pub(crate) fn decode_abi_data(
     params: &FieldParams,
     message: &Message,
     data: &SolValue,
-    match_data: &mut Vec<(Option<String>, SolValue)>,
+    map_data: &mut Vec<(Option<String>, SolValue)>,
 ) -> crate::Result<()> {
     let abi = params.resolve_optional("abi", message, data)?;
     let value = params.resolve_optional("value", message, data)?;
@@ -543,7 +543,7 @@ pub(crate) fn decode_abi_data(
         let decoded_data = SolValue::from(decoded_dyn_value, &sol_type)?;
 
         if let SolValue::Tuple(t) = decoded_data {
-            match_data.extend(t);
+            map_data.extend(t);
         }
     }
     Ok(())
@@ -553,7 +553,7 @@ pub(crate) fn decode_params_data(
     params: &FieldParams,
     message: &Message,
     data: &SolValue,
-    match_data: &mut Vec<(Option<String>, SolValue)>,
+    map_data: &mut Vec<(Option<String>, SolValue)>,
 ) -> crate::Result<()> {
     let new_data_names = params.get_with_prefix('$');
     if new_data_names.is_empty() {
@@ -562,7 +562,7 @@ pub(crate) fn decode_params_data(
 
     for (name, reference) in new_data_names {
         let value = resolve_value(&reference, message, data)?;
-        match_data.push((Some(name), value));
+        map_data.push((Some(name), value));
     }
     Ok(())
 }

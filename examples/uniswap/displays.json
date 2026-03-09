@@ -23,7 +23,7 @@
               "fields": [
                 {
                   "description": "V2 SWAP EXACT IN",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x08"],
                   "params": [
                     {"key": "value", "value": "$data.input"},
@@ -69,7 +69,7 @@
                 },
                 {
                   "description": "V2 SWAP EXACT OUT",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x09"],
                   "params": [
                     {"key": "value", "value": "$data.input"},
@@ -115,7 +115,7 @@
                 },
                 {
                   "description": "V3 SWAP EXACT IN",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x00"],
                   "params": [
                     {"key": "value", "value": "$data.input"},
@@ -161,7 +161,7 @@
                 },
                 {
                   "description": "V3 SWAP EXACT OUT",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x01"],
                   "params": [
                     {
@@ -215,7 +215,7 @@
                 },
                 {
                   "description": "Unwrap ETH",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x0c"],
                   "params": [
                     {"key": "value", "value": "$data.input"},
@@ -242,7 +242,7 @@
                 },
                 {
                   "description": "Wrap ETH",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x0b"],
                   "params": [
                     {"key": "value", "value": "$data.input"},
@@ -262,7 +262,7 @@
                 },
                 {
                   "description": "Execute Sub Plan",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x21"],
                   "params": [
                     {"key": "value", "value": "$data.input"},
@@ -281,7 +281,7 @@
                 },
                 {
                   "description": "V4 Swap",
-                  "format": "match",
+                  "format": "map",
                   "case": ["0x10"],
                   "params": [
                     {"key": "value", "value": "$data.input"},
@@ -301,7 +301,7 @@
                           "fields": [
                             {
                               "description": "V4 SWAP EXACT IN",
-                              "format": "match",
+                              "format": "map",
                               "case": ["0x07"],
                               "params": [
                                 {"key": "value", "value": "$data.param"},
@@ -333,7 +333,7 @@
                             },
                             {
                               "description": "V4 SWAP EXACT IN SINGLE",
-                              "format": "match",
+                              "format": "map",
                               "case": ["0x06"],
                               "params": [
                                 {"key": "value", "value": "$data.param"},
@@ -393,7 +393,7 @@
                             },
                             {
                               "description": "V4 SWAP EXACT OUT",
-                              "format": "match",
+                              "format": "map",
                               "case": ["0x09"],
                               "params": [
                                 {"key": "value", "value": "$data.param"},
@@ -425,7 +425,7 @@
                             },
                             {
                               "description": "V4 SWAP EXACT OUT SINGLE",
-                              "format": "match",
+                              "format": "map",
                               "case": ["0x08"],
                               "params": [
                                 {"key": "value", "value": "$data.param"},

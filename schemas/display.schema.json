@@ -68,7 +68,7 @@
                 "percentage",
                 "duration",
                 "datetime",
-                "match",
+                "map",
                 "bitmask",
                 "units",
                 "string",
@@ -107,7 +107,7 @@
         },
         "fields": {
           "type": "array",
-          "description": "Nested child fields (recursive). Used for array and match formats to define explicit scope.",
+          "description": "Nested child fields (recursive). Used for array and map formats to define explicit scope.",
           "items": {
             "$ref": "#/definitions/Field"
           }
@@ -219,7 +219,7 @@
           }
         },
         {
-          "if": { "properties": { "format": { "const": "match" } } },
+          "if": { "properties": { "format": { "const": "map" } } },
           "then": {
             "properties": {
               "params": {

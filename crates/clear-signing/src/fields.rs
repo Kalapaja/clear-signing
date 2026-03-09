@@ -47,15 +47,15 @@ pub enum DisplayField {
         description: Label,
         call: ClearCall,
     },
-    Match {
+    Map {
         title: Label,
         description: Label,
-        values: Vec<DisplayField>,
+        fields: Vec<DisplayField>,
     },
     Array {
         title: Label,
         description: Label,
-        values: Vec<Vec<DisplayField>>,
+        fields: Vec<Vec<DisplayField>>,
     },
     Contract {
         title: Label,

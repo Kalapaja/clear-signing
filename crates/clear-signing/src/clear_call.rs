@@ -529,11 +529,11 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_clear_call_match() {
+    fn test_parse_clear_call_map() {
         let f = TestFixtures::new();
         let display_addr = f.target;
 
-        let display = get_display("Match Test");
+        let display = get_display("Map Test");
 
         let registry = setup_test_registry(vec![display_addr], vec![], vec![(display.clone())]);
 
@@ -551,16 +551,16 @@ mod tests {
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
         match &result.fields[0] {
-            DisplayField::Match { values, .. } => {
+            DisplayField::Map { fields: values, .. } => {
                 assert_eq!(values.len(), 1, "Expected 1 inner field in Match");
                 match &values[0] {
                     DisplayField::Uint { value, .. } => {
                         assert_eq!(*value, uint!(100_U256));
                     }
-                    _ => panic!("Expected Uint field inside Match"),
+                    _ => panic!("Expected Uint field inside Map"),
                 }
             }
-            _ => panic!("Expected Match field"),
+            _ => panic!("Expected Map field"),
         }
     }
 
@@ -589,7 +589,7 @@ mod tests {
         assert_eq!(result.fields.len(), 1, "Expected 1 top-level field (Array)");
 
         match &result.fields[0] {
-            DisplayField::Array { values, .. } => {
+            DisplayField::Array { fields: values, .. } => {
                 assert_eq!(values.len(), 2, "Expected 2 items in array");
                 assert_eq!(values[0].len(), 1, "Expected 1 field in first item");
                 match &values[0][0] {
@@ -607,7 +607,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_clear_call_abi() {
+    fn test_parse_clear_call_abi_map() {
         let display_addr = address!("0000000000000000000000000000000000000001");
         let recipient = address!("0000000000000000000000000000000000000002");
         let amount = uint!(100_U256);
@@ -636,7 +636,7 @@ mod tests {
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
         match &result.fields[0] {
-            DisplayField::Match { values, .. } => {
+            DisplayField::Map { fields: values, .. } => {
                 assert_eq!(values.len(), 2, "Expected 2 inner fields in Abi Match");
 
                 match &values[0] {
@@ -653,12 +653,12 @@ mod tests {
                     _ => panic!("Expected Uint field as second inner field"),
                 }
             }
-            _ => panic!("Expected Match field at index 0"),
+            _ => panic!("Expected Map field at index 0"),
         }
     }
 
     #[test]
-    fn test_parse_clear_call_abi_new_locals() {
+    fn test_parse_clear_call_abi_new_locals_map() {
         let display_addr = address!("0000000000000000000000000000000000000001");
         let sender = Address::ZERO;
         let recipient = address!("0000000000000000000000000000000000000002");
@@ -689,7 +689,7 @@ mod tests {
         assert_eq!(result.fields.len(), 1, "Expected 1 field in result");
 
         match &result.fields[0] {
-            DisplayField::Match { values, .. } => {
+            DisplayField::Map { fields: values, .. } => {
                 assert_eq!(values.len(), 3, "Expected 3 inner fields in Abi Match");
 
                 match &values[0] {
@@ -713,7 +713,7 @@ mod tests {
                     _ => panic!("Expected Uint field as third inner field"),
                 }
             }
-            _ => panic!("Expected Match field at index 0"),
+            _ => panic!("Expected Map field at index 0"),
         }
     }
 
@@ -780,7 +780,7 @@ mod tests {
 
         assert_eq!(result.fields.len(), 1);
         match &result.fields[0] {
-            DisplayField::Array { values, .. } => {
+            DisplayField::Array { fields: values, .. } => {
                 assert_eq!(values.len(), 3);
                 for (i, item_fields) in values.iter().enumerate() {
                     assert_eq!(item_fields.len(), 1);
