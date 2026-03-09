@@ -70,6 +70,7 @@
                 "datetime",
                 "match",
                 "bitmask",
+                "units",
                 "string",
                 "bytes",
                 "int",
@@ -155,6 +156,10 @@
                     { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } }
                   ]}
                 ]
+              },
+              "tokenId": {
+                "type": "object",
+                "properties": { "key": { "const": "tokenId" } }
               }
             }
           }
@@ -195,6 +200,20 @@
               "params": {
                 "type": "array",
                 "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "units" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } },
+                  { "contains": { "type": "object", "properties": { "key": { "const": "decimals" } } } }
+                ]
               }
             }
           }
@@ -275,12 +294,25 @@
           }
         },
         {
-          "if": { "properties": { "format": { "enum": ["address", "token", "contract", "string", "bytes"] } } },
+          "if": { "properties": { "format": { "enum": ["address", "contract", "string", "bytes"] } } },
           "then": {
             "properties": {
               "params": {
                 "type": "array",
                 "contains": { "type": "object", "properties": { "key": { "const": "value" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "format": { "const": "token" } } },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "type": "object", "properties": { "key": { "const": "value" } } } }
+                ]
               }
             }
           }

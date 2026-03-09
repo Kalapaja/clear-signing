@@ -57,7 +57,7 @@ You can run the provided examples of parsing using the `clear-signing-cli`.
    ```
 2. Run an example:
    ```bash
-   cargo run -- erc20
+   cargo run -- token
    cargo run -- clearcall
    cargo run -- multicall
    cargo run -- uniswap

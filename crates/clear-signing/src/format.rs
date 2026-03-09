@@ -140,6 +140,7 @@ pub(crate) enum Format {
     Duration,
     Datetime,
     Bitmask,
+    Units,
     Match,
     Array,
     Switch,
@@ -163,6 +164,7 @@ impl Format {
             "duration" => Ok(Format::Duration),
             "datetime" => Ok(Format::Datetime),
             "bitmask" => Ok(Format::Bitmask),
+            "units" => Ok(Format::Units),
             "match" => Ok(Format::Match),
             "array" => Ok(Format::Array),
             "switch" => Ok(Format::Switch),
@@ -187,6 +189,7 @@ impl Format {
             Format::Duration => process_duration(ctx),
             Format::Datetime => process_datetime(ctx),
             Format::Bitmask => process_bitmask(ctx),
+            Format::Units => process_units(ctx),
             Format::Match => process_match(ctx),
             Format::Array => process_array(ctx),
             Format::Switch => process_switch(ctx),
@@ -212,6 +215,9 @@ pub(crate) fn process_token_amount(ctx: &ProcessingContext) -> crate::Result<Dis
     let direction = ctx.resolve_optional_param("direction")?
         .map(Direction::try_from_sol_value)
         .transpose()?;
+    let token_id = ctx.resolve_optional_param("tokenId")?
+        .map(|v| v.as_uint())
+        .transpose()?;
 
     let (title, description) = ctx.labels();
 
@@ -236,6 +242,7 @@ pub(crate) fn process_token_amount(ctx: &ProcessingContext) -> crate::Result<Dis
             token,
             amount,
             direction,
+            token_id,
         })
     }
 }
@@ -273,6 +280,9 @@ pub(crate) fn process_contract(ctx: &ProcessingContext) -> crate::Result<Display
 
 pub(crate) fn process_token(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let token = ctx.resolve_param("value")?.as_address()?;
+    let token_id = ctx.resolve_optional_param("tokenId")?
+        .map(|v| v.as_uint())
+        .transpose()?;
 
     anyhow::ensure!(
         ctx.registry.is_well_known_token(&token),
@@ -283,6 +293,7 @@ pub(crate) fn process_token(ctx: &ProcessingContext) -> crate::Result<DisplayFie
         title: ctx.title().to_string(),
         description: ctx.description().to_string(),
         token,
+        token_id,
     })
 }
 
@@ -348,6 +359,18 @@ pub(crate) fn process_uint(ctx: &ProcessingContext) -> crate::Result<DisplayFiel
         title: ctx.title().to_string(),
         description: ctx.description().to_string(),
         value,
+    })
+}
+
+pub(crate) fn process_units(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
+    let value = ctx.resolve_param("value")?.as_uint()?;
+    let decimals = ctx.resolve_param("decimals")?.as_uint()?;
+
+    Ok(DisplayField::Units {
+        title: ctx.title().to_string(),
+        description: ctx.description().to_string(),
+        value,
+        decimals,
     })
 }
 

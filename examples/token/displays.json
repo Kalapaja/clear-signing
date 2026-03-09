@@ -62,6 +62,43 @@
           ]
         }
       ]
+    },
+    {
+      "abi": "function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes data)",
+      "title": "NFT Transfer",
+      "fields": [
+        {
+          "title": "$labels.sender",
+          "format": "address",
+          "params": [{"key": "value", "value": "$data.from"}]
+        },
+        {
+          "title": "$labels.amount",
+          "format": "tokenAmount",
+          "params": [
+            {"key": "token", "value": "$msg.to"},
+            {"key": "tokenId", "value": "$data.id"},
+            {"key": "amount", "value": "$data.value"}
+          ]
+        },
+        {
+          "title": "$labels.receiver",
+          "format": "address",
+          "params": [
+            {"key": "value", "value": "$data.to"}
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "locale": "en",
+          "items": [
+            {"key": "receiver", "value": "Receiver"},
+            {"key": "amount", "value": "Amount"},
+            {"key": "sender", "value": "Sender"}
+          ]
+        }
+      ]
     }
   ]
 }

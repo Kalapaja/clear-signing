@@ -66,11 +66,13 @@ pub enum DisplayField {
         title: Label,
         description: Label,
         token: Address,
+        token_id: Option<U256>,
     },
     TokenAmount {
         title: Label,
         description: Label,
         token: Address,
+        token_id: Option<U256>,
         amount: U256,
         direction: Option<Direction>,
     },
@@ -130,6 +132,12 @@ pub enum DisplayField {
         title: Label,
         description: Label,
         value: Address,
+    },
+    Units {
+        title: Label,
+        description: Label,
+        value: U256,
+        decimals: U256,
     },
     Switch {
         title: Label,
