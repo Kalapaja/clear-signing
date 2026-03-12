@@ -793,7 +793,7 @@ Payable functions accepting `msg.value > 0` may omit native transfer display fie
 
 ### Developer Responsibilities
 
-Malicious developers can create specifications that misrepresent behavior, mislead via incorrect labels, or omit critical parameters. This threat is outside this standard's scope; users rely on product trust. Wallets MAY mitigate this risk by restricting display to Contract List-verified contracts.
+This standard guarantees that execution matches the committed display specification; it cannot verify that the specification truthfully describes the contract's behavior. A malicious developer may author a specification that misrepresents the operation, uses misleading labels, or omits material parameters. Wallets MAY reduce this risk by restricting clear signing display to contracts verified by trusted Contract Lists, where community curation provides assurance beyond the cryptographic binding this standard defines.
 
 Developers MUST ensure specifications accurately represent behavior and SHOULD apply security review processes equivalent to smart contract code.
 
