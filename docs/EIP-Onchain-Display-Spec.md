@@ -747,13 +747,15 @@ The EIP-712 `hashStruct` provides a compact, 32-byte identifier compatible with 
 
 The sequential accumulation of `keccak256` operations within a `hashStruct` facilitates a memory-efficient processing model. A wallet can theoretically stream field definitions sequentially: interpreting a field's value for the user, updating a running hash accumulator, and then discarding the associated metadata. This approach avoids the requirement to buffer the entire display specification, making the design viable for memory-constrained hardware signing devices. While this streaming model assumes that the underlying calldata is accessible for random access during field resolution, it significantly reduces the peak memory overhead for the display logic itself.
 
+Adopting EIP-712 for identifier computation means that improvements to the EIP-712 algorithm and its Solidity tooling accrue to this standard without requiring specification changes. Currently, display identifiers must be expressed as nested `keccak256(abi.encode(...))` chains — correct but verbose. Proposed Solidity compiler enhancements, including native `type(S).typehash` and `type(S).hashStruct(s)` support, will allow these to be replaced with direct type-level expressions evaluated at compile time. Solidity does not yet support compile-time constant evaluation (`constexpr`); as this capability is added to the compiler, display identifier constants will be expressible as simple compiler-verified declarations rather than manually assembled hash computations, further reducing boilerplate and eliminating a class of encoding errors.
+
 ### Semantic vs Visual Separation
 
 The specification defines semantic meaning and data hierarchy, not visual presentation. This separation ensures specifications remain valid across different wallet implementations and device form factors while allowing wallets to optimize rendering for their specific constraints.
 
 ### Structural Formats
 
-Structural formats (`map`, `array`, `switch`, `call`) enable composition of complex transaction patterns. The `map` format supports inline ABI decoding for bytes-encoded parameters, avoiding unwieldy flattened signatures. These formats compose to handle batch executors and universal routers while maintaining scope isolation for security.
+Structural formats (`map`, `array`, `switch`, `call`) enable display specifications to cover transaction patterns that cannot be expressed as flat field listings. `map` enables typed ABI decoding of `bytes`-encoded sub-parameters, allowing nested structured data to be accessed by field name rather than extracted via unsafe raw byte offset arithmetic. `array` handles homogeneous repetition across batched transfers and multicall sequences without requiring per-element format duplication. `switch` supports command-indexed dispatch, covering protocols that multiplex multiple operations through a single entry point — such as universal routers — without requiring a separate display specification per command variant. `call` handles dynamically constructed calls where the target address and calldata are themselves ABI-encoded parameters, the canonical pattern in smart contract accounts, multisigs, and DAOs; wallets that implement `call` can render any account abstraction contract without per-contract special-casing in firmware. 
 
 ### Scope Isolation
 
