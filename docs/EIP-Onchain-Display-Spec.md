@@ -19,49 +19,51 @@ requires: 712, TBD (Onchain Display Verification)
     - [Type Definitions](#type-definitions)
     - [Function Signature Format](#function-signature-format)
     - [Variable References](#variable-references)
+    - [Rendering](#rendering)
     - [Field Formats](#field-formats)
     - [Localization](#localization)
 - [Rationale](#rationale)
+- [Backwards Compatibility](#backwards-compatibility)
 - [Security Considerations](#security-considerations)
 - [Copyright](#copyright)
 
 ## Abstract
 
-Smart contract ABIs define parameter encoding but carry no semantic meaning. This standard defines a structured display specification that maps raw calldata fields to rich semantic types (token amounts, timestamps, addresses, nested calls). Each specification is uniquely identified by a 32-byte display identifier computed as an EIP-712 `hashStruct` digest, enabling resource-constrained devices to cryptographically verify specifications without network access. The specification defines the type system, rendering rules, and identifier computation; a companion standard addresses on-chain verification mechanisms.
+This standard defines a structured display specification for smart contract functions, associating ABI-decoded calldata parameters with semantic display fields covering types such as token amounts, date and time values, percentages, and addresses. Each display specification is uniquely identified by a 32-byte digest computed as an EIP-712 structured data hash. This compact identifier enables resource-constrained devices to deterministically compute and verify the integrity of a specification without network access. The standard specifies the type system, format rules, and identifier computation process; a companion standard defines the on-chain verification mechanisms that bind these identifiers to smart contracts.
 
 ## Motivation
 
-The Ethereum ABI encodes function arguments but carries no semantic meaning. A timestamp and a price are both `uint256`; a token transfer and delegated execution are both `bytes`. Wallets cannot distinguish what values represent without external metadata.
+The Ethereum ABI encodes function call parameters as typed byte sequences but carries no semantic meaning: a Unix timestamp and a token amount are indistinguishable representations of `uint256`, and a `bytes` parameter encoding a token transfer is structurally identical to one encoding delegated execution. This absence of machine-parseable semantics produces blind signing — users authorize transactions whose effects they cannot independently verify, relying entirely on the originating application interface to describe what they are approving. This trust model is incompatible with the security properties expected of self-custodial wallets and hardware signing devices, where the integrity of displayed information must be verifiable independent of any connected software.
 
-This absence of machine-parseable semantics causes blind signing. Users authorize transactions they cannot interpret, trusting the dApp interface completely. This trust model contradicts the security guarantees of self-custodial wallets and hardware devices.
+Hardware signing devices represent the most constrained signing environment: limited memory, restricted processing capability, and no persistent network connectivity preclude retrieving or validating external metadata at signing time. A display specification that satisfies these constraints—representable as a compact, deterministic identifier computable and verifiable locally without external dependencies—is by construction equally applicable to software wallets on web and mobile platforms, where greater resources and connectivity allow richer presentation of the same specification. Designing for the most constrained case therefore produces a universally applicable standard rather than one optimized for a single wallet category.
 
-A practical display specification requires two properties: (1) rich semantic types covering real contract patterns—token amounts, timestamps, durations, percentages, nested calls; (2) a compact identifier computable by resource-constrained devices without network access. This standard defines the type system and EIP-712-based identifier computation. A companion standard defines on-chain verification mechanisms.
+A viable solution requires two complementary properties: an expressive type system covering the semantic patterns common in deployed contracts—token amounts, timestamps, durations, percentages, and addresses—with support for structural composition of nested contract calls; and a compact identifier derivable from a complete display specification by any device without network access. This standard defines the type system and specifies identifier computation using EIP-712 structured data hashing. A companion standard defines the on-chain mechanisms by which these identifiers are bound to deployed contracts.
 
 ## Specification
 
 The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-This specification defines semantic presentation: what data represents and how it relates, not visual rendering. Wallets interpret the same specification differently based on device constraints. A `tokenAmount` field identifies "an amount in a token"; one wallet shows plain text, another adds icons and fiat conversion. This separation ensures device-agnostic specifications.
+This specification defines semantic presentation: what data represents and how it relates to other data. Visual rendering is explicitly out of scope; wallets MAY adapt the presentation to device constraints and capabilities while preserving the specified semantics.
 
 ### Type Definitions
 
-A display specification consists of four composable types. The `displayHash` is `hashStruct(Display)` per EIP-712. Implementations MUST use these type strings verbatim.
+A display specification is composed of four EIP-712 compatible structs: `Display`, `Field`, `Labels`, and `Entry`. The **display identifier** is the 32-byte value produced by `hashStruct(Display)` as defined in EIP-712; it uniquely identifies a complete display specification and is the value registered on-chain by the companion verification standard. Implementations MUST use the type strings below verbatim, as any deviation produces a different identifier.
 
 **`Display`** — root type for one function's display specification.
 
 - `abi` — Solidity function signature for selector matching
 - `title` — label reference or literal string for transaction title
-- `description` — human-readable operation description
+- `description` — label reference or literal string for human-readable operation description
 - `fields` — ordered array of `Field` definitions
 - `labels` — array of `Labels` bundles
 
 **`Field`** — single display item definition.
 
 - `title` — label reference or literal for field name
-- `description` — optional human-readable description
+- `description` — label reference or literal string for field description; an empty string indicates no description
 - `format` — display format identifier
-- `case` — conditional visibility array (empty means always shown)
-- `params` — `Entry` array supplying formatter arguments (format-specific keys, variable references or literals)
+- `case` — array of discriminant values for conditional rendering; an empty array indicates unconditional rendering
+- `params` — `Entry` array supplying formatter arguments (format-specific keys, variable references, or literals)
 - `fields` — nested `Field` definitions for structural formats
 
 **`Labels`** — locale-specific string bundle.
@@ -70,6 +72,9 @@ A display specification consists of four composable types. The `displayHash` is 
 - `items` — `Entry` array mapping label keys to translated strings
 
 **`Entry`** — generic key-value pair.
+
+- `key` — string identifier
+- `value` — string value; interpreted as a variable reference or literal depending on context
 
 The corresponding Solidity typehash constants are:
 
@@ -97,11 +102,11 @@ bytes32 constant DISPLAY_TH = keccak256(
 
 #### Example: ERC-20 Transfer
 
-The following shows a complete `displayHash` computation for the ERC-20 `transfer` function using the `Display` library:
+The following shows a complete display identifier computation for the ERC-20 `transfer` function using the `Display` library:
 
 ```solidity
 bytes32 constant TRANSFER_DISPLAY_HASH = Display.display(
-    "function transfer(address to, uint256 amount)",  // abi
+    "transfer(address to, uint256 amount)",  // abi
     "$labels.title",                                  // title
     "$labels.description",                            // description
     abi.encodePacked(                                 // fields
@@ -145,26 +150,27 @@ bytes32 constant TRANSFER_DISPLAY_HASH = Display.display(
 
 ### Function Signature Format
 
-The `Display.abi` field MUST be a full Solidity function signature: `function <name>(<type> <name>, ...) [<modifier>]`.
+The `Display.abi` field MUST be a function signature of the form `<name>(<type> <name>, ...) [<modifier>]`.
 
-The `function` keyword is required. Each parameter MUST include type and name; names populate `$data` for field parameter references (e.g., `$data.amount`). The optional state mutability modifier MUST be `pure`, `view`, `payable`, or `nonpayable` (default if omitted). Wallets MUST reject calls where `msg.value > 0` and modifier is not `payable`.
+Each parameter MUST include a type and SHOULD include a name. Named parameters are accessible via `$data.<name>` (e.g., `$data.amount`); unnamed parameters are accessible only by zero-based positional index via `$data.<index>` (e.g., `$data.0`). The optional state mutability modifier MUST be `pure`, `view`, `payable`, or `nonpayable` (default if omitted). Wallets MUST reject calls where `msg.value > 0` and the modifier is not `payable`.
 
-Examples:
-```solidity
-function transfer(address to, uint256 amount)
-function approve(address spender, uint256 amount) nonpayable
-function deposit() payable
+The following are valid function signatures:
+
+```
+transfer(address to, uint256 amount)
+approve(address spender, uint256 amount) nonpayable
+deposit() payable
 ```
 
 The function selector for matching derives from the canonical ABI signature (types only, names and modifier stripped) via `keccak256`.
 
 ### Variable References
 
-`Entry` values in `Field.params` are either a variable reference (starts with `$`, resolves at render time) or a literal (constant string like `"6"`, `"10000"`, `"Read"`).
+String fields throughout a display specification — including `Display.title`, `Display.description`, `Field.title`, `Field.description`, `Field.params` values, and `Field.case` entries — are resolved at render time as either a **literal** (a static string constant) or a **variable reference** (a `$`-prefixed path that resolves to a runtime value). In both cases the resolved value is then **type-cast** to the type expected by the consuming formatter or comparator. Resolution MUST halt if the cast fails.
 
 #### Literals
 
-Literals are untyped strings coerced at render time per these rules:
+A literal is any `Entry` value that does not start with `$`. Literals are untyped strings coerced to the target type at render time per the following rules:
 
 | Target type | Coercion rule                                                        |
 |-------------|----------------------------------------------------------------------|
@@ -177,20 +183,32 @@ Literals are untyped strings coerced at render time per these rules:
 
 If the literal cannot be coerced to the required type, resolution MUST halt.
 
+#### Variable References
+
+A variable reference is any `Entry` value that starts with `$`. References are resolved at render time by looking up the path in the appropriate container. The resolved value retains its ABI type from the decoded calldata or transaction context; type casting is applied subsequently as described in [Type Casting](#type-casting).
+
 #### Reference Containers
 
-**`$msg`** — transaction context, constant throughout rendering (one level of access, no nesting):
+**`$labels`** — localized string bundle selected for the current locale. This container is read-only and constant for the duration of rendering. Only one level of property access is permitted. `$labels.<key>` resolves to the string value associated with `key` in the active `Labels` bundle. Rendering MUST halt if the key is not found. Full locale selection and fallback rules are defined in [Localization](#localization). `$labels` references are valid in `title` and `description` fields of `Display` and `Field`, as well as in `Field.params` values.
+
+**`$msg`** — transaction context. This container is read-only and constant for the duration of rendering. Only one level of property access is permitted; nested access is not supported.
 - `$msg.sender` — caller address
 - `$msg.to` — contract receiving the call
 - `$msg.value` — native value (`uint256`)
 - `$msg.data` — raw calldata bytes
 
-**`$data`** — decoded function arguments for current scope. Top-level: decoded from `$msg.data` per `Display.abi`. Structural formats (`map`, `array`, `switch`) create new isolated `$data` scope; nested fields do NOT inherit parent's `$data`. Access patterns:
+**`$data`** — decoded function arguments for the current rendering scope. At the top level, arguments are decoded from `$msg.data` per `Display.abi`. The `map` and `array` structural formats create a new isolated `$data` scope; nested fields within those formats do not inherit the parent `$data`. The `switch` format does not create a new scope. Access patterns:
 - Named: `$data.amount`, `$data.to`
 - Positional: `$data.0`, `$data.1`
 - Nested: `$data.order.token`
 - Array index: `$data.items[0]`, `$data.items[-1]` (negative from end)
 - Slice: `$data.items[1:3]`, `$data.data[:]`
+
+#### Type Casting
+
+After a value is resolved — whether from a literal or a variable reference — it is cast to the type expected by the consuming formatter parameter. For variable references, the resolved ABI type MUST be compatible with the expected type; if it is not, resolution MUST halt. For literals, the coercion rules in the [Literals](#literals) table apply.
+
+For `switch` case matching, each entry in `Field.case` is cast to the type of the resolved `switch` `value` parameter before comparison. For example, if `value` resolves to a `bytes32`, each `case` entry is coerced from its hex string representation to `bytes32`; if `value` resolves to a `uint256`, each `case` entry is parsed as a decimal integer. Comparison is performed as equality after casting. Resolution MUST halt if any `case` entry cannot be cast to the type of `value`.
 
 #### Resolution Failure
 
@@ -201,17 +219,50 @@ Resolution MUST halt if:
 - An array index is out of bounds.
 - The resolved value type is incompatible with what the formatter requires.
 - A literal cannot be coerced to the required type.
+- A `case` entry cannot be cast to the type of the `switch` `value` parameter.
+
+### Rendering
+
+A wallet renders a display specification by executing the following steps in order. Any failure at any step MUST halt rendering.
+
+**Step 1 — Context Initialization**
+
+Initialize the two rendering contexts:
+
+- `$msg` is populated from the transaction envelope: `sender`, `to`, `value`, and `data`. This context is read-only and constant for the entire top-level rendering scope.
+- `$data` is initialized by ABI-decoding `$msg.data` per `Display.abi`. Named parameters are accessible by name (e.g., `$data.amount`); unnamed parameters are accessible by zero-based positional index (e.g., `$data.0`).
+
+**Step 2 — Native Value Check**
+
+If `$msg.value > 0`, the wallet MUST display a warning to the user indicating that native value is being transferred.
+
+**Step 3 — Field Iteration**
+
+Iterate `Display.fields` in declaration order. For each `Field`:
+
+1. **Conditional visibility**: If `Field.case` is non-empty, the field is rendered only if the enclosing `switch` value matches at least one `case` entry after type casting; otherwise the field is skipped. Fields with an empty `case` are always rendered.
+2. **Reference resolution**: Resolve all `title`, `description`, and `params` values per [Variable References](#variable-references).
+3. **Formatting**: Cast and format the resolved parameter values per the rules of `Field.format` defined in [Field Formats](#field-formats).
+4. **Structural recursion**: For structural formats (`map`, `array`, `switch`, `call`), process nested `fields` with the scope rules specified for each format in [Field Formats](#field-formats).
+
+**Step 4 — Nested Call Processing**
+
+When a `call` field is encountered during step 3, the wallet enters a recursive rendering context:
+
+- A new `$msg` is constructed from the `call` field's `to`, `value`, and `data` parameters.
+- `$msg.sender` of the inner context is set to the parent `$msg.to` (the contract making the inner call).
+- A display specification matching the inner call's function selector is located via the mechanism defined in the companion verification standard and rendered recursively from step 1.
+- Wallets MUST enforce a maximum recursion depth. Rendering MUST halt if the limit is exceeded.
 
 ### Field Formats
 
 #### Raw Solidity Types
 
-These formats display values as-is with minimal transformation, corresponding directly to their Solidity types. All
-accept a single `value` param.
+These formats display values as-is with minimal transformation, corresponding directly to their Solidity types. All accept a single `value` parameter.
 
 | Format    | Solidity type     | Display                                                                                                             |
 |-----------|-------------------|---------------------------------------------------------------------------------------------------------------------|
-| `boolean` | `bool`            | Localised yes/no string                                                                                             |
+| `boolean` | `bool`            | Wallet-localized yes/no string                                                                                      |
 | `string`  | `string`          | UTF-8 string                                                                                                        |
 | `bytes`   | `bytes`, `bytesN` | Hex-encoded bytes. Fixed-length `bytesN` (`bytes1`…`bytes32`) are accepted and displayed as hex.                    |
 | `int`     | `intN`            | Signed integer. Accepts any width (`int8`, `int16`, `int32`, `int64`, `int128`, `int192`, `int256`, etc.).          |
@@ -244,8 +295,7 @@ bytes32 approvedField = keccak256(abi.encode(
 
 These formats interpret a raw Solidity value into a human-readable semantic representation.
 
-**`datetime`** — displays a Unix timestamp as an absolute, locale-formatted date and time. Accepts any `uintN` type. An
-optional `units` param specifies the unit of the input value; if omitted, seconds is assumed.
+**`datetime`** — displays a Unix timestamp as an absolute, locale-formatted date and time. Accepts any `uintN` type. An optional `units` parameter specifies the unit of the input value; if omitted, seconds are assumed.
 
 | Param   | Required | Description                                                                    |
 |---------|----------|--------------------------------------------------------------------------------|
@@ -263,8 +313,7 @@ Display.datetimeField(
 
 ---
 
-**`duration`** — displays a relative time span as a human-readable duration (e.g. "2 weeks", "3 days"). Accepts any
-`uintN` type. An optional `units` param specifies the unit of the input value; if omitted, seconds is assumed.
+**`duration`** — displays a relative time span as a human-readable duration (e.g. "2 weeks", "3 days"). Accepts any `uintN` type. An optional `units` parameter specifies the unit of the input value; if omitted, seconds are assumed.
 
 | Param   | Required | Description                                                                    |
 |---------|----------|--------------------------------------------------------------------------------|
@@ -282,8 +331,7 @@ Display.durationField(
 
 ---
 
-**`percentage`** — displays a rational percentage computed as `value / basis`. Both params are interpreted as unsigned
-integers; rendering MUST halt if `basis` is zero.
+**`percentage`** — displays a rational percentage computed as `value / basis`. Both parameters are interpreted as unsigned integers; rendering MUST halt if `basis` is zero.
 
 | Param   | Required | Description                                                                               |
 |---------|----------|-------------------------------------------------------------------------------------------|
@@ -303,8 +351,7 @@ Display.percentageField(
 
 ---
 
-**`bitmask`** — displays an integer as the list of labels for each set bit. Bit labels are supplied as additional params
-using `#N` keys where `N` is the zero-based bit index. Only labels for set bits are shown.
+**`bitmask`** — displays an unsigned integer as a list of labels corresponding to each set bit. Bit labels are supplied as additional parameters using `#N` keys where `N` is the zero-based bit index. Only labels for set bits are shown.
 
 | Param         | Required | Description                                                                   |
 |---------------|----------|-------------------------------------------------------------------------------|
@@ -327,7 +374,7 @@ Display.bitmaskField(
 
 ---
 
-**`units`** — displays a raw integer scaled by a decimal exponent (e.g. USDC with 6 decimals).
+**`units`** — displays an unsigned integer scaled by a decimal exponent (e.g. USDC with 6 decimals).
 
 | Param      | Required | Description                                                                       |
 |------------|----------|-----------------------------------------------------------------------------------|
@@ -347,7 +394,7 @@ Display.unitsField(
 
 #### Address Formats
 
-Three address types with different verification requirements: `address` (informational, best-effort name resolution), `token` and `contract` (verified against lists or rendering halts). Developers MUST choose the semantically appropriate format.
+Three address formats are defined, each with different verification requirements. `address` performs best-effort name resolution and is informational. `token` and `contract` require verification against a Token List and Contract List respectively; rendering MUST halt if the address is not found in the applicable list. These lists are defined in the companion verification standard. Developers MUST choose the semantically appropriate format.
 
 **`address`** — 20-byte address with best-effort name resolution (local contacts, ENS). Use when identity is informational, not a security precondition.
 
@@ -366,7 +413,7 @@ Display.addressField(
 
 ---
 
-**`token`** — token address verified against Token List (rendering halts if not found). Use when token identity is critical to transaction assessment. Supports NFTs via optional `tokenId`.
+**`token`** — token address verified against the Token List defined in the companion verification standard; rendering MUST halt if the address is not found. Use when token identity is critical to transaction assessment. An optional `tokenId` parameter enables display of non-fungible token identities.
 
 | Param     | Required | Description                                     |
 |-----------|----------|-------------------------------------------------|
@@ -384,7 +431,7 @@ Display.tokenField(
 
 ---
 
-**`contract`** — contract address verified against Contract List (rendering halts if not found). Use when contract receives delegated authority or executes on user's behalf (e.g., ERC-20 `approve` spender).
+**`contract`** — contract address verified against the Contract List defined in the companion verification standard; rendering MUST halt if the address is not found. Use when the contract receives delegated authority or executes on the user's behalf (e.g., the spender in an ERC-20 `approve` call).
 
 | Param   | Required | Description                               |
 |---------|----------|-------------------------------------------|
@@ -393,7 +440,7 @@ Display.tokenField(
 ```solidity
 // Full display spec for ERC-20 approve
 bytes32 constant APPROVE_DISPLAY_HASH = Display.display(
-    "function approve(address spender, uint256 amount) nonpayable",  // abi
+    "approve(address spender, uint256 amount) nonpayable",  // abi
     "$labels.title",                                                  // title
     "$labels.description",                                            // description
     abi.encodePacked(                                                 // fields
@@ -443,7 +490,7 @@ indication.
 
 | Param       | Required | Description                                                       |
 |-------------|----------|-------------------------------------------------------------------|
-| `amount`    | yes      | Reference resolving to a `uintN` in the smallest unit             |
+| `amount`    | yes      | Reference resolving to a `uintN` in the smallest denomination (e.g. wei for ETH) |
 | `direction` | no       | `"in"` or `"out"`. If omitted, no directional indicator is shown. |
 
 ```solidity
@@ -458,9 +505,7 @@ Display.nativeAmountField(
 
 ---
 
-**`tokenAmount`** — displays a token amount denominated in a specific token, resolved against a Token List (see Section
-4.3 for token verification requirements). Supports NFTs via `tokenId` and an optional transfer direction. When
-`direction` is omitted, the amount is displayed without directional indication.
+**`tokenAmount`** — displays a token amount denominated in a specific token, resolved against a Token List (token verification requirements are defined in the companion verification standard). An optional `tokenId` parameter enables display of non-fungible token amounts. When `direction` is omitted, the amount is displayed without directional indication.
 
 | Param       | Required | Description                                                       |
 |-------------|----------|-------------------------------------------------------------------|
@@ -501,7 +546,7 @@ Structural formats carry nested `fields` and modify rendering context:
 Wallets MUST enforce strict scope boundaries.
 
 **`map`** — creates isolated `$data` scope, renders nested `fields`. Scope populated via:
-- `$<name>` params: bind values to child scope (`$token` → `$data.token`)
+- `$<name>` parameters: bind values to child scope (`$token` → `$data.token`)
 - `abi` + `value`: ABI-decode bytes, merge fields into child scope
 
 | Param     | Required | Description                                                                                                                                                                                         |
@@ -560,11 +605,21 @@ Display.mapField(
 
 ---
 
-**`array`** — iterates parallel arrays, renders nested `fields` per element with fresh isolated `$data` scope. All `$`-prefixed params MUST be equal-length arrays (halt if mismatch). Binds `array[i]` for each param per iteration.
+**`array`** — iterates parallel arrays, renders nested `fields` per element with fresh isolated `$data` scope. All `$`-prefixed parameters MUST be equal-length arrays; rendering MUST halt if lengths differ. Binds `array[i]` for each parameter per iteration.
+
+Each `$<name>` parameter MUST resolve to one of the following iterable types:
+
+| Input type  | Element type per iteration |
+|-------------|----------------------------|
+| `T[]`       | `T` (element of dynamic array) |
+| `T[N]`      | `T` (element of fixed-size array) |
+| `bytes`     | `bytes1` (single byte) |
+
+Resolution MUST halt if a parameter resolves to a non-iterable type.
 
 | Param     | Required           | Description                                                                            |
 |-----------|--------------------|----------------------------------------------------------------------------------------|
-| `$<name>` | yes (at least one) | Reference resolving to an array; each element is bound as `$data.<name>` per iteration |
+| `$<name>` | yes (at least one) | Reference resolving to an iterable type; each element is bound as `$data.<name>` per iteration |
 
 ```solidity
 Display.arrayField(
@@ -595,7 +650,7 @@ Display.arrayField(
 
 ---
 
-**`call`** — renders nested contract call display specification. Creates new `$msg` from `to`, `value`, `data` params; `$msg.sender` propagates from parent. Wallet matches specification, renders, then resumes parent rendering.
+**`call`** — renders nested contract call display specification. Creates new `$msg` from `to`, `value`, `data` parameters; `$msg.sender` of the inner context is set to the parent `$msg.to`. Wallet matches specification, renders, then resumes parent rendering.
 
 | Param   | Required | Description                                                       |
 |---------|----------|-------------------------------------------------------------------|
@@ -649,15 +704,23 @@ Display.switchField(
 )
 ```
 
+Wallets MUST reject any `Field` whose `format` value is not defined in this standard or a recognized extension. This prevents downgrade attacks via unrecognised format identifiers.
+
 ### Localization
 
-User-facing strings MAY use `$labels.key` references for internationalization.
+User-facing strings in `title` and `description` fields MAY use `$labels.<key>` references for internationalization. Specifications that omit localization MAY use literal strings directly.
 
-**Label Resolution:** Wallet selects `Labels` bundle (exact locale match preferred, language-only fallback, then `en` default). Searches bundle's `items` for matching `key`. Rendering MUST halt if key not found.
+#### Label Resolution
 
-**Labels Structure:** `locale` (identifier like `en`, `fr`, `en-US`) and `items` (array of `Entry` pairs mapping keys to strings).
+The wallet selects the active `Labels` bundle from `Display.labels` using the following priority order:
 
-**Example:**
+1. Exact locale match (e.g., `en-US` matches `en-US`).
+2. Language-only fallback (e.g., `en-US` falls back to `en`).
+3. Default to the `en` bundle if present.
+
+If no matching bundle is found, rendering MUST halt. Once a bundle is selected, the wallet searches its `items` array for an `Entry` whose `key` matches the reference key. Rendering MUST halt if the key is not found in the selected bundle.
+
+#### Example
 
 ```solidity
 Display.labels(
@@ -680,7 +743,9 @@ The specification addresses calldata interpretation through local decoding witho
 
 ### EIP-712 Display Identifier
 
-EIP-712 `hashStruct` provides a compact 32-byte identifier suitable for resource-constrained devices, leverages battle-tested infrastructure across the ecosystem, and enables both static precomputation and dynamic on-chain generation while maintaining deterministic verification.
+The EIP-712 `hashStruct` provides a compact, 32-byte identifier compatible with established ecosystem infrastructure and resource-constrained devices. This mechanism enables deterministic verification through both static precomputation and dynamic, on-chain generation.
+
+The sequential accumulation of `keccak256` operations within a `hashStruct` facilitates a memory-efficient processing model. A wallet can theoretically stream field definitions sequentially: interpreting a field's value for the user, updating a running hash accumulator, and then discarding the associated metadata. This approach avoids the requirement to buffer the entire display specification, making the design viable for memory-constrained hardware signing devices. While this streaming model assumes that the underlying calldata is accessible for random access during field resolution, it significantly reduces the peak memory overhead for the display logic itself.
 
 ### Semantic vs Visual Separation
 
@@ -692,11 +757,11 @@ Structural formats (`map`, `array`, `switch`, `call`) enable composition of comp
 
 ### Scope Isolation
 
-`map` and `array` create isolated `$data` scopes; child fields access only explicitly passed parameters. `switch` does not create new scopes. `call` creates entirely new rendering contexts. Scope isolation prevents variable shadowing attacks, makes data flow auditable, and improves specification readability. Wallets MUST enforce strict scope boundaries.
+`map` and `array` create isolated `$data` scopes; child fields access only explicitly passed parameters. `switch` does not create new scopes. `call` creates entirely new rendering contexts. Scope isolation prevents variable shadowing attacks, makes data flow auditable, and improves specification readability.
 
 ### Forward Compatibility
 
-Field parameters use generic `Entry` key-value pairs and string-based format identifiers, allowing new semantic types to be added in future proposals without modifying core EIP-712 type definitions. Wallets MUST reject unknown format types to prevent downgrade attacks.
+Field parameters use generic `Entry` key-value pairs and string-based format identifiers, allowing new semantic types to be added in future proposals without modifying core EIP-712 type definitions. Rejection of unknown format identifiers, enforced in the Specification, prevents downgrade attacks.
 
 ### Localization
 
@@ -706,21 +771,27 @@ Labels are included in the display identifier hash to prevent tampering and ensu
 
 The specification adopts halt-on-error behavior: any resolution failure, type mismatch, verification failure, or missing key halts rendering immediately. This prevents misleading displays where partial information could lead users to approve malicious transactions. Specifications must be complete and correct.
 
+## Backwards Compatibility
+
+This EIP introduces a new standard and does not modify any existing Ethereum protocol, ABI encoding, or ERC. It has no backward compatibility requirements with respect to previously deployed contracts or existing wallet implementations. Wallets that do not implement this standard continue to operate under existing behavior; this standard defines an opt-in display layer.
+
+Dependency on EIP-712 is additive: this standard reuses `hashStruct` solely for identifier computation and does not alter any EIP-712 behavior or interfere with existing EIP-712 signed data flows.
+
 ## Security Considerations
 
 ### Binding Display Specifications to Contracts
 
-This specification does NOT define how display identifiers bind to contracts. A companion standard addresses on-chain verification mechanisms.
+This specification does not define how display identifiers bind to contracts. A companion standard addresses on-chain verification mechanisms.
 
 Without verification, users face specification substitution attacks, phishing via stolen specifications, and downgrade attacks. Wallet implementations MUST NOT display transactions based on unverified specifications.
 
 ### Native Value Transfer Omission
 
-Payable functions accepting `msg.value > 0` may omit native transfer display fields, hiding value transfers. Wallet implementations MUST display a prominent warning or synthetic transfer field when `msg.value > 0` is undisclosed.
+Payable functions accepting `msg.value > 0` may omit native transfer display fields, hiding value transfers. Wallet implementations MUST display a prominent warning.
 
 ### Developer Responsibilities
 
-Malicious developers can create specifications that misrepresent behavior, mislead via incorrect labels, or omit critical parameters. This threat is outside this standard's scope; users rely on developer trust. Mitigation: wallets may restrict transactions to Contract List-verified contracts.
+Malicious developers can create specifications that misrepresent behavior, mislead via incorrect labels, or omit critical parameters. This threat is outside this standard's scope; users rely on product trust. Wallets MAY mitigate this risk by restricting display to Contract List-verified contracts.
 
 Developers MUST ensure specifications accurately represent behavior and SHOULD apply security review processes equivalent to smart contract code.
 
@@ -730,4 +801,4 @@ Malicious specifications can exhaust wallet resources via excessive recursion (`
 
 ## Copyright
 
-Copyright and related rights waived via [CC0](../LICENSE).
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
