@@ -517,14 +517,12 @@ The wallet processes the display specification in a deterministic sequence to ge
       execution **MUST stop**, effectively rejecting the display.
 
 4. **Nested Call Processing (`call`)**:
-    - When a field is of type `call` (e.g., in Account Abstraction or Multisigs), the wallet enters a **Recursive Call
-      **.
-    - **Recursion Limit**: Wallets **MUST** enforce a maximum recursion depth of **16** to prevent Stack Overflow or
+    - When a field is of type `call` (e.g., in Account Abstraction or Multisigs), the wallet enters a **Recursive Call**.
+    - **Recursion Limit**: Wallets **MUST** enforce a maximum recursion depth to prevent stack overflow or
       Denial of Service attacks.
-    - A new, ephemeral `$msg` context is created for the inner call from calling parameters.
-    - The wallet looks up the display specification for this inner call by matching the function selector (derived from
-      `$msg.data[:4]`) against the `display.abi` and verifying the display identifier (bytes 4-35 of the packed format)
-      matches the expected identifier, then recursively renders it.
+    - A new, ephemeral `$msg` context is created for the inner call from the calling parameters. Current rendering is
+      **paused**; the wallet locates an independent display specification for the inner call and renders it from the
+      beginning. Once the inner rendering completes, the outer rendering **resumes** from where it was paused.
 
 5. **Verification**:
     - **Integrity Check**: The wallet calculates the identifier of the *exact* display specification used so it can be
@@ -534,7 +532,7 @@ The wallet processes the display specification in a deterministic sequence to ge
       failed, the transaction **MUST** be considered unverified and the user warned (or prevented from signing,
       depending on wallet policy).
 
-**Safety Rule (Native Value)**: Whenever the Message contains `msg.value > 0`, the wallet **MUST** display a warning to the user indicating that native value is being transferred.
+**Safety Rule (Native Value)**: Whenever the Message contains `msg.value > 0`, the wallet **MUST** display a warning to the user that includes the exact native value amount being transferred.
 
 ## 5. Contract-Side Display Verification
 

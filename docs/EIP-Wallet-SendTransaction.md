@@ -2,13 +2,13 @@
 eip: TBD
 title: wallet_sendTransaction with Verifiable Metadata
 description: A JSON-RPC method bundling a transaction with verifiable contextual metadata, ensuring wallets can interpret and validate the transaction without external dependencies.
-author: TBD
-discussions-to: TBD
+author: TBD (At least one author must include GitHub username)
+discussions-to: TBD (Ethereum Magicians forum URL required)
 status: Draft
 type: Standards Track
 category: Interface
 created: 2026-03-13
-requires: 1474, TBD (Onchain Display Specification), TBD (Onchain Display Verification)
+requires: 1474, TBD (Onchain Display Specification EIP number), TBD (Onchain Display Verification EIP number)
 ---
 
 ## Table of Contents
@@ -74,6 +74,7 @@ The `metadata` object is a key-value map where each key serves as a unique ident
 | `[standard_identifier]` | `object`\|`array` | Identifier for the type of metadata being provided. Keys SHOULD be specific to an Ethereum proposal (e.g., `"eip-xyz"`) or a well-known identifier (e.g., `"display"`, `"abi"`). |
 
 #### Example
+
 ```json
 {
   "display": [...],
@@ -111,6 +112,7 @@ This aggregation ensures that the final hardware wallet controlling the account 
 Wallets SHOULD expose the metadata standards they support via the `wallet_getCapabilities` RPC method defined in [EIP-5792](https://eips.ethereum.org/EIPS/eip-5792). This allows decentralized applications and intermediary wallets to determine whether it makes sense to include specific metadata payloads in the `wallet_sendTransaction` request.
 
 For example, a wallet might indicate its supported metadata keys:
+
 ```json
 {
   "0x2105": {
@@ -136,10 +138,10 @@ On success, the method returns the transaction hash as a 32-byte hex string, ide
 
 Standard JSON-RPC error codes apply, including the following specific scenarios:
 
-| Code    | Message                              | Description                                                      |
-|---------|--------------------------------------|------------------------------------------------------------------|
-| `-32602` | `Invalid params`                    | `metadata` is missing, empty, or incorrectly formatted           |
-| `4001`  | `User rejected the request`         | User denied the transaction at the approval step                 |
+| Code      | Message                                    | Description                                                                     |
+|-----------|--------------------------------------------|---------------------------------------------------------------------------------|
+| `-32602`  | `Invalid params`                           | `metadata` parameter is missing, empty, or incorrectly formatted                |
+| `-32603`  | `Internal error`                           | Wallet failed to process metadata due to internal error                         |
 
 Additional error codes MAY be returned depending on the specific validation rules of the processed metadata standard.
 
@@ -169,6 +171,26 @@ While metadata itself is inherently advisory context, the defining requirement o
 
 Wallets MUST safely handle unknown or unsupported metadata keys by falling back to blind signing (or rejecting the transaction, depending on policy) and MUST NOT attempt to parse or render arbitrary structures that could lead to injection attacks or misleading displays.
 
+### Metadata Poisoning Attacks
+
+A malicious dApp may bundle valid transaction data with deceptive metadata designed to mislead the user. For example, providing display specifications that describe a token transfer while the actual transaction approves unlimited spending. This attack is only effective if the wallet fails to verify the cryptographic binding between metadata and transaction data.
+
+Wallets MUST:
+- Verify metadata authenticity before rendering
+- Reject transactions where metadata verification fails
+- Never trust metadata from unverified sources
+- Clearly distinguish verified metadata from unverified hints
+
+### Metadata Size and DoS
+
+Malicious dApps may send extremely large metadata payloads to exhaust wallet memory or processing resources, particularly on hardware signing devices with limited RAM.
+
+Wallets MUST:
+- Enforce reasonable metadata size limits (recommended: 1 MB maximum total)
+- Implement per-key size limits within the metadata object
+- Reject oversized metadata before attempting to parse or render it
+- Implement timeout protections for metadata verification and rendering
+
 ## Copyright
 
-Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+Copyright and related rights waived via [CC0](../LICENSE.md).

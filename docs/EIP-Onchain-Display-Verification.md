@@ -2,13 +2,13 @@
 eip: TBD
 title: Onchain Display Verification
 description: A contract-side enforcement mechanism that binds on-chain execution to the display specification presented to the signer.
-author: TBD
-discussions-to: TBD
+author: TBD (At least one author must include GitHub username)
+discussions-to: TBD (Ethereum Magicians forum URL required)
 status: Draft
 type: Standards Track
 category: ERC
 created: 2026-03-11
-requires: TBD
+requires: 712, TBD (Onchain Display Specification EIP number)
 ---
 
 ## Table of Contents
@@ -23,8 +23,6 @@ requires: TBD
     - [clearCall() Entry Point: Reference Implementation](#clearcall-entry-point-reference-implementation)
 - [Rationale](#rationale)
     - [Packed Format](#packed-format)
-    - [Compile-Time Constants](#compile-time-constants)
-    - [Delegatecall Semantics](#delegatecall-semantics)
 - [Backwards Compatibility](#backwards-compatibility)
     - [Opt-in Adoption](#opt-in-adoption)
     - [Non-Upgradeable Contracts](#non-upgradeable-contracts)
@@ -54,7 +52,7 @@ The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SH
 
 ### Display Identifier
 
-The display identifier is an opaque 32-byte value that uniquely identifies a display specification, computed as defined in the companion On-chain Display Specification standard.
+The display identifier is an opaque 32-byte value that uniquely identifies a display specification, computed as defined in the companion Onchain Display Specification standard (EIP-TBD).
 
 Wallets MUST compute the display identifier locally from the exact display specification presented to the user. A wallet MUST reject a transaction before submission if the locally computed identifier does not match the display identifier present in the `clearCall` payload.
 
@@ -99,6 +97,7 @@ constructor(string memory name, string memory symbol) {
 Used when display specifications must often be updated.
 
 **One-to-One Mapping:** Maps a function selector to its current authoritative display identifier.
+
 ```solidity
 mapping(bytes4 => bytes32) private _displayIdentifiers;
 
@@ -108,6 +107,7 @@ function setDisplayIdentifier(bytes4 selector, bytes32 displayId) external onlyO
 ```
 
 **One-to-Many Mapping:** Maps multiple valid display identifiers to a function selector. This is useful for supporting multiple versions of a display specification simultaneously.
+
 ```solidity
 mapping(bytes32 => bytes4) private _authorizedSelectors;
 
@@ -190,4 +190,4 @@ The display identifier is permanently visible in transaction history. While the 
 
 ## Copyright
 
-Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+Copyright and related rights waived via [CC0](../LICENSE.md).
