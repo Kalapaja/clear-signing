@@ -22,6 +22,7 @@ requires: 712, TBD (Onchain Display Verification)
     - [Rendering](#rendering)
     - [Field Formats](#field-formats)
     - [Localization](#localization)
+    - [Contract Lists](#contract-lists)
 - [Rationale](#rationale)
 - [Backwards Compatibility](#backwards-compatibility)
 - [Security Considerations](#security-considerations)
@@ -394,7 +395,7 @@ Display.unitsField(
 
 #### Address Formats
 
-Three address formats are defined, each with different verification requirements. `address` performs best-effort name resolution and is informational. `token` and `contract` require verification against a Token List and Contract List respectively; rendering MUST halt if the address is not found in the applicable list. These lists are defined in the companion verification standard. Developers MUST choose the semantically appropriate format.
+Three address formats are defined, each with different verification requirements. `address` performs best-effort name resolution and is informational. `token` and `contract` require verification against a Token List and Contract List respectively; rendering MUST halt if the address is not found in the applicable list (see [Contract Lists](#contract-lists)). Developers MUST choose the semantically appropriate format.
 
 **`address`** — 20-byte address with best-effort name resolution (local contacts, ENS). Use when identity is informational, not a security precondition.
 
@@ -413,7 +414,7 @@ Display.addressField(
 
 ---
 
-**`token`** — token address verified against the Token List defined in the companion verification standard; rendering MUST halt if the address is not found. Use when token identity is critical to transaction assessment. An optional `tokenId` parameter enables display of non-fungible token identities.
+**`token`** — token address verified against a trusted Token List; rendering MUST halt if the address is not found. Use when token identity is critical to transaction assessment. An optional `tokenId` parameter enables display of non-fungible token identities.
 
 | Param     | Required | Description                                     |
 |-----------|----------|-------------------------------------------------|
@@ -431,7 +432,7 @@ Display.tokenField(
 
 ---
 
-**`contract`** — contract address verified against the Contract List defined in the companion verification standard; rendering MUST halt if the address is not found. Use when the contract receives delegated authority or executes on the user's behalf (e.g., the spender in an ERC-20 `approve` call).
+**`contract`** — contract address verified against a trusted Contract List; rendering MUST halt if the address is not found. Use when the contract receives delegated authority or executes on the user's behalf (e.g., the spender in an ERC-20 `approve` call).
 
 | Param   | Required | Description                               |
 |---------|----------|-------------------------------------------|
@@ -505,7 +506,7 @@ Display.nativeAmountField(
 
 ---
 
-**`tokenAmount`** — displays a token amount denominated in a specific token, resolved against a Token List (token verification requirements are defined in the companion verification standard). An optional `tokenId` parameter enables display of non-fungible token amounts. When `direction` is omitted, the amount is displayed without directional indication.
+**`tokenAmount`** — displays a token amount denominated in a specific token, resolved against a trusted Token List. An optional `tokenId` parameter enables display of non-fungible token amounts. When `direction` is omitted, the amount is displayed without directional indication.
 
 | Param       | Required | Description                                                       |
 |-------------|----------|-------------------------------------------------------------------|
@@ -734,6 +735,25 @@ Display.labels(
 )
 ```
 
+### Contract Lists
+
+This specification focuses strictly on address identity verification, not contract quality. Verifying that a user is interacting with the intended contract — rather than a phishing imitation — is a separate and prior concern from auditing contract behavior.
+
+A **Well-Known Contract** is a contract that has a clear identity, is uniquely identified on a given chain, and is distinguishable from imitations. A phishing contract cannot satisfy these properties because it presents a false identity. A **Contract List** is a JSON document that associates contract addresses with their verified identities. When a wallet processes a `contract` field, it MUST verify the resolved address against at least one trusted Contract List. If the address is not found, the wallet MUST halt rendering.
+
+#### List Sources
+
+Since any party may publish a Contract List, wallets determine which lists to trust. Which sources a wallet accepts is an implementation decision. Common sources include:
+
+- **Contact List**: A Contract List maintained locally by the wallet on behalf of the user, populated through explicit user action. The wallet MUST treat the Contact List as trusted for verification purposes.
+- **Wallet Provider**: A list curated and maintained by the wallet's own team.
+- **Community**: Lists curated by DAOs, security councils, or open governance processes.
+- **Auditor or Security Firm**: Lists published by professional security organizations based on contract review.
+- **Block Explorer**: Lists derived from verified contract metadata published by block explorer operators.
+
+#### User-Initiated Verification
+
+If a resolved address is not present in any trusted Contract List, the wallet MAY offer the user an explicit manual verification flow. If the user confirms the contract's identity through this flow, the wallet MAY add the address to the user's Contact List. Subsequent interactions with this address MUST then pass verification against the Contact List.
 
 ## Rationale
 
@@ -793,9 +813,15 @@ Payable functions accepting `msg.value > 0` may omit native transfer display fie
 
 ### Developer Responsibilities
 
-This standard guarantees that execution matches the committed display specification; it cannot verify that the specification truthfully describes the contract's behavior. A malicious developer may author a specification that misrepresents the operation, uses misleading labels, or omits material parameters. Wallets MAY reduce this risk by restricting clear signing display to contracts verified by trusted Contract Lists, where community curation provides assurance beyond the cryptographic binding this standard defines.
+This standard guarantees that execution matches the committed display specification; it cannot verify that the specification truthfully describes the contract's behavior. Developers MUST ensure specifications accurately represent behavior and SHOULD apply security review processes equivalent to smart contract code.
 
-Developers MUST ensure specifications accurately represent behavior and SHOULD apply security review processes equivalent to smart contract code.
+### Malicious Displays
+
+A malicious developer may author a specification that misrepresents an operation through misleading labels or omitted parameters. Directly calling a malicious contract has limited damage scope: contracts are isolated, and a malicious contract cannot access a user's assets in other contracts without permissions the user has previously granted. The primary attack surface is not the malicious contract itself, but the act of granting it rights.
+
+The principal phishing vector is a transaction targeting a legitimate contract — for example, an ERC-20 token — with parameters that delegate authority to a malicious address (e.g., `approve(maliciousSpender, maxAmount)`). The `contract` field format addresses this directly: the resolved spender address is verified against trusted Contract Lists, and rendering MUST halt if the address is absent. A malicious address cannot appear in a reputable Contract List without the list maintainer's knowledge, making this class of attack detectable before the user signs.
+
+Wallets MAY additionally restrict clear signing display to transactions where the `$msg.to` address is itself verified by a trusted Contract List. This reduces the social engineering surface further, at the cost of limiting which contracts support clear signing.
 
 ### Denial of Service
 
