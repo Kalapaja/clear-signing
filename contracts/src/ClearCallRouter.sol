@@ -10,41 +10,27 @@ contract ClearCallRouter is IUniswapV2Router {
     bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = SwapExactTokensForTokensDisplayHash.SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH;
 
     function clearCall() external payable returns (bytes memory) {
-        // Extract displayHash from bytes 4-35 (after the clearCall selector)
-        bytes32 displayHash = bytes32(msg.data[4:36]);
-        // Extract call selector from bytes 36-39
-        bytes4 callSelector = bytes4(msg.data[36:40]);
+        require(msg.data.length >= 40, "clearCall: payload too short");
 
-        _validateDisplayHash(callSelector, displayHash);
+        bytes32 displayId = bytes32(msg.data[4:36]);
+        bytes4 selector = bytes4(msg.data[36:40]);
 
-        // Execute the actual call using msg.data[36:] (selector + params)
-        (bool success, bytes memory returndata) = address(this).delegatecall(msg.data[36:]);
+        bytes32 expected = _expectedDisplayId(selector);
+        require(expected != bytes32(0), "clearCall: unknown selector");
+        require(displayId == expected, "clearCall: display identifier mismatch");
+
+        (bool success, bytes memory result) = address(this).delegatecall(msg.data[36:]);
         if (!success) {
-            if (returndata.length > 0) {
-                // Bubble up the revert reason
-                assembly {
-                    let returndata_size := mload(returndata)
-                    revert(add(32, returndata), returndata_size)
-                }
-            } else {
-                revert("Call failed");
-            }
+            assembly {revert(add(32, result), mload(result))}
         }
-
-        return returndata;
+        return result;
     }
 
-    function _validateDisplayHash(
-        bytes4 selector,
-        bytes32 displayHash
-    ) private view {
+    function _expectedDisplayId(
+        bytes4 selector
+    ) private pure returns (bytes32 displayId) {
         if (selector == IUniswapV2Router.swapExactTokensForTokens.selector) {
-            require(
-                displayHash == SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH,
-                "Invalid display hash for swap exact tokens for tokens"
-            );
-        } else {
-            revert("Invalid selector");
+            displayId = SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH;
         }
     }
 

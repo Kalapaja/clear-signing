@@ -170,12 +170,12 @@ pub(crate) fn process_fields(
 mod tests {
     use super::*;
     use crate::display::Display;
+    use crate::resolver::CLEAR_CALL_SELECTOR;
     use alloc::collections::BTreeMap;
     use alloc::string::{String, ToString};
     use alloc::vec;
     use alloy_primitives::{Address, I256, address, uint};
     use alloy_sol_types::{SolCall, sol};
-    use crate::resolver::CLEAR_CALL_SELECTOR;
 
     pub struct LocalRegistry {
         pub well_known_displays: BTreeMap<FixedBytes<4>, Display>,
@@ -477,12 +477,12 @@ mod tests {
         };
         let nested_data = call_args.abi_encode();
 
-        let message = Message {
-            sender: display_addr,
-            to: display_addr,
-            value: U256::ZERO,
-            data: nested_data.into(),
-        };
+        let message = Message::new(
+            display_addr,
+            display_addr,
+            U256::ZERO,
+            nested_data.into(),
+        );
 
         let result = parse_message(
             &vec![display, f.inner_display.clone(), f.erc20_display],
@@ -538,12 +538,12 @@ mod tests {
         let registry = setup_test_registry(vec![display_addr], vec![], vec![(display.clone())]);
 
         let call_data = matchCallCall { val: uint!(1_U256) }.abi_encode();
-        let message = Message {
-            sender: Address::ZERO,
-            to: display_addr,
-            value: U256::ZERO,
-            data: call_data.into(),
-        };
+        let message = Message::new(
+            Address::ZERO,
+            display_addr,
+            U256::ZERO,
+            call_data.into(),
+        );
 
         let result =
             parse_message(&vec![display], &message, &registry, 0).expect("Failed to parse");
@@ -576,12 +576,12 @@ mod tests {
             nums: vec![uint!(10_U256), uint!(20_U256)],
         }
         .abi_encode();
-        let message = Message {
-            sender: Address::ZERO,
-            to: display_addr,
-            value: U256::ZERO,
-            data: call_data.into(),
-        };
+        let message = Message::new(
+            Address::ZERO,
+            display_addr,
+            U256::ZERO,
+            call_data.into(),
+        );
 
         let result =
             parse_message(&vec![display], &message, &registry, 0).expect("Failed to parse");
@@ -624,12 +624,12 @@ mod tests {
             data: encoded_params.into(),
         }
         .abi_encode();
-        let message = Message {
-            sender: Address::ZERO,
-            to: display_addr,
-            value: U256::ZERO,
-            data: call_data.into(),
-        };
+        let message = Message::new(
+            Address::ZERO,
+            display_addr,
+            U256::ZERO,
+            call_data.into(),
+        );
 
         let result = parse_message(&vec![], &message, &registry, 0).expect("Failed to parse");
 
@@ -676,12 +676,12 @@ mod tests {
             data: encoded_params.into(),
         }
         .abi_encode();
-        let message = Message {
+        let message = Message::new(
             sender,
-            to: display_addr,
-            value: U256::ZERO,
-            data: call_data.into(),
-        };
+            display_addr,
+            U256::ZERO,
+            call_data.into(),
+        );
 
         let result =
             parse_message(&vec![display], &message, &registry, 0).expect("Failed to parse");
@@ -763,12 +763,12 @@ mod tests {
             vec![multilcall_display.clone(), erc20_display.clone()],
         );
 
-        let message = Message {
-            sender: Address::ZERO,
-            to: multicall_address,
-            value: U256::ZERO,
-            data: multicall.abi_encode().into(),
-        };
+        let message = Message::new(
+            Address::ZERO,
+            multicall_address,
+            U256::ZERO,
+            multicall.abi_encode().into(),
+        );
 
         let result = parse_message(
             &vec![multilcall_display, erc20_display],

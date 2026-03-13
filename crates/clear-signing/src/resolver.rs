@@ -12,7 +12,7 @@ pub struct Message {
     pub sender: Address,
     pub to: Address,
     pub value: U256,
-    pub data: Bytes,
+    data: Bytes,
 }
 
 impl Message {
@@ -100,7 +100,7 @@ fn resolve_msg(members: &[Member], message: &Message) -> crate::Result<SolValue>
         "sender" => Ok(SolValue::Address(message.sender)),
         "to" => Ok(SolValue::Address(message.to)),
         "value" => Ok(SolValue::Uint(message.value, 256)),
-        "data" => Ok(SolValue::Bytes(message.data.to_vec())),
+        "data" => Ok(SolValue::Bytes(message.call_data()?.to_vec())),
         _ => anyhow::bail!(
             "Unknown message field '$msg.{}'. Available: $msg.sender, $msg.to, $msg.value, $msg.data",
             name

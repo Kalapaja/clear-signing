@@ -103,12 +103,7 @@ fn main() -> Result<()> {
     for (i, tx) in transactions.into_iter().enumerate() {
         println!("Transaction #{}", i + 1);
         let result = (|| -> Result<()> {
-            let message = Message {
-                sender: tx.sender,
-                to: tx.to,
-                value: tx.value,
-                data: tx.data,
-            };
+            let message = Message::new(tx.sender, tx.to, tx.value, tx.data);
 
             // Parse ClearCall
             let clear_call = parse_clear_call(message, tx.displays, &registry)

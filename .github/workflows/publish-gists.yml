@@ -2,6 +2,8 @@ name: Publish Clear Signing Docs to Gists
 
 on:
   push:
+    branches:
+      - main
     paths:
       - docs/architecture-overview.md
       - docs/architecture.md

@@ -47,9 +47,9 @@ present user intent consistently without trusted intermediaries.
 
 1. The wallet resolves the contract address against contract lists to confirm identity.
 2. The wallet reads the embedded display specification and renders fields locally (e.g., `tokenAmount`, `nativeAmount`,
-   `contract`, `token`, `match`, `array`).
-3. The wallet verifies the embedded display specification against the corresponding display hash.
-4. The contract verifies the display hash to ensure the user approved exactly what will be executed.
+   `contract`, `token`, `switch`, `array`).
+3. The wallet verifies the embedded display specification against the corresponding display identifier.
+4. The contract verifies the display identifier to ensure the user approved exactly what will be executed.
 
 ## Why It Matters
 

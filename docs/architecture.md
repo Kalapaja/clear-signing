@@ -480,9 +480,9 @@ The wallet processes the display specification in a deterministic sequence to ge
     - The wallet receives the **Envelope** (the top-level transaction, e.g., UserOperation) and it reads the function
       ABI to find the corresponding display specification for the target contract.
     - **Call Classification**: Calls are classified as **Clear Calls** or **Legacy Calls**. Clear Calls are identified
-      by the magic number prefix `0x0ab793e2` (the `clearCall()` function selector), followed by a 32-byte display hash
+      by the magic number prefix `0x0ab793e2` (the `clearCall()` function selector), followed by a 32-byte display identifier
       and the actual call data. Only Clear Calls trigger the rich display logic, and the wallet **MUST** verify that the
-      display hash (bytes 4-35) matches the hash of the display specification.
+      display identifier (bytes 4-35) matches the identifier of the display specification.
     - The **$msg context** MUST be initialized. For the top-level call, `$msg` maps to the Envelope parameters.
     - The **$data context** MUST be initialized. For the top-level call, `$data` maps to the function arguments from
       `$msg.data`.
@@ -517,25 +517,22 @@ The wallet processes the display specification in a deterministic sequence to ge
       execution **MUST stop**, effectively rejecting the display.
 
 4. **Nested Call Processing (`call`)**:
-    - When a field is of type `call` (e.g., in Account Abstraction or Multisigs), the wallet enters a **Recursive Call
-      **.
-    - **Recursion Limit**: Wallets **MUST** enforce a maximum recursion depth of **16** to prevent Stack Overflow or
+    - When a field is of type `call` (e.g., in Account Abstraction or Multisigs), the wallet enters a **Recursive Call**.
+    - **Recursion Limit**: Wallets **MUST** enforce a maximum recursion depth to prevent stack overflow or
       Denial of Service attacks.
-    - A new, ephemeral `$msg` context is created for the inner call from calling parameters.
-    - The wallet looks up the display specification for this inner call by matching the function selector (derived from
-      `$msg.data[:4]`) against the `display.abi` and verifying the display hash (bytes 4-35 of the packed format)
-      matches the expected hash, then recursively renders it.
+    - A new, ephemeral `$msg` context is created for the inner call from the calling parameters. Current rendering is
+      **paused**; the wallet locates an independent display specification for the inner call and renders it from the
+      beginning. Once the inner rendering completes, the outer rendering **resumes** from where it was paused.
 
 5. **Verification**:
-    - **Integrity Check**: The wallet calculates the hash of the *exact* display specification used so it can be
-      embedded in the packed format. It **MUST** verify that this calculated hash matches the display hash stored in
+    - **Integrity Check**: The wallet calculates the identifier of the *exact* display specification used so it can be
+      embedded in the packed format. It **MUST** verify that this calculated identifier matches the display identifier stored in
       bytes 4-35 of the transaction data.
     - **Constraint Check**: The wallet verifies that all "Safety Rules" (e.g., Token resolution) passed. If any check
       failed, the transaction **MUST** be considered unverified and the user warned (or prevented from signing,
       depending on wallet policy).
 
-**Safety Rule (Native Value)**: Whenever the Message contains `msg.value > 0`, the wallet **MUST** inject a synthetic
-field describing the transfer of the native value to `msg.to`.
+**Safety Rule (Native Value)**: Whenever the Message contains `msg.value > 0`, the wallet **MUST** display a warning to the user that includes the exact native value amount being transferred.
 
 ## 5. Contract-Side Display Verification
 
@@ -552,15 +549,15 @@ strict execution constraint. By tying the display specification to the execution
 presentation becomes an integral part of the contract. The contract refuses to execute if the user was shown incorrect
 information, making the display as trustless and immutable as the code itself.
 
-### 5.2 Hash Definition
+### 5.2 Identifier Definition
 
-The contract **MUST** verify the signed display hash on-chain. This verification ensures that the wallet's UI accurately
+The contract **MUST** verify the signed display identifier on-chain. This verification ensures that the wallet's UI accurately
 represents the execution logic intended by the contract.
 
-Wallets construct the display hash as:
+Wallets construct the display identifier as:
 
 ```
-displayHash = hashStruct(Display)
+displayId = hashStruct(Display)
 ```
 
 #### 5.2.1 EIP-712 Type Definitions
@@ -575,11 +572,11 @@ To ensure interoperability, the following type strings **MUST** be used for EIP-
 - **`Entry`**: `Entry(string key,string value)`
 
 **Example Calculation (Solidity)**:
-Contracts verify the display hash by computing it at compile time as a constant. The hash must be computed using only
+Contracts verify the display identifier by computing it at compile time as a constant. The identifier must be computed using only
 `keccak256()`, `abi.encode()`, and `abi.encodePacked()` operations with the typehash constants imported from Display.sol.
 
 ```solidity
-bytes32 constant TRANSFER_DISPLAY_HASH = keccak256(
+bytes32 constant TRANSFER_DISPLAY_ID = keccak256(
     abi.encode(
         DISPLAY_TH,
         keccak256(bytes("transfer(address to, uint256 amount)")),
@@ -615,25 +612,26 @@ bytes32 constant TRANSFER_DISPLAY_HASH = keccak256(
 
 #### 5.2.2 On-Chain Registry
 
-Alternatively, contracts can query an **On-Chain Registry** to retrieve the expected display hash for a given ABI. This
+Alternatively, contracts can query an **On-Chain Registry** to retrieve the expected display identifier for a given ABI. This
 enables dynamic updates and centralized management of specifications.
 
 **Standard Interface**:
 
 ```solidity
 interface IDisplayRegistry {
-    /// @notice Returns the display hash for a given contract and function selector
+    /// @notice Returns the display identifier for a given contract and function selector
     /// @param contractAddress The address of the target contract
     /// @param selector The 4-byte function selector
-    /// @return The verified display hash
-    function getDisplayHash(address contractAddress, bytes4 selector) external view returns (bytes32);
+    /// @return The verified display identifier
+    function getDisplayId(address contractAddress, bytes4 selector) external view returns (bytes32);
 }
 ```
 
 > [!NOTE]
-> Future Solidity versions are expected to support `hashStruct` and `typeHash` natively, which will simplify this
-> syntax. See [Issue #14208](https://github.com/ethereum/solidity/issues/14208)
-> and [Issue #14157](https://github.com/ethereum/solidity/issues/14157).
+> Future Solidity versions are expected to support compile time constant expressions, `hashStruct` and `typeHash` natively, which will improve this
+> syntax. See [Issue #14208](https://github.com/argotorg/solidity/issues/14208)
+>, [Issue #14157](https://github.com/argotorg/solidity/issues/14157)
+> and [Issue #3157](https://github.com/argotorg/solidity/issues/3157).
 
 ### 5.3 Mechanism (`clearCall`)
 
@@ -643,7 +641,7 @@ is a fallback function (no explicit parameters) that receives transaction data i
 **Packed Format Structure:**
 ```
 Bytes 0-3:    Magic number (0x0ab793e2) - the clearCall() function selector
-Bytes 4-35:   Display hash (32 bytes) - EIP-712 hash of the display specification
+Bytes 4-35:   Display identifier (32 bytes) - EIP-712 identifier of the display specification
 Bytes 36+:    Actual call data (function selector + parameters of the inner function)
 ```
 
@@ -654,43 +652,30 @@ This packed format is more gas-efficient than traditional ABI-encoded parameters
 
 ```solidity
 function clearCall() external payable returns (bytes memory) {
-    // Extract displayHash from bytes 4-35 (after the clearCall selector)
-    bytes32 displayHash = bytes32(msg.data[4:36]);
-    // Extract call selector from bytes 36-39
-    bytes4 selector = bytes4(msg.data[36:40]);
+    require(msg.data.length >= 40, "clearCall: payload too short");
 
-    // 1. Verify that the provided display hash matches the expected hash for this selector
-    if (selector == this.transfer.selector) {
-        require(displayHash == TRANSFER_DISPLAY_HASH, "Invalid display hash");
-    } else {
-        revert("Unknown function selector");
-    }
+    bytes32 displayId = bytes32(msg.data[4:36]);
+    bytes4  selector  = bytes4(msg.data[36:40]);
 
-    // 2. Execute the actual call using msg.data[36:] (selector + params)
-    (bool success, bytes memory returndata) = address(this).delegatecall(msg.data[36:]);
+    bytes32 expected = _expectedDisplayId(selector);
+    require(expected != bytes32(0), "clearCall: unknown selector");
+    require(displayId == expected,  "clearCall: display identifier mismatch");
+
+    (bool success, bytes memory result) = address(this).delegatecall(msg.data[36:]);
     if (!success) {
-        if (returndata.length > 0) {
-            // Bubble up the revert reason
-            assembly {
-                let returndata_size := mload(returndata)
-                revert(add(32, returndata), returndata_size)
-            }
-        } else {
-            revert("Call failed");
-        }
+        assembly { revert(add(32, result), mload(result)) }
     }
-
-    return returndata;
+    return result;
 }
 ```
 
 **Execution Flow:**
 
-1. **Format Parsing**: The contract extracts the display hash (bytes 4-35) and inner call selector (bytes 36-39) from
+1. **Format Parsing**: The contract extracts the display identifier (bytes 4-35) and inner call selector (bytes 36-39) from
    the packed `msg.data`.
-2. **Verification**: The contract **MUST** check if `displayHash` matches the immutable hash of the *expected* display
+2. **Verification**: The contract **MUST** check if `displayId` matches the immutable identifier of the *expected* display
    specification for the given function selector.
-3. **Execution**: If the hash matches, the contract executes the inner call (starting at byte 36) via `delegatecall` or
+3. **Execution**: If the identifier matches, the contract executes the inner call (starting at byte 36) via `delegatecall` or
    internal call.
 
 ## 6. Stateless Wallet Requests
@@ -720,13 +705,9 @@ the wallet and is NOT propagated to Ethereum nodes.
 
 **Proposed Methods**:
 
-- **`wallet_sendTransaction`**: Extends `eth_sendTransaction` parameters with a `displays` array containing the display
-  specifications.
-- **`wallet_sendUserOperation`**: A specialized method for ERC-4337 flows, accepting the UserOp and the `displays`
-  array.
+- **`wallet_sendTransaction`**: Extends `eth_sendTransaction` parameters with a `metadata` object containing verifiable context, such as a `"display"` array with the display specifications.
 
-This ensures that if a user can receive a transaction request, they implicitly receive the instructions to display it
-correctly.
+This ensures that if a user can receive a transaction request, they implicitly receive the instructions to display it correctly. ERC-4337 flows using `UserOperation` are fully supported by this architecture when bundled with verifiable metadata via this method, without requiring a specialized `wallet_sendUserOperation` method.
 
 ## 7. Interaction Flow
 
@@ -751,7 +732,7 @@ sequenceDiagram
     
     Note over Dapp, Wallet: 3. Request
     User->>Dapp: Initiate Action
-    Dapp->>Wallet: Packed format (0x0ab793e2 || displayHash=0 || calldata) + Display Spec
+    Dapp->>Wallet: Packed format (0x0ab793e2 || displayId=0 || calldata) + Display Spec
 
     Note over Wallet, User: 4. Verify & Display
     Wallet->>Wallet: Verify address is well-known token/contract
@@ -759,14 +740,14 @@ sequenceDiagram
     
     Note over Wallet, User: 5. Sign
     User->>Wallet: Approve
-    Wallet->>Wallet: Calculate real displayHash
-    Wallet->>Wallet: Patch bytes 4-35 with calculated displayHash
+    Wallet->>Wallet: Calculate real displayId
+    Wallet->>Wallet: Patch bytes 4-35 with calculated displayId
     Wallet->>Wallet: Sign Transaction
 
     Note over Dapp, Contract: 6. Execute
     Wallet-->>Dapp: Return Signed Tx
     Dapp->>Contract: Broadcast Tx
-    Contract->>Contract: Verify displayHash matches & Execute
+    Contract->>Contract: Verify displayId matches & Execute
 ```
 
 ## 8. Backward Compatibility with Non-Upgradeable Contracts
@@ -779,7 +760,7 @@ compatibility.
 
 ### 8.1 DisplayRegistry Pattern
 
-A per-chain on-chain registry maintains verified mappings of `(contract, selector) → displayHash`. Unlike `clearCall`
+A per-chain on-chain registry maintains verified mappings of `(contract, selector) → displayId`. Unlike `clearCall`
 where the contract verifies itself, the registry acts as an external authority maintained by a DAO or multisig.
 
 **Critical Security Requirement**: Registry contracts MUST be deployed in advance and their addresses MUST be embedded
@@ -789,8 +770,8 @@ pattern.
 
 ```solidity
 interface IDisplayRegistry {
-    /// @notice Verifies display hash, reverts if invalid
-    function verifyClearCall(address contractAddress, bytes4 selector, bytes32 displayHash) external view;
+    /// @notice Verifies display identifier, reverts if invalid
+    function verifyClearCall(address contractAddress, bytes4 selector, bytes32 displayId) external view;
 }
 ```
 
@@ -799,18 +780,18 @@ interface IDisplayRegistry {
 **Wallet Request Flow**:
 
 1. Wallet receives transaction from dApp with display specification (calldata is NOT `clearCall()` wrapped)
-2. Wallet parses display specification and calculates `displayHash`
-3. Wallet adds constraint checks to verify display hash against registry
+2. Wallet parses display specification and calculates `displayId`
+3. Wallet adds constraint checks to verify display identifier against registry
 4. Wallet bundles constraint checks with the main call
 
 **Smart Contract Wallets**: Can bundle the registry verification with the main call atomically. The clear-signing
 library prepares a list of calls `(address, bytes)[]` for the wallet to execute:
 
-1. **Constraint Checks**: One or more calls to `DisplayRegistry.verifyClearCall(contract, selector, displayHash)` (
+1. **Constraint Checks**: One or more calls to `DisplayRegistry.verifyClearCall(contract, selector, displayId)` (
    reverts if invalid)
 2. **Main Call**: The actual legacy contract interaction
 
-The constraint checks are executed first. If the display hash doesn't match the registry, the transaction reverts before
+The constraint checks are executed first. If the display identifier doesn't match the registry, the transaction reverts before
 the main call executes.
 
 For ERC-4337 wallets, the verification can alternatively occur during the validation phase if sufficient gas is
@@ -849,7 +830,7 @@ specifications for these standard interfaces directly into their firmware.
 This architecture relies on a hybrid trust model:
 
 - **Social Trust**: For address identity verification via **Contract Lists**.
-- **Cryptographic Trust**: For calldata interpretation via **Display Hash Verification** on-chain.
+- **Cryptographic Trust**: For calldata interpretation via **Display Identifier Verification** on-chain.
 
 #### 9.2.2 Attack Vectors
 
@@ -873,24 +854,17 @@ While Clear Signing improves security, it introduces new privacy considerations:
 - **Context Information**: Display specifications may contain sensitive identifiers in `$labels`. Developers SHOULD
   avoid including PII (Personally Identifiable Information) in publicly broadcasted specifications or label bundles.
 - **On-Chain Footprint**: Using `clearCall` makes it explicit on-chain that a user used a specific display
-  specification. While the spec itself is off-chain, the `displayHash` is permanent.
+  specification. While the spec itself is off-chain, the `displayId` is permanent.
 
 ### 9.3 Operational Trade-offs
 
 #### 9.3.1 Gas Overhead
 
-Implementing on-chain verification like `clearCall` adds computational steps (selector checks, display hash checks,
+Implementing on-chain verification like `clearCall` adds computational steps (selector checks, display identifier checks,
 delegatecall, or internal decoding). Three implementation approaches have been measured with different overhead
 characteristics:
 
-- **Fallback approach (recommended)**: ~2,700 gas overhead - uses packed byte format with magic number prefix
-  (0x0ab793e2)
-- **Internal decoding**: ~9,000 gas overhead - manual parameter extraction
-- **Delegatecall wrapper**: ~10,000 gas overhead - highest but most explicit
-
-The fallback approach with packed byte format is the recommended implementation. It offers the best gas efficiency with
-consistent overhead regardless of function complexity, while maintaining full security guarantees. These figures come
-from the `GasMeasurement` test.
+The recommended packed byte format approach adds approximately 3,764–3,979 gas overhead per call compared to direct calls, using a `delegatecall` dispatch. This efficiency is achieved by reading fixed-offset byte ranges from `msg.data` rather than ABI-decoding an explicit parameter.
 
 #### 9.3.2 Developer Dependency
 
@@ -910,9 +884,8 @@ maintaining, and committing to their display specifications.
 The Clear Signing architecture is an evolving standard. Future work will focus on expanding the scope of verifiable
 interactions and improving integration with existing Ethereum standards.
 
-- **EIP-5267 Integration**: Consider including the EIP-712 domain separator in the display hash calculation.
+- **EIP-5267 Integration**: Consider including the EIP-712 domain separator in the display identifier calculation.
 - **EIP-712 Envelope**: Implementing support for signing the entire EIP-712 message as an envelope.
-- **ERC-4337 Envelope**: Implement support of user operation as envelope.
 
 ## 11. Conclusion
 
