@@ -39,11 +39,11 @@ This standard defines a structured display specification for smart contract func
 
 ## Motivation
 
-The Ethereum ABI encodes function call parameters as typed byte sequences but carries no semantic meaning: a Unix timestamp and a token amount are indistinguishable representations of `uint256`, and a `bytes` parameter encoding a token transfer is structurally identical to one encoding delegated execution. This absence of machine-parseable semantics produces blind signing — users authorize transactions whose effects they cannot independently verify, relying entirely on the originating application interface to describe what they are approving. This trust model is incompatible with the security properties expected of self-custodial wallets and hardware signing devices, where the integrity of displayed information must be verifiable independent of any connected software.
+The Ethereum ABI encodes function call parameters as typed byte sequences but carries no semantic meaning: a Unix timestamp and a token amount are indistinguishable representations of `uint256`, and a `bytes` parameter encoding an inner token transfer is displayed as an opaque hex string. This absence of machine-parseable semantics produces blind signing — users authorize transactions whose effects they cannot independently verify, relying entirely on the originating application interface to describe what they are approving. This trust model is incompatible with the security properties expected of self-custodial wallets and hardware signing devices, where the integrity of displayed information cannot be delegated to connected software.
 
 Hardware signing devices are the most constrained signing environment: limited memory and no network connectivity preclude fetching or validating external metadata at signing time. A standard that works within these constraints works everywhere — software wallets on web and mobile inherit the same guarantees while being free to present richer context on top.
 
-A viable solution requires two complementary properties: an expressive type system covering the semantic patterns common in deployed contracts—token amounts, timestamps, durations, percentages, and addresses—with support for structural composition of nested contract calls; and a compact identifier derivable from a complete display specification by any device without network access. This standard defines the type system and specifies identifier computation using EIP-712 structured data hashing. The companion Onchain Display Verification standard (EIP-TBD) defines the on-chain mechanisms by which these identifiers are bound to deployed contracts.
+Addressing this requires two complementary properties that existing approaches do not provide together. First, an expressive semantic type system covering the patterns common in deployed contracts — token amounts, timestamps, durations, percentages, addresses — with support for structural composition of nested calls; without this, wallets cannot interpret the meaning of arbitrary calldata. Second, a compact identifier that any device can derive from a complete display specification without network access; without this, there is no way to verify that the specification shown to the user has not been substituted or tampered with. Existing off-chain metadata registries satisfy neither property: they require live network access and provide no cryptographic binding between the metadata and the contract. This standard defines the type system and identifier computation; the companion Onchain Display Verification standard (EIP-TBD) defines how identifiers are bound to deployed contracts on-chain.
 
 ## Specification
 
@@ -734,9 +734,7 @@ Display.labels(
 
 ### Contract Lists
 
-This specification focuses strictly on address identity verification, not contract quality. Verifying that a user is interacting with the intended contract — rather than a phishing imitation — is a separate and prior concern from auditing contract behavior.
-
-A **Well-Known Contract** is a contract that has a clear identity, is uniquely identified on a given chain, and is distinguishable from imitations. A phishing contract cannot satisfy these properties because it presents a false identity. A **Contract List** is a JSON document that associates contract addresses with their verified identities. When a wallet processes a `contract` field, it MUST verify the resolved address against at least one trusted Contract List. If the address is not found, the wallet MUST halt rendering.
+A **Contract List** is a JSON document maintained by a trusted party that maps contract addresses to their verified names and identities. It answers the question "is this address the contract I think it is?" — not "is this contract safe?". When a wallet processes a `contract` field, it MUST verify the resolved address against at least one trusted Contract List. If the address is not found, the wallet MUST halt rendering.
 
 #### List Sources
 
@@ -772,7 +770,7 @@ The specification defines semantic meaning and data hierarchy, not visual presen
 
 ### Structural Formats
 
-Structural formats (`map`, `array`, `switch`, `call`) enable display specifications to cover transaction patterns that cannot be expressed as flat field listings. `map` enables typed ABI decoding of `bytes`-encoded sub-parameters, allowing nested structured data to be accessed by field name rather than extracted via unsafe raw byte offset arithmetic. `array` handles homogeneous repetition across batched transfers and multicall sequences without requiring per-element format duplication. `switch` supports command-indexed dispatch, covering protocols that multiplex multiple operations through a single entry point — such as universal routers — without requiring a separate display specification per command variant. `call` handles dynamically constructed calls where the target address and calldata are themselves ABI-encoded parameters, the canonical pattern in smart contract accounts, multisigs, and DAOs; wallets that implement `call` can render any account abstraction contract without per-contract special-casing in firmware. 
+Structural formats (`map`, `array`, `switch`, `call`) enable display specifications to cover transaction patterns that cannot be expressed as flat field listings. `map` enables typed ABI decoding of `bytes`-encoded sub-parameters, allowing nested structured data to be accessed by field name rather than extracted via unsafe raw byte offset arithmetic. `array` handles homogeneous repetition across batched transfers and multicall sequences without requiring per-element format duplication. `switch` supports command-indexed dispatch, covering protocols that multiplex multiple operations through a single entry point — such as universal routers — without requiring a separate display specification per command variant. `call` handles dynamically constructed calls where the target address and calldata are themselves ABI-encoded parameters, the canonical pattern in smart contract accounts, multisigs, and DAOs; wallets that implement `call` can render any account abstraction contract without per-contract special-casing in firmware.
 
 ### Scope Isolation
 
@@ -788,7 +786,7 @@ Labels are included in the display identifier hash to prevent tampering and ensu
 
 ### Error Handling
 
-The specification adopts halt-on-error behavior: any resolution failure, type mismatch, verification failure, or missing key halts rendering immediately. This prevents misleading displays where partial information could lead users to approve malicious transactions. Specifications must be complete and correct.
+The specification adopts halt-on-error behavior: any resolution failure, type mismatch, verification failure, or missing key halts rendering immediately. This prevents misleading displays where partial information could lead users to approve malicious transactions. A specification that is incomplete or incorrect will produce halt-on-error failures at render time.
 
 ## Backwards Compatibility
 
@@ -806,7 +804,7 @@ Without verification, users face specification substitution attacks, phishing vi
 
 ### Native Value Transfer Omission
 
-Payable functions accepting `msg.value > 0` may omit native transfer display fields, hiding value transfers. Wallet implementations MUST display a prominent warning that includes the exact native value amount being transferred, so the user can assess the transfer independently of the display specification.
+Payable functions accepting `msg.value > 0` may omit native transfer display fields, hiding value transfers. Wallet implementations MUST display a prominent warning that includes the exact native value amount being transferred, so the user can assess the transfer independently of the display specification. Wallets MAY additionally require that `$msg.to` is present in a trusted Contract List when `$msg.value > 0`, ensuring native value is only transferred to a contract with a verified identity.
 
 ### Developer Responsibilities
 
