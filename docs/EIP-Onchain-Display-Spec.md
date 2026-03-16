@@ -756,6 +756,8 @@ If a resolved address is not present in any trusted Contract List, the wallet MA
 
 The specification addresses calldata interpretation through local decoding without network dependencies, verifiable display identifiers via EIP-712, and censorship-resistant metadata access. The core principle is "display is law": display specifications are security-critical artifacts that cryptographically commit developers to the semantics shown to users.
 
+This standard is bounded by what is present in the calldata at signing time. Contracts whose execution is driven by on-chain state rather than calldata parameters — such as a bare `execute()` — can hold a display specification but cannot surface dynamic values. Additionally, some rendering requires on-chain metadata absent from calldata: ERC-20 symbol and decimal precision must be queried from the token contract by the wallet. Both cases are outside the scope of this specification.
+
 ### EIP-712 Display Identifier
 
 The EIP-712 `hashStruct` provides a compact, 32-byte identifier compatible with established ecosystem infrastructure and resource-constrained devices. This mechanism enables deterministic verification through both static precomputation and dynamic, on-chain generation.
@@ -767,6 +769,8 @@ Adopting EIP-712 for identifier computation means that improvements to the EIP-7
 ### Semantic vs Visual Separation
 
 The specification defines semantic meaning and data hierarchy, not visual presentation. This separation ensures specifications remain valid across different wallet implementations and device form factors while allowing wallets to optimize rendering for their specific constraints.
+
+Interpolated string templates (e.g., `"Transfer {amount} to {destination}"`) are deliberately absent. They hard-code presentation, obscure type information (`{amount}` carries no indication that decimal scaling and symbol resolution are required), and are incompatible with natural language rendering, where grammatical agreement, word endings, and noun cases depend on the numeric value and surrounding context. Typed, named field definitions delegate all string composition to the wallet, keeping the specification language-agnostic and presentation-agnostic.
 
 ### Structural Formats
 
