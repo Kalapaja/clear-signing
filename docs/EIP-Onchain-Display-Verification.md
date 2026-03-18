@@ -156,7 +156,9 @@ function clearCall() external payable returns (bytes memory) {
 
 ### Packed Format
 
-The packed byte format adds approximately 3,764–3,979 gas overhead per call measured against direct calls for token transfer and swap operations respectively, using the `delegatecall` reference implementation. This overhead is achieved by reading fixed-offset byte ranges from `msg.data` rather than ABI-decoding an explicit parameter. Developers using direct dispatch instead of `delegatecall` may reduce this overhead further. The fixed-offset layout also simplifies static analysis and tooling: the inner calldata is always recoverable by stripping the first 36 bytes, with no parsing required.
+The `clearCall()` function uses raw packed `msg.data` parsing instead of explicit ABI parameters like `clearCall(bytes32 displayId, bytes calldata innerCall)`. The packed format defines a fixed layout: bytes 0–3 contain the `clearCall()` selector (`0x0ab793e2`), bytes 4–35 contain the display identifier, and bytes 36 onward contain the inner function calldata. This layout allows the implementation to extract both the display identifier and inner calldata using fixed-offset reads from `msg.data`, avoiding ABI decoding overhead.
+
+The packed byte format adds approximately 3,764–3,979 gas overhead per call measured against direct calls, using the `delegatecall` reference implementation. The fixed-offset structure simplifies tooling: the inner calldata is always recoverable by stripping the first 36 bytes, with no dynamic offset computation required. Block explorers and indexers must implement this unwrapping (see [Tooling Compatibility](#tooling-compatibility)).
 
 ## Backwards Compatibility
 

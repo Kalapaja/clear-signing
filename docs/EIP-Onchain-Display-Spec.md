@@ -57,11 +57,23 @@ A display specification is composed of four EIP-712 compatible structs: `Display
 
 **`Display`** — root type for one function's display specification.
 
-- `abi` — Solidity function signature for selector matching
+- `abi` — Solidity function signature for selector matching, inspired by the ethers.js Human-Readable ABI format
 - `title` — label reference or literal string for transaction title
 - `description` — label reference or literal string for human-readable operation description
 - `fields` — ordered array of `Field` definitions
 - `labels` — array of `Labels` bundles
+
+```json
+{
+  "Display": [
+    {"name": "abi", "type": "string"},
+    {"name": "title", "type": "string"},
+    {"name": "description", "type": "string"},
+    {"name": "fields", "type": "Field[]"},
+    {"name": "labels", "type": "Labels[]"}
+  ]
+}
+```
 
 **`Field`** — single display item definition.
 
@@ -72,15 +84,46 @@ A display specification is composed of four EIP-712 compatible structs: `Display
 - `params` — `Entry` array supplying formatter arguments (format-specific keys, variable references, or literals)
 - `fields` — nested `Field` definitions for structural formats
 
+```json
+{
+  "Field": [
+    {"name": "title", "type": "string"},
+    {"name": "description", "type": "string"},
+    {"name": "format", "type": "string"},
+    {"name": "case", "type": "string[]"},
+    {"name": "params", "type": "Entry[]"},
+    {"name": "fields", "type": "Field[]"}
+  ]
+}
+```
+
 **`Labels`** — locale-specific string bundle.
 
 - `locale` — locale identifier (e.g., `en`, `fr`)
 - `items` — `Entry` array mapping label keys to translated strings
 
+```json
+{
+  "Labels": [
+    {"name": "locale", "type": "string"},
+    {"name": "items", "type": "Entry[]"}
+  ]
+}
+```
+
 **`Entry`** — generic key-value pair.
 
 - `key` — string identifier
 - `value` — string value; interpreted as a variable reference or literal depending on context
+
+```json
+{
+  "Entry": [
+    {"name": "key", "type": "string"},
+    {"name": "value", "type": "string"}
+  ]
+}
+```
 
 The corresponding Solidity typehash constants are:
 
@@ -108,35 +151,35 @@ bytes32 constant DISPLAY_TH = keccak256(
 
 #### Example: ERC-20 Transfer
 
-The following shows a complete display identifier computation for the ERC-20 `transfer` function using the `Display` library:
+The following shows a complete display identifier computation for the ERC-20 `transfer` function. It uses the `Display` helper library, which encapsulates the EIP-712 `hashStruct` encoding — `Display.display(...)` is equivalent to calling `keccak256(abi.encode(DISPLAY_TH, ...))` with required params:
 
 ```solidity
-bytes32 constant TRANSFER_DISPLAY_HASH = Display.display(
+bytes32 constant TRANSFER_ID = Display.display(
     "transfer(address to, uint256 amount)",  // abi
-    "$labels.title",                                  // title
-    "$labels.description",                            // description
-    abi.encodePacked(                                 // fields
+    "$labels.title",               // title — resolved from the labels bundle defined below
+    "$labels.description",         // description — resolved from the labels bundle defined below
+    abi.encodePacked(              // fields
         Display.addressField(
             "$labels.sender",      // title
             "$labels.senderDesc",  // description
             "",                    // case (empty)
-            "$msg.sender"          // value
+            "$msg.sender"          // value — call context
         ),
         Display.tokenAmountField(
             "$labels.amount",      // title
             "$labels.amountDesc",  // description
             "",                    // case (empty)
             "$msg.to",             // token
-            "$data.amount"         // amount
+            "$args.amount"         // amount — decoded from calldata per the abi signature above
         ),
         Display.addressField(
             "$labels.recipient",      // title
             "$labels.recipientDesc",  // description
             "",                       // case (empty)
-            "$data.to"                // value
+            "$args.to"                // value
         )
     ),
-    abi.encodePacked(                                 // labels
+    abi.encodePacked(              // labels
         Display.labels(
             "en",                  // locale
             abi.encodePacked(      // items
@@ -158,7 +201,7 @@ bytes32 constant TRANSFER_DISPLAY_HASH = Display.display(
 
 The `Display.abi` field MUST be a function signature of the form `<name>(<type> <name>, ...) [<modifier>]`.
 
-Each parameter MUST include a type and SHOULD include a name. Named parameters are accessible via `$data.<name>` (e.g., `$data.amount`); unnamed parameters are accessible only by zero-based positional index via `$data.<index>` (e.g., `$data.0`). The optional state mutability modifier MUST be `pure`, `view`, `payable`, or `nonpayable` (default if omitted). Wallets MUST reject calls where `msg.value > 0` and the modifier is not `payable`.
+Each parameter MUST include a type and SHOULD include a name. Named parameters are accessible via `$args.<name>` (e.g., `$args.amount`); unnamed parameters are accessible by zero-based positional index via `$args.<index>` (e.g., `$args.0`). The optional state mutability modifier MUST be `payable` or `nonpayable` (default if omitted). Wallets MUST reject calls where `msg.value > 0` and the modifier is not `payable`.
 
 The following are valid function signatures:
 
@@ -191,11 +234,9 @@ If the literal cannot be coerced to the required type, resolution MUST halt.
 
 #### Variable References
 
-A variable reference is any `Entry` value that starts with `$`. References are resolved at render time by looking up the path in the appropriate container. The resolved value retains its ABI type from the decoded calldata or transaction context; type casting is applied subsequently as described in [Type Casting](#type-casting).
+A variable reference is any string value that starts with `$`. References can appear in `Entry` values (e.g., in `Field.params`) and in `Field.case` arrays. References are resolved at render time by looking up the path in the appropriate container. The resolved value retains its ABI type from the decoded calldata or transaction context; type casting is applied subsequently as described in [Type Casting](#type-casting).
 
 #### Reference Containers
-
-**`$labels`** — localized string bundle selected for the current locale. This container is read-only and constant for the duration of rendering. Only one level of property access is permitted. `$labels.<key>` resolves to the string value associated with `key` in the active `Labels` bundle. Rendering MUST halt if the key is not found. Full locale selection and fallback rules are defined in [Localization](#localization). `$labels` references are valid in `title` and `description` fields of `Display` and `Field`, as well as in `Field.params` values.
 
 **`$msg`** — transaction context. This container is read-only and constant for the duration of rendering. Only one level of property access is permitted; nested access is not supported.
 - `$msg.sender` — caller address
@@ -203,25 +244,38 @@ A variable reference is any `Entry` value that starts with `$`. References are r
 - `$msg.value` — native value (`uint256`)
 - `$msg.data` — raw calldata bytes
 
-**`$data`** — decoded function arguments for the current rendering scope. At the top level, arguments are decoded from `$msg.data` per `Display.abi`. The `map` and `array` structural formats create a new isolated `$data` scope; nested fields within those formats do not inherit the parent `$data`. The `switch` format does not create a new scope. Access patterns:
-- Named: `$data.amount`, `$data.to`
-- Positional: `$data.0`, `$data.1`
-- Nested: `$data.order.token`
-- Array index: `$data.items[0]`, `$data.items[-1]` (negative from end)
-- Slice: `$data.items[1:3]`, `$data.data[:]`
+**`$args`** — decoded function arguments for the current rendering scope. At the top level, arguments are decoded from `$msg.data` per `Display.abi`.
+
+Access patterns:
+- **Named**: `$args.amount`, `$args.to` — access parameters by their name from the function signature
+- **Positional**: `$args.0`, `$args.1` — access parameters by zero-based index when names are not provided
+- **Nested**: `$args.order.token` — access nested struct fields
+- **Array index**: `$args.items[0]`, `$args.items[-1]` — access array or bytes element (negative indices count from end)
+- **Slice**: `$args.items[1:3]`, `$args.data[:]` — extract array or bytes subranges
+
+Scope behavior:
+- **`map` and `array` formats**: Create a new isolated `$args` scope populated from their `params`. Nested fields within these formats do not inherit the parent `$args`.
+- **`switch` format**: Does not create a new scope; child fields inherit the parent `$args`.
+- **`call` format**: Creates an entirely new rendering context with its own independent `$msg` and `$args`.
+
+**`$labels`** — localized string bundle selected for the current locale. This container is read-only and constant for the duration of rendering. Only one level of property access is permitted. `$labels.<key>` resolves to the string value associated with `key` in the active `Labels` bundle. Rendering MUST halt if the key is not found. Full locale selection and fallback rules are defined in [Localization](#localization). `$labels` references are valid in `title` and `description` fields of `Display` and `Field`, as well as in `Field.params` values.
 
 #### Type Casting
 
 After a value is resolved — whether from a literal or a variable reference — it is cast to the type expected by the consuming formatter parameter. For variable references, the resolved ABI type MUST be compatible with the expected type; if it is not, resolution MUST halt. For literals, the coercion rules in the [Literals](#literals) table apply.
 
-For `switch` case matching, each entry in `Field.case` is cast to the type of the resolved `switch` `value` parameter before comparison. For example, if `value` resolves to a `bytes32`, each `case` entry is coerced from its hex string representation to `bytes32`; if `value` resolves to a `uint256`, each `case` entry is parsed as a decimal integer. Comparison is performed as equality after casting. Resolution MUST halt if any `case` entry cannot be cast to the type of `value`.
+Examples:
+- A `percentage` formatter expects `basis: "10000"` (literal) → parsed as decimal and cast to `uint256`
+- A `tokenAmount` formatter expects `amount: "$args.amount"` (reference to `uint256`) → types match, rendering continues
+- An `address` formatter expects `value: "0x742d...bEb1"` (literal) → parsed as hex and cast to `address`
+- A `switch` with `value: "$args.command"` (`uint8`) and child `case: ["8"]` (literal) → `"8"` parsed as decimal, cast to `uint8`, compared for equality
 
 #### Resolution Failure
 
 Resolution MUST halt if:
 
 - The container is unknown.
-- The referenced path does not exist in the current `$data` scope.
+- The referenced path does not exist in the current `$args` scope.
 - An array index is out of bounds.
 - The resolved value type is incompatible with what the formatter requires.
 - A literal cannot be coerced to the required type.
@@ -236,7 +290,7 @@ A wallet renders a display specification by executing the following steps in ord
 The display specification is located either by display identifier (trustless) or by chain, address, and selector (trusted registry). Once located, two rendering contexts are initialized:
 
 - `$msg` is populated from the transaction envelope: `sender`, `to`, `value`, and `data`. This context is read-only and constant for the entire top-level rendering scope.
-- `$data` is initialized by ABI-decoding `$msg.data` per `Display.abi`. Named parameters are accessible by name (e.g., `$data.amount`); unnamed parameters are accessible by zero-based positional index (e.g., `$data.0`).
+- `$args` is initialized by ABI-decoding `$msg.data` per `Display.abi`. Named parameters are accessible by name (e.g., `$args.amount`); unnamed parameters are accessible by zero-based positional index (e.g., `$args.0`).
 
 **Step 2 — Native Value Check**
 
@@ -272,7 +326,7 @@ Display.booleanField(
     "$labels.approved",      // title
     "$labels.approvedDesc",  // description
     "",                      // case (empty)
-    "$data.approved"         // value
+    "$args.approved"         // value
 )
 
 // Equivalent raw hash computation
@@ -283,7 +337,7 @@ bytes32 approvedField = keccak256(abi.encode(
     keccak256(bytes("boolean")),              // format
     keccak256(bytes("")),                     // case (empty)
     keccak256(abi.encodePacked(
-        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$data.approved"))))
+        keccak256(abi.encode(ENTRY_TH, keccak256(bytes("value")), keccak256(bytes("$args.approved"))))
     )),                                       // params
     keccak256(bytes(""))                      // fields (empty)
 ));
@@ -293,37 +347,37 @@ bytes32 approvedField = keccak256(abi.encode(
 
 These formats interpret a raw Solidity value into a human-readable semantic representation.
 
-**`datetime`** — displays a Unix timestamp as an absolute, locale-formatted date and time. Accepts any `uintN` type. An optional `units` parameter specifies the unit of the input value; if omitted, seconds are assumed.
+**`datetime`** — displays a Unix timestamp as an absolute, locale-formatted date and time (e.g., "13 May 2025, 14:30" or "May 13, 2025 2:30 PM" depending on locale). The `value` parameter contains a timestamp stored as an unsigned integer; the optional `units` parameter specifies how to interpret this integer (seconds since epoch, minutes since epoch, etc.). If `units` is omitted, the value is interpreted as seconds since Unix epoch (January 1, 1970, 00:00:00 UTC).
 
 | Param   | Required | Description                                                                    |
 |---------|----------|--------------------------------------------------------------------------------|
-| `value` | yes      | Reference resolving to a `uintN` timestamp                                     |
-| `units` | no       | Input unit: `"seconds"` (default), `"minutes"`, `"hours"`, `"days"`, `"weeks"` |
+| `value` | yes      | Reference resolving to a `uintN` timestamp (count of time units since epoch)   |
+| `units` | no       | How to interpret the input value: `"seconds"` (default), `"minutes"`, `"hours"`, `"days"`, `"weeks"` |
 
 ```solidity
 Display.datetimeField(
     "$labels.deadline",      // title
     "$labels.deadlineDesc",  // description
     "",                      // case (empty)
-    "$data.deadline"         // value
+    "$args.deadline"         // value
 )
 ```
 
 ---
 
-**`duration`** — displays a relative time span as a human-readable duration (e.g. "2 weeks", "3 days"). Accepts any `uintN` type. An optional `units` parameter specifies the unit of the input value; if omitted, seconds are assumed.
+**`duration`** — displays a relative time span as a human-readable duration (e.g., "2 weeks", "3 days", "14 hours"). The `value` parameter contains a duration stored as an unsigned integer; the optional `units` parameter specifies how to interpret this integer. If `units` is omitted, the value is interpreted as seconds.
 
 | Param   | Required | Description                                                                    |
 |---------|----------|--------------------------------------------------------------------------------|
-| `value` | yes      | Reference resolving to a `uintN` duration value                                |
-| `units` | no       | Input unit: `"seconds"` (default), `"minutes"`, `"hours"`, `"days"`, `"weeks"` |
+| `value` | yes      | Reference resolving to a `uintN` duration (count of time units)                |
+| `units` | no       | How to interpret the input value: `"seconds"` (default), `"minutes"`, `"hours"`, `"days"`, `"weeks"` |
 
 ```solidity
 Display.durationField(
     "$labels.lockPeriod",      // title
     "$labels.lockPeriodDesc",  // description
     "",                        // case (empty)
-    "$data.lockPeriod"         // value
+    "$args.lockPeriod"         // value
 )
 ```
 
@@ -341,7 +395,7 @@ Display.percentageField(
     "$labels.fee",      // title
     "$labels.feeDesc",  // description
     "",                 // case (empty)
-    "$data.feeBps",     // value
+    "$args.feeBps",     // value
     "10000"             // basis
 )
 // Renders: "1.5%" for feeBps=150
@@ -361,7 +415,7 @@ Display.bitmaskField(
     "$labels.permissions",      // title
     "$labels.permissionsDesc",  // description
     "",                         // case (empty)
-    "$data.permissions",        // value
+    "$args.permissions",        // value
     abi.encodePacked(           // bit labels
         Display.entry("#0", "Read"),
         Display.entry("#1", "Write"),
@@ -384,7 +438,7 @@ Display.unitsField(
     "$labels.amount",      // title
     "$labels.amountDesc",  // description
     "",                    // case (empty)
-    "$data.amount",        // value
+    "$args.amount",        // value
     "6"                    // decimals
 )
 // Renders: "1.234567" for amount=1234567
@@ -405,7 +459,7 @@ Display.addressField(
     "$labels.recipient",      // title
     "$labels.recipientDesc",  // description
     "",                       // case (empty)
-    "$data.to"                // value
+    "$args.to"                // value
 )
 ```
 
@@ -437,7 +491,7 @@ Display.tokenField(
 
 ```solidity
 // Full display specification for ERC-20 approve
-bytes32 constant APPROVE_DISPLAY_HASH = Display.display(
+bytes32 constant APPROVE_DISPLAY_ID = Display.display(
     "approve(address spender, uint256 amount) nonpayable",  // abi
     "$labels.title",                                                  // title
     "$labels.description",                                            // description
@@ -452,14 +506,14 @@ bytes32 constant APPROVE_DISPLAY_HASH = Display.display(
             "$labels.spender",      // title
             "$labels.spenderDesc",  // description
             "",                     // case (empty)
-            "$data.spender"         // value
+            "$args.spender"         // value
         ),
         Display.tokenAmountField(
             "$labels.amount",      // title
             "$labels.amountDesc",  // description
             "",                    // case (empty)
             "$msg.to",             // token
-            "$data.amount"         // amount
+            "$args.amount"         // amount
         )
     ),
     abi.encodePacked(                                                 // labels
@@ -519,7 +573,7 @@ Display.tokenAmountField(
     "$labels.amountDesc",  // description
     "",                    // case (empty)
     "$msg.to",             // token
-    "$data.amount"         // amount
+    "$args.amount"         // amount
 )
 
 // NFT
@@ -529,7 +583,7 @@ Display.tokenAmountField(
     "",                       // case (empty)
     "$msg.to",                // token
     "1",                      // amount
-    "$data.tokenId",          // tokenId
+    "$args.tokenId",          // tokenId
     Display.Direction.Out     // direction
 )
 ```
@@ -537,21 +591,21 @@ Display.tokenAmountField(
 #### Structural Formats
 
 Structural formats carry nested `fields` and modify rendering context:
-- **`map`, `array`** — create isolated `$data` scope (nested fields access only explicitly passed data; `$msg` constant)
-- **`call`** — creates new `$msg` context (independent rendering with own `$msg` and `$data`)
-- **`switch`** — no new scope (child fields inherit parent's `$data`)
+- **`map`, `array`** — create isolated `$args` scope (nested fields access only explicitly passed data; `$msg` constant)
+- **`call`** — creates new `$msg` context (independent rendering with own `$msg` and `$args`)
+- **`switch`** — no new scope (child fields inherit parent's `$args`)
 
 Wallets MUST enforce strict scope boundaries.
 
-**`map`** — creates isolated `$data` scope, renders nested `fields`. Scope populated via:
-- `$<name>` parameters: bind values to child scope (`$token` → `$data.token`)
+**`map`** — creates isolated `$args` scope, renders nested `fields`. Scope populated via:
+- `$<name>` parameters: bind values to child scope (`$token` → `$args.token`)
 - `abi` + `value`: ABI-decode bytes, merge fields into child scope
 
 | Param     | Required | Description                                                                                                                                                                                         |
 |-----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `$<name>` | no       | `$`-prefixed entries bind values into child `$data` scope (e.g. `$token` → `$data.token`)                                                                                                           |
-| `abi`     | no       | Solidity type signature string (e.g. `"(address token,uint256 amount)"`) that ABI-decodes the bytes in `value` param and populates the child `$data` scope with the decoded fields as new variables |
-| `value`   | no       | Reference resolving to bytes to be ABI-decoded using `abi` signature into child `$data` scope                                                                                                       |
+| `$<name>` | no       | `$`-prefixed entries bind values into child `$args` scope (e.g. `$token` → `$args.token`)                                                                                                           |
+| `abi`     | no       | Solidity type signature string (e.g. `"(address token,uint256 amount)"`) that ABI-decodes the bytes in `value` param and populates the child `$args` scope with the decoded fields as new variables |
+| `value`   | no       | Reference resolving to bytes to be ABI-decoded using `abi` signature into child `$args` scope                                                                                                       |
 
 ```solidity
 // Example 1: Using $-prefixed params to bind values
@@ -561,15 +615,15 @@ Display.mapField(
     "",                      // case (empty)
     abi.encodePacked(        // params
         Display.entry("$token", "$msg.to"),
-        Display.entry("$amount", "$data.value")
+        Display.entry("$amount", "$args.value")
     ),
     abi.encodePacked(        // fields
         Display.tokenAmountField(
             "$labels.amount",      // title
             "$labels.amountDesc",  // description
             "",                    // case (empty)
-            "$data.token",         // token
-            "$data.amount"         // amount
+            "$args.token",         // token
+            "$args.amount"         // amount
         )
     )
 )
@@ -581,21 +635,21 @@ Display.mapField(
     "",                       // case (empty)
     abi.encodePacked(         // params
         Display.entry("abi", "(address token,uint256 amount,uint256 deadline)"),
-        Display.entry("value", "$data.orderData")
+        Display.entry("value", "$args.orderData")
     ),
     abi.encodePacked(         // fields
         Display.tokenAmountField(
             "$labels.amount",      // title
             "",                    // description (empty)
             "",                    // case (empty)
-            "$data.token",         // token (from ABI-decoded orderData)
-            "$data.amount"         // amount (from ABI-decoded orderData)
+            "$args.token",         // token (from ABI-decoded orderData)
+            "$args.amount"         // amount (from ABI-decoded orderData)
         ),
         Display.datetimeField(
             "$labels.deadline",    // title
             "",                    // description (empty)
             "",                    // case (empty)
-            "$data.deadline"       // deadline (from ABI-decoded orderData)
+            "$args.deadline"       // deadline (from ABI-decoded orderData)
         )
     )
 )
@@ -603,7 +657,7 @@ Display.mapField(
 
 ---
 
-**`array`** — iterates parallel arrays, renders nested `fields` per element with fresh isolated `$data` scope. All `$`-prefixed parameters MUST be equal-length arrays; rendering MUST halt if lengths differ. Binds `array[i]` for each parameter per iteration.
+**`array`** — iterates parallel arrays, renders nested `fields` per element with fresh isolated `$args` scope. All `$`-prefixed parameters MUST be equal-length arrays; rendering MUST halt if lengths differ. Binds `array[i]` for each parameter per iteration.
 
 Each `$<name>` parameter MUST resolve to one of the following iterable types:
 
@@ -617,7 +671,7 @@ Resolution MUST halt if a parameter resolves to a non-iterable type.
 
 | Param     | Required           | Description                                                                            |
 |-----------|--------------------|----------------------------------------------------------------------------------------|
-| `$<name>` | yes (at least one) | Reference resolving to an iterable type; each element is bound as `$data.<name>` per iteration |
+| `$<name>` | yes (at least one) | Reference resolving to an iterable type; each element is bound as `$args.<name>` per iteration |
 
 ```solidity
 Display.arrayField(
@@ -625,22 +679,22 @@ Display.arrayField(
     "$labels.transfersDesc",  // description
     "",                       // case (empty)
     abi.encodePacked(         // params
-        Display.entry("$to", "$data.recipients"),
-        Display.entry("$amount", "$data.amounts")
+        Display.entry("$to", "$args.recipients"),
+        Display.entry("$amount", "$args.amounts")
     ),
     abi.encodePacked(         // fields
         Display.contractField(
             "$labels.recipient",  // title
             "",                   // description (empty)
             "",                   // case (empty)
-            "$data.to"            // value
+            "$args.to"            // value
         ),
         Display.tokenAmountField(
             "$labels.amount",  // title
             "",                // description (empty)
             "",                // case (empty)
             "$msg.to",         // token
-            "$data.amount"     // amount
+            "$args.amount"     // amount
         )
     )
 )
@@ -661,42 +715,45 @@ Display.callField(
     "$labels.innerCall",      // title
     "$labels.innerCallDesc",  // description
     "",                       // case (empty)
-    "$data.to",               // to
-    "$data.value",            // value
-    "$data.data"              // data
+    "$args.to",               // to
+    "$args.value",            // value
+    "$args.data"              // data
 )
 ```
 
 ---
 
-**`switch`** — conditionally renders nested `fields` based on discriminant `value`. No new scope; child fields inherit parent's `$data`. Empty `case` array: always render. Non-empty `case`: render only if `value` matches at least one entry (equality comparison).
+**`switch`** — conditionally renders nested `fields` based on discriminant `value`. No new scope; child fields inherit parent's `$args`. Empty `case` array: always render. Non-empty `case`: render only if `value` matches at least one entry (equality comparison).
 
 | Param   | Required | Description                                   |
 |---------|----------|-----------------------------------------------|
 | `value` | yes      | Reference or literal used as the discriminant |
 
 ```solidity
+// Universal router pattern: command byte dispatches to different operations
 Display.switchField(
-    "$labels.asset",      // title
-    "$labels.assetDesc",  // description
-    "",                   // case (empty)
-    "$data.assetType",    // value
-    abi.encodePacked(     // fields
-        Display.tokenAmountField(
-            "$labels.erc20Amount",                        // title
-            "",                                           // description (empty)
-            abi.encodePacked(keccak256(bytes("erc20"))), // case
-            "$msg.to",                                    // token
-            "$data.amount"                                // amount
+    "$labels.operation",       // title
+    "$labels.operationDesc",   // description
+    "",                        // case (empty)
+    "$args.command",           // value - uint8 command byte
+    abi.encodePacked(          // fields
+        Display.stringField(
+            "$labels.transferOp",                    // title
+            "",                                      // description (empty)
+            abi.encodePacked(keccak256(bytes("0"))), // case - TRANSFER command
+            "Transfer tokens to recipient"           // value
         ),
-        Display.tokenAmountField(
-            "$labels.nft",                                 // title
-            "",                                            // description (empty)
-            abi.encodePacked(keccak256(bytes("erc721"))), // case
-            "$msg.to",                                     // token
-            "1",                                           // amount
-            "$data.tokenId",                               // tokenId
-            Display.Direction.None                         // direction
+        Display.stringField(
+            "$labels.approveOp",                     // title
+            "",                                      // description (empty)
+            abi.encodePacked(keccak256(bytes("1"))), // case - APPROVE command
+            "Approve spender for token operations"   // value
+        ),
+        Display.stringField(
+            "$labels.wrapOp",                        // title
+            "",                                      // description (empty)
+            abi.encodePacked(keccak256(bytes("2"))), // case - WRAP command
+            "Wrap native token to ERC-20"            // value
         )
     )
 )
@@ -774,11 +831,19 @@ Interpolated string templates (e.g., `"Transfer {amount} to {destination}"`) are
 
 ### Structural Formats
 
-Structural formats (`map`, `array`, `switch`, `call`) enable display specifications to cover transaction patterns that cannot be expressed as flat field listings. `map` enables typed ABI decoding of `bytes`-encoded sub-parameters, allowing nested structured data to be accessed by field name rather than extracted via unsafe raw byte offset arithmetic. `array` handles homogeneous repetition across batched transfers and multicall sequences without requiring per-element format duplication. `switch` supports command-indexed dispatch, covering protocols that multiplex multiple operations through a single entry point — such as universal routers — without requiring a separate display specification per command variant. `call` handles dynamically constructed calls where the target address and calldata are themselves ABI-encoded parameters, the canonical pattern in smart contract accounts, multisigs, and DAOs; wallets that implement `call` can render any account abstraction contract without per-contract special-casing in firmware.
+Structural formats (`map`, `array`, `switch`, `call`) enable display specifications to cover transaction patterns that cannot be expressed as flat field listings:
+
+**`map`** decodes bytes-encoded subcommands. Universal routers encode complex swap paths as packed bytes; `map` decodes them using an ABI signature, making nested fields (token addresses, amounts, slippage) accessible by name instead of appearing as opaque hex.
+
+**`array`** handles batch operations. Multicall contracts and batch transfers process variable-length lists; `array` renders them with a single field template that iterates over parallel arrays (recipients and amounts) without per-element duplication.
+
+**`switch`** supports command dispatch. Universal routers multiplex operations via command bytes or enums; `switch` renders different fields based on the command value using `case` matching, covering opcode branching and mode selection without separate display specifications per command.
+
+**`call`** renders nested execution. Smart contract wallets, multisigs, and DAOs wrap inner transactions as ABI parameters; `call` recursively renders the inner call using its own display specification, enabling complete call tree visualization for account abstraction (ERC-4337), multisig execution, and DAO proposals.
 
 ### Scope Isolation
 
-`map` and `array` create isolated `$data` scopes; child fields access only explicitly passed parameters. `switch` does not create new scopes. `call` creates entirely new rendering contexts. Scope isolation prevents variable shadowing attacks, makes data flow auditable, and improves specification readability.
+`map` and `array` create isolated `$args` scopes; child fields access only explicitly passed parameters. `switch` does not create new scopes. `call` creates entirely new rendering contexts. Scope isolation prevents variable shadowing attacks, makes data flow auditable, and improves specification readability.
 
 ### Forward Compatibility
 
@@ -820,7 +885,7 @@ A malicious developer may author a specification that misrepresents an operation
 
 The principal phishing vector is a transaction targeting a legitimate contract — for example, an ERC-20 token — with parameters that delegate authority to a malicious address (e.g., `approve(maliciousSpender, maxAmount)`). The `contract` field format addresses this directly: the resolved spender address is verified against trusted Contract Lists, and rendering MUST halt if the address is absent. A malicious address cannot appear in a reputable Contract List without the list maintainer's knowledge, making this class of attack detectable before the user signs.
 
-Wallets MAY additionally restrict clear signing display to transactions where the `$msg.to` address is itself verified by a trusted Contract List. This reduces the social engineering surface further, at the cost of limiting which contracts support clear signing.
+Wallets MAY additionally restrict clear signing display to transactions where the `$msg.to` address is itself verified by a trusted Contract List. This reduces the social engineering surface further, at the cost of limiting which contracts users can interact with.
 
 ### Denial of Service
 
