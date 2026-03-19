@@ -17,6 +17,7 @@ requires: 712
 - [Motivation](#motivation)
 - [Specification](#specification)
     - [Type Definitions](#type-definitions)
+    - [Display Identifier](#display-identifier)
     - [Function Signature Format](#function-signature-format)
     - [Variable References](#variable-references)
     - [Rendering](#rendering)
@@ -28,6 +29,7 @@ requires: 712
         - [Structural Formats](#structural-formats)
     - [Localization](#localization)
     - [Contract Lists](#contract-lists)
+    - [JSON Representation](#json-representation)
 - [Rationale](#rationale)
 - [Backwards Compatibility](#backwards-compatibility)
 - [Security Considerations](#security-considerations)
@@ -35,7 +37,7 @@ requires: 712
 
 ## Abstract
 
-This standard defines a structured display specification for smart contract functions, associating ABI-decoded calldata parameters with semantic display fields covering types such as token amounts, date and time values, percentages, and addresses. Each display specification is uniquely identified by a 32-byte digest computed as an EIP-712 structured data hash. This compact identifier enables resource-constrained devices to deterministically compute and verify the integrity of a specification without network access. The standard specifies the type system, format rules, and identifier computation process; the companion Onchain Display Verification standard (EIP-TBD) defines the on-chain verification mechanisms that bind these identifiers to smart contracts.
+This standard defines a structured display specification for smart contract functions, associating ABI-decoded calldata parameters with semantic display fields covering types such as token amounts, date and time values, percentages, and addresses. Each display specification is uniquely identified by a 32-byte digest computed as an EIP-712 structured data hash. This compact identifier enables resource-constrained devices to deterministically compute and verify the integrity of a specification without network access.
 
 ## Motivation
 
@@ -43,7 +45,7 @@ The Ethereum ABI encodes function call parameters as typed byte sequences but ca
 
 Hardware signing devices are the most constrained signing environment: limited memory and no network connectivity preclude fetching or validating external metadata at signing time. A standard that works within these constraints works everywhere — software wallets on web and mobile inherit the same guarantees while being free to present richer context on top.
 
-Addressing this requires two complementary properties that existing approaches do not provide together. First, an expressive semantic type system covering the patterns common in deployed contracts — token amounts, timestamps, durations, percentages, addresses — with support for structural composition of nested calls; without this, wallets cannot interpret the meaning of arbitrary calldata. Second, a compact identifier that any device can derive from a complete display specification without network access; without this, there is no way to verify that the specification shown to the user has not been substituted or tampered with. Existing off-chain metadata registries satisfy neither property: they require live network access and provide no cryptographic binding between the metadata and the contract. This standard defines the type system and identifier computation; the companion Onchain Display Verification standard (EIP-TBD) defines how identifiers are bound to deployed contracts on-chain.
+This requires two properties that existing approaches do not provide together: an expressive semantic type system covering common contract patterns — token amounts, timestamps, durations, percentages, addresses — with structural composition support for nested calls; and a compact, deterministic identifier any device can derive locally from a complete display specification. Existing off-chain metadata registries satisfy neither: they require live network access and provide no cryptographic binding between metadata and contract. This standard defines the type system and identifier computation; the companion Onchain Display Verification standard (EIP-TBD) defines how identifiers are bound to deployed contracts on-chain.
 
 ## Specification
 
@@ -53,7 +55,7 @@ This specification defines semantic presentation: what data represents and how i
 
 ### Type Definitions
 
-A display specification is composed of four EIP-712 compatible structs: `Display`, `Field`, `Labels`, and `Entry`. The **display identifier** is the 32-byte value produced by `hashStruct(Display)` as defined in EIP-712; it uniquely identifies a complete display specification and is the value registered on-chain by the companion Onchain Display Verification standard (EIP-TBD). Implementations MUST use the type strings below verbatim, as any deviation produces a different identifier.
+A display specification is composed of four EIP-712 compatible structs: `Display`, `Field`, `Labels`, and `Entry`. Implementations MUST use the type strings below verbatim — any deviation produces a different display identifier.
 
 **`Display`** — root type for one function's display specification.
 
@@ -197,58 +199,9 @@ bytes32 constant TRANSFER_ID = Display.display(
 );
 ```
 
-### JSON Representation
+### Display Identifier
 
-Display specifications MAY be represented in JSON format for transmission via `wallet_sendTransaction` (EIP-TBD) or storage in off-chain systems. The JSON representation omits EIP-712 type definitions (which are static across all displays) and uses the following normalization rules:
-
-**Normalization Rules:**
-- **Empty arrays**: Absent `case` arrays MUST be represented as `[]`
-- **Empty strings**: Absent `description` and `title` fields MUST be represented as `""`
-- **Empty fields array**: Absent `fields` arrays for non-structural formats MUST be represented as `[]`
-
-The JSON structure maps directly to the EIP-712 structs:
-
-```json
-{
-  "abi": "transfer(address to, uint256 amount)",
-  "title": "$labels.title",
-  "description": "$labels.description",
-  "fields": [
-    {
-      "title": "$labels.sender",
-      "format": "address",
-      "params": [{"key": "value", "value": "$msg.sender"}]
-    },
-    {
-      "title": "$labels.amount",
-      "format": "tokenAmount",
-      "params": [
-        {"key": "token", "value": "$msg.to"},
-        {"key": "amount", "value": "$args.amount"}
-      ]
-    },
-    {
-      "title": "$labels.recipient",
-      "format": "address",
-      "params": [{"key": "value", "value": "$args.to"}]
-    }
-  ],
-  "labels": [
-    {
-      "locale": "en",
-      "items": [
-        {"key": "title", "value": "Transfer"},
-        {"key": "description", "value": "Transfer ERC-20 tokens"},
-        {"key": "sender", "value": "From"},
-        {"key": "amount", "value": "Amount"},
-        {"key": "recipient", "value": "To"}
-      ]
-    }
-  ]
-}
-```
-
-The JSON representation follows the same validation rules as the Solidity specification. Implementations MUST compute the display identifier by converting the JSON to EIP-712 structs and applying `hashStruct(Display)` as defined in EIP-712.
+The **display identifier** is the 32-byte value produced by `hashStruct(Display)` as defined in EIP-712, computed from a complete display specification. Because `hashStruct` is deterministic and collision-resistant, the identifier uniquely commits to every field, format, label, and parameter in the specification. Any modification — including whitespace in the `abi` string or reordering of `labels` entries — produces a different identifier.
 
 ### Function Signature Format
 
@@ -292,7 +245,7 @@ A variable reference is any string value that starts with `$`. References can ap
 #### Reference Containers
 
 **`$msg`** — transaction context. This container is read-only and constant for the duration of rendering. Only one level of property access is permitted; nested access is not supported.
-- `$msg.sender` — caller address
+- `$msg.sender` — transaction originator (the signing account — EOA or smart account — at the top-level call; set to the parent `$msg.to` for nested `call` contexts)
 - `$msg.to` — contract receiving the call
 - `$msg.value` — native value (`uint256`)
 - `$msg.data` — raw calldata bytes
@@ -357,7 +310,7 @@ Iterate `Display.fields` in declaration order. For each `Field`:
 2. **Reference resolution**: Resolve all `title`, `description`, and `params` values per [Variable References](#variable-references).
 3. **Formatting**: Cast and format the resolved parameter values per the rules of `Field.format` defined in [Field Formats](#field-formats).
 4. **Structural recursion**: For structural formats (`map`, `array`, `switch`), process nested `fields` with the scope rules specified for each format in [Field Formats](#field-formats).
-5. **Nested call**: The `call` format is a special case and does not process nested `fields` within the current specification. Instead, the wallet constructs a new `$msg` from the `call` field's `to`, `value`, and `data` parameters — with `$msg.sender` set to the parent `$msg.to` — and locates an independent display specification for the inner call. Outer rendering is paused; rendering restarts from Step 1 for the inner specification. Once the inner rendering completes, outer rendering resumes from where it was paused. Wallets MUST enforce a maximum recursion depth. Rendering MUST halt if the limit is exceeded.
+5. **Nested call**: The `call` format is a special case and does not process nested `fields` within the current specification. Instead, the wallet constructs a new `$msg` from the `call` field's `to`, `value`, and `data` parameters — with `$msg.sender` set to the parent `$msg.to` — and locates an independent display specification for the inner call. The inner call uses its own spec's `labels` bundles; it does not inherit the outer `$labels` context. Outer rendering is paused; rendering restarts from Step 1 for the inner specification. Once the inner rendering completes, outer rendering resumes from where it was paused. Wallets MUST enforce a maximum recursion depth. Rendering MUST halt if the limit is exceeded.
 
 ### Field Formats
 
@@ -795,7 +748,7 @@ Display.switchField(
         Display.mapField(
             "$labels.transfer",                      // title
             "",                                      // description (empty)
-            abi.encodePacked(keccak256(bytes("0"))), // case - TRANSFER command
+            abi.encodePacked(keccak256(bytes("0"))), // case: ["0"] — EIP-712 pre-encoded string[]
             abi.encodePacked(
                 Display.entry("abi", "(address recipient,uint256 amount)"),
                 Display.entry("value", "$args.data")
@@ -809,7 +762,7 @@ Display.switchField(
         Display.mapField(
             "$labels.approve",                       // title
             "",                                      // description (empty)
-            abi.encodePacked(keccak256(bytes("1"))), // case - APPROVE command
+            abi.encodePacked(keccak256(bytes("1"))), // case: ["1"] — EIP-712 pre-encoded string[]
             abi.encodePacked(
                 Display.entry("abi", "(address spender,uint256 amount)"),
                 Display.entry("value", "$args.data")
@@ -823,7 +776,7 @@ Display.switchField(
         Display.mapField(
             "$labels.swap",                          // title
             "",                                      // description (empty)
-            abi.encodePacked(keccak256(bytes("2"))), // case - SWAP command
+            abi.encodePacked(keccak256(bytes("2"))), // case: ["2"] — EIP-712 pre-encoded string[]
             abi.encodePacked(
                 Display.entry("abi", "(address tokenIn,address tokenOut,uint256 amountIn)"),
                 Display.entry("value", "$args.data")
@@ -886,6 +839,67 @@ Since any party may publish a Contract List, wallets determine which lists to tr
 
 If a resolved address is not present in any trusted Contract List, the wallet MAY offer the user an explicit manual verification flow. If the user confirms the contract's identity through this flow, the wallet MAY add the address to the user's Contact List. Subsequent interactions with this address MUST then pass verification against the Contact List.
 
+### JSON Representation
+
+Display specifications MAY be represented in JSON format for transmission via `wallet_sendTransaction` (EIP-TBD) or storage in off-chain systems. The JSON representation omits EIP-712 type definitions (which are static across all displays) and uses the following normalization rules:
+
+**Normalization Rules:**
+- **Empty arrays**: Absent `case` and `fields` arrays MUST be represented as `[]`
+- **Empty strings**: Absent `description` fields MUST be represented as `""`
+
+The JSON structure maps directly to the EIP-712 structs:
+
+```json
+{
+  "abi": "transfer(address to, uint256 amount)",
+  "title": "$labels.title",
+  "description": "$labels.description",
+  "fields": [
+    {
+      "title": "$labels.sender",
+      "description": "",
+      "format": "address",
+      "case": [],
+      "params": [{"key": "value", "value": "$msg.sender"}],
+      "fields": []
+    },
+    {
+      "title": "$labels.amount",
+      "description": "",
+      "format": "tokenAmount",
+      "case": [],
+      "params": [
+        {"key": "token", "value": "$msg.to"},
+        {"key": "amount", "value": "$args.amount"}
+      ],
+      "fields": []
+    },
+    {
+      "title": "$labels.recipient",
+      "description": "",
+      "format": "address",
+      "case": [],
+      "params": [{"key": "value", "value": "$args.to"}],
+      "fields": []
+    }
+  ],
+  "labels": [
+    {
+      "locale": "en",
+      "items": [
+        {"key": "title", "value": "Transfer"},
+        {"key": "description", "value": "Transfer ERC-20 tokens"},
+        {"key": "sender", "value": "From"},
+        {"key": "amount", "value": "Amount"},
+        {"key": "recipient", "value": "To"}
+      ]
+    }
+  ]
+}
+```
+
+Implementations MUST compute the display identifier by converting the JSON to EIP-712 structs and applying `hashStruct(Display)` as defined in EIP-712.
+
 ## Rationale
 
 ### Design Goals
@@ -897,8 +911,6 @@ This standard is bounded by what is present in the calldata at signing time. Con
 ### EIP-712 Display Identifier
 
 The EIP-712 `hashStruct` provides a compact, 32-byte identifier compatible with established ecosystem infrastructure and resource-constrained devices. This mechanism enables deterministic verification through both static precomputation and dynamic, on-chain generation.
-
-The sequential accumulation of `keccak256` operations within a `hashStruct` facilitates a memory-efficient processing model. A wallet can theoretically stream field definitions sequentially: interpreting a field's value for the user, updating a running hash accumulator, and then discarding the associated metadata. This approach avoids the requirement to buffer the entire display specification, making the design viable for memory-constrained hardware signing devices. While this streaming model assumes that the underlying calldata is accessible for random access during field resolution, it significantly reduces the peak memory overhead for the display logic itself.
 
 Adopting EIP-712 for identifier computation means that improvements to the EIP-712 algorithm and its Solidity tooling accrue to this standard without requiring specification changes. Currently, display identifiers must be expressed as nested `keccak256(abi.encode(...))` chains — correct but verbose. Proposed Solidity compiler enhancements, including native `type(S).typehash` and `type(S).hashStruct(s)` support, will allow these to be replaced with direct type-level expressions evaluated at compile time. Solidity does not yet support compile-time constant evaluation (`constexpr`); as this capability is added to the compiler, display identifier constants will be expressible as simple compiler-verified declarations rather than manually assembled hash computations, further reducing boilerplate and eliminating a class of encoding errors.
 
@@ -948,7 +960,7 @@ Dependency on EIP-712 is additive: this standard reuses `hashStruct` solely for 
 
 This specification does not define how display identifiers bind to contracts. The companion Onchain Display Verification standard (EIP-TBD) addresses on-chain verification mechanisms.
 
-Without verification, users face specification substitution attacks, phishing via stolen specifications, and downgrade attacks. Wallet implementations MUST NOT display transactions based on unverified specifications.
+Without verification, users face specification substitution attacks, phishing via stolen specifications, and downgrade attacks. The on-chain verification mechanism is defined in the companion Onchain Display Verification standard (EIP-TBD); wallet implementations SHOULD NOT render display specifications without a verified binding to the target contract.
 
 ### Native Value Transfer Omission
 

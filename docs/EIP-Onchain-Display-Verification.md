@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2026-03-11
-requires: 712, TBD (Onchain Display Specification EIP number)
+requires: 712
 ---
 
 ## Table of Contents
@@ -29,8 +29,6 @@ requires: 712, TBD (Onchain Display Specification EIP number)
     - [Tooling Compatibility](#tooling-compatibility)
 - [Security Considerations](#security-considerations)
     - [Invalid clearCall Implementation](#invalid-clearcall-implementation)
-    - [Display Determinism](#display-determinism)
-    - [Registry Compromise](#registry-compromise)
     - [On-Chain Footprint](#on-chain-footprint)
 - [Copyright](#copyright)
 
@@ -40,11 +38,9 @@ This standard defines `clearCall()` — a contract entry point that enforces a c
 
 ## Motivation
 
-The Ethereum ABI encodes function calls as a 4-byte selector followed by typed parameters. The selector is derived from the function's canonical signature — name and parameter types only (e.g., `transfer(address,uint256)`) — as the binary interface requires only types for encoding and decoding; parameter names carry no meaning at the protocol level (a design that also enables function overloading). This leaves a semantic gap: the selector identifies what to execute but says nothing about what the arguments represent, and there is no on-chain link between the calldata and the description shown to the signer.
+The Ethereum call format encodes function calls as a 4-byte selector followed by typed parameters. The selector identifies what to execute but says nothing about what the arguments represent, and there is no on-chain link between the calldata and the description shown to the signer.
 
-Binding the display specification to the contract itself achieves trustlessness and decentralization: the display identifier is embedded in the contract's bytecode at deployment and enforced by the contract's own logic on every call, without any external authority that could be bypassed or compromised.
-
-This standard closes both gaps. `clearCall()` extends the call format to embed a display identifier derived from the specification the contract committed to at deployment, making the correspondence between display and calldata verifiable on-chain before execution. A wallet that renders any specification other than the committed one will produce a different identifier, and the transaction will revert.
+`clearCall()` closes this gap by embedding a display identifier in every call — derived from the specification the contract committed to at deployment and enforced by the contract's own logic. A wallet that renders any specification other than the committed one produces a different identifier, and the transaction reverts. No external authority is required; the binding is a property of the deployed bytecode.
 
 ## Specification
 
@@ -131,11 +127,7 @@ function _verifyDisplay(bytes4 selector, bytes32 displayId) internal view return
 
 ### Nested clearCall Composition
 
-Transaction flows may involve layered execution: a smart contract account wraps an inner call — such as a DEX swap — before forwarding it to the target contract. Each layer in this call tree carries its own display identifier.
-
-Wallets MUST process nested `clearCall` payloads recursively. Rendering begins with the outermost call; when a nested `clearCall` is encountered during field iteration, the wallet MUST pause the current display and render the inner specification before resuming. This continues until a non-`clearCall` inner selector is reached.
-
-For each layer, the wallet MUST verify the display identifier against the specification rendered at that layer. The complete call tree is considered verified only when every layer's identifier has been independently confirmed.
+When the inner calldata of a `clearCall` is itself a `clearCall`, the payloads are nested. Wallets MUST process nested payloads recursively: render and verify the outermost call first, pause when a nested `clearCall` is encountered, render the inner specification, and resume after completion. This continues until a non-`clearCall` inner selector is reached. Each layer's display identifier MUST be independently verified against the specification rendered at that layer.
 
 ### clearCall() Entry Point: Reference Implementation
 
@@ -173,7 +165,7 @@ The packed byte format adds approximately 3,764–3,979 gas overhead per call me
 
 ### Opt-in Adoption
 
-`clearCall()` is an additive entry point that does not conflict with existing function selectors or the Solidity `fallback` / `receive` dispatch mechanism. Contracts that implement `clearCall()` retain all existing ABI-defined functions, which remain callable directly via their original selectors — direct calls, internal calls, and contract-to-contract calls all bypass `clearCall()` entirely and continue to work as before. Adoption is fully opt-in.
+`clearCall()` is an additive entry point that does not conflict with existing function selectors or the Solidity `fallback` / `receive` dispatch mechanism. Contracts that implement `clearCall()` retain all existing ABI-defined functions, which remain callable directly via their original selectors — direct calls, internal calls, and contract-to-contract calls all bypass `clearCall()` entirely.
 
 ### Non-Upgradeable Contracts
 

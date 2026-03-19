@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: Interface
 created: 2026-03-13
-requires: 1474, TBD (Onchain Display Specification EIP number), TBD (Onchain Display Verification EIP number)
+requires: 1474
 ---
 
 ## Table of Contents
@@ -31,11 +31,11 @@ requires: 1474, TBD (Onchain Display Specification EIP number), TBD (Onchain Dis
 
 ## Abstract
 
-This standard defines `wallet_sendTransaction`, a JSON-RPC method that extends the conventional `eth_sendTransaction` with a `metadata` parameter. This parameter carries an array of verifiable context metadata for the transaction's smart contract calls. While the method is agnostic to the specific type of metadata it carries, any supported metadata MUST be cryptographically verifiable against the original transaction.
+This standard defines `wallet_sendTransaction`, a JSON-RPC method that extends the conventional `eth_sendTransaction` with a `metadata` parameter. This parameter carries an array of verifiable context metadata for the transaction's smart contract calls. While the method is agnostic to the specific type of metadata it carries, any supported metadata is required to be cryptographically verifiable against the original transaction.
 
 ## Motivation
 
-When a decentralized application (dApp) requests a transaction, the wallet receives calldata it must present to the user for approval. The raw calldata is semantically opaque—the wallet has no built-in knowledge of what the bytes represent. Current approaches rely on the wallet pulling metadata from external registries at signing time. If the registry is unavailable, unreachable, or lacks the necessary metadata, the wallet falls back to blind signing. Furthermore, unverifiable off-chain metadata introduces significant phishing vectors, as malicious actors can supply deceptive context.
+When a decentralized application (dApp) requests a transaction, the wallet receives calldata to present to the user for approval. The raw calldata is semantically opaque — the wallet has no built-in knowledge of what the bytes represent. Unverifiable off-chain metadata introduces significant phishing vectors, as malicious actors can supply deceptive context.
 
 Hardware signing devices cannot query external metadata at all; they operate in strictly air-gapped environments with no network access, requiring all information needed to verify a transaction to be present in the signing request itself. `wallet_sendTransaction` ensures that the transaction payload includes the cryptographically verifiable context needed to safely interpret it.
 
@@ -81,8 +81,6 @@ The `metadata` object is a key-value map where each key serves as a unique ident
   "abi": [...]
 }
 ```
-
-The specific structure of the value (whether an `object` or `array`) is defined by the standard corresponding to the key.
 
 ### Wallet Processing
 
@@ -161,19 +159,17 @@ By making the `metadata` parameter a generic key-value map, the standard decoupl
 
 Wallets that do not implement `wallet_sendTransaction` SHOULD return a standard JSON-RPC Method Not Found error (`-32601`), allowing dApps to fall back to `eth_sendTransaction`.
 
-ERC-4337 flows using `UserOperation` are fully supported by this architecture. When a terminal wallet receives an ERC-4337 transaction bundled with verifiable metadata via this method, it can utilize the metadata to display the transaction context to the user for approval. Upon approval, the wallet signs and submits the `UserOperation` to the bundler exactly as it would normally. No new RPC method is strictly required to accommodate account abstraction flows.
+ERC-4337 `UserOperation` flows are fully compatible; the wallet renders the metadata for the user, then signs and submits to the bundler as normal.
 
 ## Security Considerations
 
-The security guarantees of `wallet_sendTransaction` depend entirely on the specific metadata standard being processed.
-
-While metadata itself is inherently advisory context, the defining requirement of this standard is that it MUST be verifiable. Any metadata standard transmitted via this method MUST define a cryptographic binding mechanism to the transaction itself. This ensures that the wallet can trustlessly verify that the provided context accurately represents the underlying execution. If a standard's verification fails, the wallet MUST reject the metadata and fall back to its default behavior.
+The security guarantees of `wallet_sendTransaction` depend entirely on the specific metadata standard being processed. Any metadata standard transmitted via this method MUST define a cryptographic binding to the transaction. If verification fails, the wallet MUST reject the metadata and fall back to its default behavior.
 
 Wallets MUST safely handle unknown or unsupported metadata keys by falling back to blind signing (or rejecting the transaction, depending on policy) and MUST NOT attempt to parse or render arbitrary structures that could lead to injection attacks or misleading displays.
 
 ### Metadata Poisoning Attacks
 
-A malicious dApp may bundle valid transaction data with deceptive metadata designed to mislead the user. For example, providing display specifications that describe a token transfer while the actual transaction approves unlimited spending. This attack is only effective if the wallet fails to verify the cryptographic binding between metadata and transaction data.
+A malicious dApp may bundle valid transaction data with deceptive metadata designed to mislead the user.
 
 Wallets MUST:
 - Verify metadata authenticity before rendering
