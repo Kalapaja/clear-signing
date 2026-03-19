@@ -197,6 +197,59 @@ bytes32 constant TRANSFER_ID = Display.display(
 );
 ```
 
+### JSON Representation
+
+Display specifications MAY be represented in JSON format for transmission via `wallet_sendTransaction` (EIP-TBD) or storage in off-chain systems. The JSON representation omits EIP-712 type definitions (which are static across all displays) and uses the following normalization rules:
+
+**Normalization Rules:**
+- **Empty arrays**: Absent `case` arrays MUST be represented as `[]`
+- **Empty strings**: Absent `description` and `title` fields MUST be represented as `""`
+- **Empty fields array**: Absent `fields` arrays for non-structural formats MUST be represented as `[]`
+
+The JSON structure maps directly to the EIP-712 structs:
+
+```json
+{
+  "abi": "transfer(address to, uint256 amount)",
+  "title": "$labels.title",
+  "description": "$labels.description",
+  "fields": [
+    {
+      "title": "$labels.sender",
+      "format": "address",
+      "params": [{"key": "value", "value": "$msg.sender"}]
+    },
+    {
+      "title": "$labels.amount",
+      "format": "tokenAmount",
+      "params": [
+        {"key": "token", "value": "$msg.to"},
+        {"key": "amount", "value": "$args.amount"}
+      ]
+    },
+    {
+      "title": "$labels.recipient",
+      "format": "address",
+      "params": [{"key": "value", "value": "$args.to"}]
+    }
+  ],
+  "labels": [
+    {
+      "locale": "en",
+      "items": [
+        {"key": "title", "value": "Transfer"},
+        {"key": "description", "value": "Transfer ERC-20 tokens"},
+        {"key": "sender", "value": "From"},
+        {"key": "amount", "value": "Amount"},
+        {"key": "recipient", "value": "To"}
+      ]
+    }
+  ]
+}
+```
+
+The JSON representation follows the same validation rules as the Solidity specification. Implementations MUST compute the display identifier by converting the JSON to EIP-712 structs and applying `hashStruct(Display)` as defined in EIP-712.
+
 ### Function Signature Format
 
 The `Display.abi` field MUST be a function signature of the form `<name>(<type> <name>, ...) [<modifier>]`.
@@ -590,7 +643,7 @@ Display.tokenAmountField(
 
 #### Structural Formats
 
-Structural formats carry nested `fields` and modify rendering context:
+Structural formats carry nested `fields` and modify rendering context (see [Rationale: Structural Formats](#structural-formats-1) for design rationale):
 - **`map`, `array`** — create isolated `$args` scope (nested fields access only explicitly passed data; `$msg` constant)
 - **`call`** — creates new `$msg` context (independent rendering with own `$msg` and `$args`)
 - **`switch`** — no new scope (child fields inherit parent's `$args`)
@@ -730,30 +783,56 @@ Display.callField(
 | `value` | yes      | Reference or literal used as the discriminant |
 
 ```solidity
-// Universal router pattern: command byte dispatches to different operations
+// Universal router: execute(uint8 command, bytes data)
+// Different commands interpret the bytes parameter differently
 Display.switchField(
     "$labels.operation",       // title
-    "$labels.operationDesc",   // description
+    "",                        // description (empty)
     "",                        // case (empty)
     "$args.command",           // value - uint8 command byte
     abi.encodePacked(          // fields
-        Display.stringField(
-            "$labels.transferOp",                    // title
+        // Command 0: TRANSFER - data contains (address recipient, uint256 amount)
+        Display.mapField(
+            "$labels.transfer",                      // title
             "",                                      // description (empty)
             abi.encodePacked(keccak256(bytes("0"))), // case - TRANSFER command
-            "Transfer tokens to recipient"           // value
+            abi.encodePacked(
+                Display.entry("abi", "(address recipient,uint256 amount)"),
+                Display.entry("value", "$args.data")
+            ),
+            abi.encodePacked(
+                Display.addressField("$labels.recipient", "", "", "$args.recipient"),
+                Display.unitsField("$labels.amount", "", "", "$args.amount", "18")
+            )
         ),
-        Display.stringField(
-            "$labels.approveOp",                     // title
+        // Command 1: APPROVE - data contains (address spender, uint256 amount)
+        Display.mapField(
+            "$labels.approve",                       // title
             "",                                      // description (empty)
             abi.encodePacked(keccak256(bytes("1"))), // case - APPROVE command
-            "Approve spender for token operations"   // value
+            abi.encodePacked(
+                Display.entry("abi", "(address spender,uint256 amount)"),
+                Display.entry("value", "$args.data")
+            ),
+            abi.encodePacked(
+                Display.contractField("$labels.spender", "", "", "$args.spender"),
+                Display.unitsField("$labels.amount", "", "", "$args.amount", "18")
+            )
         ),
-        Display.stringField(
-            "$labels.wrapOp",                        // title
+        // Command 2: SWAP - data contains (address tokenIn, address tokenOut, uint256 amountIn)
+        Display.mapField(
+            "$labels.swap",                          // title
             "",                                      // description (empty)
-            abi.encodePacked(keccak256(bytes("2"))), // case - WRAP command
-            "Wrap native token to ERC-20"            // value
+            abi.encodePacked(keccak256(bytes("2"))), // case - SWAP command
+            abi.encodePacked(
+                Display.entry("abi", "(address tokenIn,address tokenOut,uint256 amountIn)"),
+                Display.entry("value", "$args.data")
+            ),
+            abi.encodePacked(
+                Display.addressField("$labels.tokenIn", "", "", "$args.tokenIn"),
+                Display.addressField("$labels.tokenOut", "", "", "$args.tokenOut"),
+                Display.unitsField("$labels.amountIn", "", "", "$args.amountIn", "18")
+            )
         )
     )
 )

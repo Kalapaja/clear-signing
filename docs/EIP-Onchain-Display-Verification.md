@@ -68,14 +68,23 @@ A `clearCall` payload MUST use the following packed byte sequence layout:
 | 4–35          | Display Identifier | The 32-byte display identifier                                              |
 | 36+           | Inner Calldata     | The 4-byte selector and ABI-encoded parameters of the target function       |
 
-Any data appended after the inner calldata MUST be ignored by the `clearCall()` entry point but MAY be used by the target function.
+```
+┌─────────────┬───────────────────────┬─────────────────────────────┐
+│   Bytes 0-3 │       Bytes 4-35      │         Bytes 36+           │
+├─────────────┼───────────────────────┼─────────────────────────────┤
+│  clearCall  │   Display Identifier  │      Inner Calldata         │
+│  Selector   │      (32 bytes)       │  ┌──────────┬──────────────┐│
+│ 0x0ab793e2  │                       │  │ Selector │  ABI Params  ││
+│             │                       │  │ (4 bytes)│              ││
+└─────────────┴───────────────────────┴──┴──────────┴──────────────┘
+```
 
 ### Display Identifier Storage
 
 Contracts MUST implement a mechanism to resolve or verify the expected display identifier for a given function selector. Developers MAY choose from the following strategies based on their requirements for gas efficiency and upgradeability.
 
 #### Compile-time Constants
-The most gas-efficient approach, recommended for contracts with a single, static display specification per function.
+The most gas-efficient approach, recommended for contracts with a single, static display specification per function. This approach also works well for upgradeable proxy contracts: during a proxy upgrade, the display identifier is stored in the implementation contract's bytecode and changes automatically when the implementation is replaced.
 
 ```solidity
 bytes32 constant TRANSFER_DISPLAY_ID = 0x1a2b3c...;
