@@ -1,7 +1,7 @@
 ---
 eip: TBD
-title: Onchain Display Specification
-description: A standardized on-chain display format for rendering human-readable transaction context from smart contract calldata.
+title: Onchain Clear Signing Specification
+description: A standardized on-chain clear signing format for rendering human-readable transaction context from smart contract calldata.
 author: TBD (At least one author must include GitHub username)
 discussions-to: TBD (Ethereum Magicians forum URL required)
 status: Draft
@@ -45,7 +45,7 @@ The Ethereum ABI encodes function call parameters as typed byte sequences but ca
 
 Hardware signing devices are the most constrained signing environment: limited memory and no network connectivity preclude fetching or validating external metadata at signing time. A standard that works within these constraints works everywhere — software wallets on web and mobile inherit the same guarantees while being free to present richer context on top.
 
-This requires two properties that existing approaches do not provide together: an expressive semantic type system covering common contract patterns — token amounts, timestamps, durations, percentages, addresses — with structural composition support for nested calls; and a compact, deterministic identifier any device can derive locally from a complete display specification. Existing off-chain metadata registries satisfy neither: they require live network access and provide no cryptographic binding between metadata and contract. This standard defines the type system and identifier computation; the companion Onchain Display Verification standard (EIP-TBD) defines how identifiers are bound to deployed contracts on-chain.
+This requires two properties that existing approaches do not provide together: an expressive semantic type system covering common contract patterns — token amounts, timestamps, durations, percentages, addresses — with structural composition support for nested calls; and a compact, deterministic identifier any device can derive locally from a complete display specification. Existing off-chain metadata registries satisfy neither: they require live network access and provide no cryptographic binding between metadata and contract. This standard defines the type system and identifier computation; the companion Onchain Clear Signing Verification standard (EIP-TBD) defines how identifiers are bound to deployed contracts on-chain.
 
 ## Specification
 
@@ -950,7 +950,7 @@ The specification adopts halt-on-error behavior: any resolution failure, type mi
 
 ## Backwards Compatibility
 
-This EIP introduces a new standard and does not modify any existing Ethereum protocol, ABI encoding, or ERC. It has no backward compatibility requirements with respect to previously deployed contracts or existing wallet implementations. Wallets that do not implement this standard continue to operate under existing behavior; this standard defines an opt-in display layer.
+This ERC introduces a new standard and does not modify any existing Ethereum protocol, ABI encoding, or ERC. It has no backward compatibility requirements with respect to previously deployed contracts or existing wallet implementations. Wallets that do not implement this standard continue to operate under existing behavior; this standard defines an opt-in display layer.
 
 Dependency on EIP-712 is additive: this standard reuses `hashStruct` solely for identifier computation and does not alter any EIP-712 behavior or interfere with existing EIP-712 signed data flows.
 
@@ -958,9 +958,9 @@ Dependency on EIP-712 is additive: this standard reuses `hashStruct` solely for 
 
 ### Binding Display Specifications to Contracts
 
-This specification does not define how display identifiers bind to contracts. The companion Onchain Display Verification standard (EIP-TBD) addresses on-chain verification mechanisms.
+This specification does not define how display identifiers bind to contracts. The companion Onchain Clear Signing Verification standard (EIP-TBD) addresses on-chain verification mechanisms.
 
-Without verification, users face specification substitution attacks, phishing via stolen specifications, and downgrade attacks. The on-chain verification mechanism is defined in the companion Onchain Display Verification standard (EIP-TBD); wallet implementations SHOULD NOT render display specifications without a verified binding to the target contract.
+Without verification, users face specification substitution attacks, phishing via stolen specifications, and downgrade attacks. The on-chain verification mechanism is defined in the companion Onchain Clear Signing Verification standard (EIP-TBD); wallet implementations SHOULD NOT render display specifications without a verified binding to the target contract.
 
 ### Native Value Transfer Omission
 

@@ -6,7 +6,7 @@ author: TBD (At least one author must include GitHub username)
 discussions-to: TBD (Ethereum Magicians forum URL required)
 status: Draft
 type: Standards Track
-category: Interface
+category: ERC
 created: 2026-03-13
 requires: 1474
 ---
@@ -151,7 +151,7 @@ Bundling metadata with the transaction request (the "Push Model") rather than fe
 
 ### Extensibility
 
-By making the `metadata` parameter a generic key-value map, the standard decouples the transport mechanism from specific data formats. While the immediate motivation is to deliver Onchain Display Specifications (via the `"display"` key), this design allows future standards to use the same `wallet_sendTransaction` method to push other forms of context. For example, a dApp could provide an ABI for decoding (via `"abi"`), off-chain intent declarations, or alternative verification proofs using their respective EIP identifiers as keys, without requiring new RPC methods.
+By making the `metadata` parameter a generic key-value map, the standard decouples the transport mechanism from specific data formats. While the immediate motivation is to deliver Onchain Clear Signing Specifications (via the `"display"` key), this design allows future standards to use the same `wallet_sendTransaction` method to push other forms of context. For example, a dApp could provide an ABI for decoding (via `"abi"`), off-chain intent declarations, or alternative verification proofs using their respective EIP identifiers as keys, without requiring new RPC methods.
 
 ## Backwards Compatibility
 

@@ -1,6 +1,6 @@
 ---
 eip: TBD
-title: Onchain Display Verification
+title: Onchain Clear Signing Verification
 description: A contract-side enforcement mechanism that binds on-chain execution to the display specification presented to the signer.
 author: TBD (At least one author must include GitHub username)
 discussions-to: TBD (Ethereum Magicians forum URL required)
@@ -29,7 +29,6 @@ requires: 712
     - [Tooling Compatibility](#tooling-compatibility)
 - [Security Considerations](#security-considerations)
     - [Invalid clearCall Implementation](#invalid-clearcall-implementation)
-    - [On-Chain Footprint](#on-chain-footprint)
 - [Copyright](#copyright)
 
 ## Abstract
@@ -48,7 +47,7 @@ The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SH
 
 ### Display Identifier
 
-The display identifier is an opaque 32-byte value that uniquely identifies a display specification, computed as defined in the companion Onchain Display Specification standard (EIP-TBD).
+The display identifier is an opaque 32-byte value that uniquely identifies a display specification, computed as defined in the companion Onchain Clear Signing Specification standard (EIP-TBD).
 
 Wallets MUST compute the display identifier locally from the exact display specification presented to the user. A wallet MUST reject a transaction before submission if the locally computed identifier does not match the display identifier present in the `clearCall` payload.
 
