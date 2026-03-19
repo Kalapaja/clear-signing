@@ -187,10 +187,6 @@ Tools that do not implement `clearCall` unwrapping — including block explorers
 
 An incorrectly implemented `clearCall()` entry point — one that skips or weakens the display identifier verification — undermines the security guarantee of the entire standard. A contract that accepts any display identifier or performs a partial check provides no binding between display and execution. Implementations MUST perform a strict equality check between the extracted identifier and the stored expected value. Contracts SHOULD be audited with specific attention to the verification path and all revert conditions.
 
-### On-Chain Footprint
-
-The display identifier is permanently visible in transaction history. While the display specification itself is off-chain, the identifier reveals that a specific display version was used for a given call. Developers SHOULD NOT embed personally identifiable information in display specifications, as the identifier creates a linkable on-chain record.
-
 ## Copyright
 
 Copyright and related rights waived via [CC0](../LICENSE.md).

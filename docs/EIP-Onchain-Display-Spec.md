@@ -841,7 +841,7 @@ If a resolved address is not present in any trusted Contract List, the wallet MA
 
 ### JSON Representation
 
-Display specifications MAY be represented in JSON format for transmission via `wallet_sendTransaction` (EIP-TBD) or storage in off-chain systems. The JSON representation omits EIP-712 type definitions (which are static across all displays) and uses the following normalization rules:
+Display specifications MAY be represented in JSON format for transmission via `wallet_sendTransaction` (EIP-TBD). The JSON representation omits EIP-712 type definitions (which are static across all displays) and uses the following normalization rules:
 
 **Normalization Rules:**
 - **Empty arrays**: Absent `case` and `fields` arrays MUST be represented as `[]`
