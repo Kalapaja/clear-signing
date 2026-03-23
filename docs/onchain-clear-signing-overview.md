@@ -1,4 +1,4 @@
-# Onchain Clear Signing for Every Contract
+# Onchain Clear Signing
 
 Blind signing is the state of Ethereum today: users approve transactions they cannot meaningfully read, trusting the requesting application to accurately describe what they are authorizing. In February 2025, Bybit suffered a loss of approximately $1.5 billion when Safe multisig signers approved a transaction that, contrary to its display, replaced the wallet implementation and transferred control to attacker-controlled addresses. Existing approaches — curated off-chain registries such as ERC-7730 — bring clear signing to a small set of well-known contracts, but they depend on third-party curation, cover only the most prominent protocols, and cannot scale to the long tail of contracts deployed every day.
 
@@ -22,7 +22,7 @@ Display specifications compose. A smart account calling a multisig calling a swa
 
 ---
 
-## How They Compose
+## Transaction Flow
 
 ```
 dApp
@@ -41,7 +41,7 @@ Contract
  └─ Verifies identifier matches committed value → executes (Verification)
 ```
 
-Each layer verifies independently and trusts none of the others. A mismatched identifier causes wallet rejection before submission; a call submitted directly, bypassing the wallet, reverts on-chain.
+Verification is independent at each layer; no layer trusts another. A display identifier mismatch results in wallet rejection before submission. A call submitted without a valid identifier — bypassing the wallet entirely — reverts at the contract. The mechanism carries a small, fixed gas overhead: the 32-byte display identifier prepended to calldata increases calldata cost, while the on-chain validation contributes a constant cost to execution.
 
 ---
 
