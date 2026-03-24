@@ -59,16 +59,11 @@ Display specifications designate which addresses require verification using type
 
 These three ERCs are at the idea stage. We plan to submit to the EIP repository once we have addressed community feedback. We are looking for feedback on:
 
-**Architecture.** Where might the design break or create unexpected complexity? 
-
+**Architecture.** Where might the design break or create unexpected complexity?
 **Integration.** What adoption friction do you anticipate? For dApps: build-time tooling burden. For wallets: rendering engine complexity on constrained devices. For contracts: gas overhead and proxy compatibility.
-
-**Security.** Attack vectors we have not addressed? 
-
+**Security.** Attack vectors we have not addressed?
 **Format coverage.** Missing types or rendering requirements for your use case.
-
 **Backward compatibility.** Migration paths for non-upgradeable contracts. See the Backwards Compatibility section in the Onchain Clear Signing Verification ERC for proposed options.
-
 **Early adoption.** If you are building a wallet, dApp, or contract and want to be an early adopter, let us know.
 
 Thanks for reading — looking forward to the discussion.

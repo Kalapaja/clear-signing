@@ -43,15 +43,13 @@ This standard defines a structured display specification for smart contract func
 
 The Ethereum ABI encodes function call parameters as typed byte sequences but carries no semantic meaning: a Unix timestamp and a token amount are indistinguishable representations of `uint256`, and a `bytes` parameter encoding an inner token transfer is displayed as an opaque hex string. This absence of machine-parseable semantics produces blind signing — users authorize transactions whose effects they cannot independently verify, relying entirely on the originating application interface to describe what they are approving. This trust model is incompatible with the security properties expected of self-custodial wallets and hardware signing devices, where the integrity of displayed information cannot be delegated to connected software.
 
-Hardware signing devices are the most constrained signing environment: limited memory and no network connectivity preclude fetching or validating external metadata at signing time. A standard that works within these constraints works everywhere — software wallets on web and mobile inherit the same guarantees while being free to present richer context on top.
+Hardware signing devices are the most constrained signing environment: limited memory and no network connectivity preclude fetching or validating external metadata at signing time. Existing off-chain metadata registries require live network access and provide no cryptographic binding between displayed metadata and the contract being called — absent such a link, the description presented to the signer carries no protocol-level guarantee. This standard operates within hardware constraints and binds display to execution by construction, providing uniform integrity guarantees across all wallet environments.
 
-This requires two properties that existing approaches do not provide together: an expressive semantic type system covering common contract patterns — token amounts, timestamps, durations, percentages, addresses — with structural composition support for nested calls; and a compact, deterministic identifier any device can derive locally from a complete display specification. Existing off-chain metadata registries satisfy neither: they require live network access and provide no cryptographic binding between metadata and contract. This standard defines the type system and identifier computation; the companion Onchain Clear Signing Verification standard (EIP-TBD) defines how identifiers are bound to deployed contracts on-chain.
+This standard defines an expressive semantic type system — covering token amounts, timestamps, durations, percentages, addresses, and nested calls — and a compact, deterministic display identifier that any device can derive locally from a complete specification without network access. The companion Onchain Clear Signing Verification standard (EIP-TBD) defines how display identifiers are committed to by contracts at deployment and verified on every call, making the displayed specification an enforced precondition of execution.
 
 ## Specification
 
 The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
-
-This specification defines semantic presentation: what data represents and how it relates to other data. Visual rendering is explicitly out of scope; wallets MAY adapt the presentation to device constraints and capabilities while preserving the specified semantics.
 
 ### Type Definitions
 
@@ -125,30 +123,6 @@ A display specification is composed of four EIP-712 compatible structs: `Display
     {"name": "value", "type": "string"}
   ]
 }
-```
-
-The corresponding Solidity typehash constants are:
-
-```solidity
-// EIP-712 type hash for Entry
-bytes32 constant ENTRY_TH = keccak256(
-    "Entry(string key,string value)"
-);
-
-// EIP-712 type hash for Labels
-bytes32 constant LABELS_TH = keccak256(
-    "Labels(string locale,Entry[] items)Entry(string key,string value)"
-);
-
-// EIP-712 type hash for Field
-bytes32 constant FIELD_TH = keccak256(
-    "Field(string title,string description,string format,string[] case,Entry[] params,Field[] fields)Entry(string key,string value)"
-);
-
-// EIP-712 type hash for Display
-bytes32 constant DISPLAY_TH = keccak256(
-    "Display(string abi,string title,string description,Field[] fields,Labels[] labels)Entry(string key,string value)Field(string title,string description,string format,string[] case,Entry[] params,Field[] fields)Labels(string locale,Entry[] items)"
-);
 ```
 
 #### Example: ERC-20 Transfer

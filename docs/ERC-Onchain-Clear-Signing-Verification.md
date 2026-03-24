@@ -57,12 +57,6 @@ Contracts MUST resolve the expected display identifier for each supported functi
 
 A `clearCall` payload MUST use the following packed byte sequence layout:
 
-| Range (bytes) | Field              | Description                                                                 |
-|---------------|--------------------|-----------------------------------------------------------------------------|
-| 0–3           | Function Selector  | The `clearCall()` selector: `0x0ab793e2`                                    |
-| 4–35          | Display Identifier | The 32-byte display identifier                                              |
-| 36+           | Inner Calldata     | The 4-byte selector and ABI-encoded parameters of the target function       |
-
 ```
 ┌─────────────┬───────────────────────┬─────────────────────────────┐
 │   Bytes 0-3 │       Bytes 4-35      │         Bytes 36+           │
@@ -76,7 +70,7 @@ A `clearCall` payload MUST use the following packed byte sequence layout:
 
 ### Display Identifier Storage
 
-Contracts MUST implement a mechanism to resolve or verify the expected display identifier for a given function selector. Developers MAY choose from the following strategies based on their requirements for gas efficiency and upgradeability.
+Contracts MUST implement a mechanism to resolve and verify the expected display identifier for a given function selector. Developers MAY choose from the following strategies based on their requirements for gas efficiency and upgradeability.
 
 #### Compile-time Constants
 The most gas-efficient approach, recommended for contracts with a single, static display specification per function. This approach also works well for upgradeable proxy contracts: during a proxy upgrade, the display identifier is stored in the implementation contract's bytecode and changes automatically when the implementation is replaced.
