@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./Display.sol";
 
 library OneInchSwapDisplayHash {
-    bytes32 public constant ONE_INCH_SWAP_DISPLAY_HASH = 0x3d740fcba0f95f11d2e13d8030793e381233d40432c354600b65a90e0072a52a;
+    bytes32 public constant ONE_INCH_SWAP_DISPLAY_HASH = 0xa3b13fa8c1d338fdf4d771abfce886ce850b7b40f72abfbec95440e071f36824;
 
     function ONE_INCH_SWAP_DISPLAY() pure public returns (bytes32) {
         return Display.display(
@@ -16,27 +16,27 @@ library OneInchSwapDisplayHash {
                     "$labels.you_send",
                     "$labels.desc_you_send",
                     "",
-                    "$data.desc.srcToken",
-                    "$data.desc.amount"
+                    "$args.desc.srcToken",
+                    "$args.desc.amount"
                 ),
                 Display.tokenAmountField(
                     "$labels.you_receive_minimum",
                     "$labels.desc_you_receive_minimum",
                     "",
-                    "$data.desc.dstToken",
-                    "$data.desc.minReturnAmount"
+                    "$args.desc.dstToken",
+                    "$args.desc.minReturnAmount"
                 ),
                 Display.addressField(
                     "$labels.recipient",
                     "$labels.desc_recipient",
                     "",
-                    "$data.desc.dstReceiver"
+                    "$args.desc.dstReceiver"
                 ),
                 Display.bitmaskField(
                     "$labels.swap_options",
                     "$labels.desc_swap_options",
                     "",
-                    "$data.desc.flags",
+                    "$args.desc.flags",
                     abi.encodePacked(
                         Display.entry("#0", "$labels.partial_fill_enabled")
                     )

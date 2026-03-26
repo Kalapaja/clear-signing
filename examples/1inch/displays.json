@@ -11,8 +11,8 @@
           "description": "$labels.desc_you_send",
           "format": "tokenAmount",
           "params": [
-            {"key": "token", "value": "$data.desc.srcToken"},
-            {"key": "amount", "value": "$data.desc.amount"},
+            {"key": "token", "value": "$args.desc.srcToken"},
+            {"key": "amount", "value": "$args.desc.amount"},
             {"key": "direction", "value": "out"}
           ]
         },
@@ -21,8 +21,8 @@
           "description": "$labels.desc_you_receive_minimum",
           "format": "tokenAmount",
           "params": [
-            {"key": "token", "value": "$data.desc.dstToken"},
-            {"key": "amount", "value": "$data.desc.minReturnAmount"},
+            {"key": "token", "value": "$args.desc.dstToken"},
+            {"key": "amount", "value": "$args.desc.minReturnAmount"},
             {"key": "direction", "value": "in"}
           ]
         },
@@ -30,14 +30,14 @@
           "title": "$labels.recipient",
           "description": "$labels.desc_recipient",
           "format": "address",
-          "params": [{"key": "value", "value": "$data.desc.dstReceiver"}]
+          "params": [{"key": "value", "value": "$args.desc.dstReceiver"}]
         },
         {
           "title": "$labels.swap_options",
           "description": "$labels.desc_swap_options",
           "format": "bitmask",
           "params": [
-            {"key": "value", "value": "$data.desc.flags"},
+            {"key": "value", "value": "$args.desc.flags"},
             {"key": "#0", "value": "$labels.partial_fill_enabled"}
           ]
         }

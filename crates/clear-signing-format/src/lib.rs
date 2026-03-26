@@ -471,7 +471,7 @@ fn format_field(
                     lines.push(format!("{}{}", indent, desc));
                 }
             }
-            let seconds = value.as_secs();
+            let seconds: u64 = u64::try_from(*value).unwrap_or(u64::MAX);
             let h = seconds / 3600;
             let m = (seconds % 3600) / 60;
             let s = seconds % 60;
@@ -500,7 +500,7 @@ fn format_field(
                     lines.push(format!("{}{}", indent, desc));
                 }
             }
-            let formatted = format_datetime_utc(value.as_secs());
+            let formatted = format_datetime_utc(u64::try_from(*value).unwrap_or(u64::MAX));
             lines.push(format!("{}  {}", indent, formatted));
         }
         DisplayField::Bitmask {
@@ -798,7 +798,6 @@ mod tests {
     #[test]
     fn test_format_clear_call() {
         use clear_signing::{ClearCall, DisplayField};
-        use core::time::Duration;
 
         let provider = MockMetadataProvider;
 
@@ -865,12 +864,12 @@ mod tests {
                 DisplayField::Duration {
                     title: "Timeout".to_string(),
                     description: "".to_string(),
-                    value: Duration::from_secs(3665), // 1h 1m 5s
+                    value: U256::from(3665u64), // 1h 1m 5s
                 },
                 DisplayField::Datetime {
                     title: "Deadline".to_string(),
                     description: "".to_string(),
-                    value: Duration::from_secs(1736328584),
+                    value: U256::from(1736328584u64),
                 },
                 DisplayField::Array {
                     title: "Array".to_string(),

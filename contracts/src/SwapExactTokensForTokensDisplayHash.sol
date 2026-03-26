@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./Display.sol";
 
 library SwapExactTokensForTokensDisplayHash {
-    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = 0x1adf387d370fcd9bf610451410a5e18e2b02a5d8bf521de92887283b1c23d123;
+    bytes32 public constant SWAP_EXACT_TOKENS_FOR_TOKENS_DISPLAY_HASH = 0xc0f1de3c8662b8c5152998e4e528e0995cf67090535306c810bfe2c964d72bbe;
 
     function SWAP_EXACT_TOKENS_FOR_TOKENS() pure public returns (bytes32) {
         return Display.display(
@@ -16,27 +16,27 @@ library SwapExactTokensForTokensDisplayHash {
                     "$labels.sending",
                     "$labels.sending_description",
                     "",
-                    "$data.path[0]",
-                    "$data.amountIn"
+                    "$args.path[0]",
+                    "$args.amountIn"
                 ),
                 Display.tokenAmountField(
                     "$labels.receiving_min",
                     "$labels.receiving_min_description",
                     "",
-                    "$data.path[-1]",
-                    "$data.amountOutMin"
+                    "$args.path[-1]",
+                    "$args.amountOutMin"
                 ),
                 Display.addressField(
                     "$labels.recipient",
                     "$labels.recipient_description",
                     "",
-                    "$data.to"
+                    "$args.to"
                 ),
                 Display.datetimeField(
                     "$labels.deadline",
                     "$labels.deadline_description",
                     "",
-                    "$data.deadline"
+                    "$args.deadline"
                 )
             ),
             abi.encodePacked(

@@ -2,7 +2,6 @@ use crate::display::Labels;
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloy_primitives::{Address, Bytes, I256, U256};
-use core::time::Duration;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +34,41 @@ impl Direction {
 
     pub fn try_from_sol_value(value: crate::sol::SolValue) -> crate::Result<Self> {
         Self::from_str(value.as_literal()?.as_str())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum TimeUnits {
+    Seconds,
+    Minutes,
+    Hours,
+    Days,
+    Weeks,
+}
+
+impl TimeUnits {
+    pub fn from_str(s: &str) -> crate::Result<Self> {
+        match s {
+            "seconds" => Ok(Self::Seconds),
+            "minutes" => Ok(Self::Minutes),
+            "hours" => Ok(Self::Hours),
+            "days" => Ok(Self::Days),
+            "weeks" => Ok(Self::Weeks),
+            other => anyhow::bail!(
+                "Unknown units '{}'. Expected: seconds, minutes, hours, days, weeks",
+                other
+            ),
+        }
+    }
+
+    pub fn multiplier(self) -> U256 {
+        match self {
+            Self::Seconds => U256::from(1u64),
+            Self::Minutes => U256::from(60u64),
+            Self::Hours => U256::from(3_600u64),
+            Self::Days => U256::from(86_400u64),
+            Self::Weeks => U256::from(604_800u64),
+        }
     }
 }
 
@@ -96,12 +130,12 @@ pub enum DisplayField {
     Duration {
         title: Label,
         description: Label,
-        value: Duration,
+        value: U256,
     },
     Datetime {
         title: Label,
         description: Label,
-        value: Duration,
+        value: U256,
     },
     Bitmask {
         title: Label,

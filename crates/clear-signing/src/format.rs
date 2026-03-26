@@ -1,18 +1,16 @@
 use crate::clear_call::{parse_message, process_fields};
 use crate::display::Display;
 use crate::display::{Entry, Field};
-use crate::fields::{Direction, DisplayField, Label};
+use crate::fields::{Direction, DisplayField, Label, TimeUnits};
 use crate::registry::Registry;
 use crate::resolver::{resolve_value, Message};
 use crate::sol::{SolType, SolValue};
-use crate::ResultExt;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use alloy_dyn_abi::DynSolType;
 use alloy_primitives::address;
-use core::time::Duration;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -388,21 +386,27 @@ pub(crate) fn process_percentage(ctx: &ProcessingContext) -> crate::Result<Displ
 
 pub(crate) fn process_duration(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_uint()?;
-
+    let units = match ctx.resolve_optional_param("units")? {
+        Some(sol) => TimeUnits::from_str(&sol.as_string()?)?,
+        None => TimeUnits::Seconds,
+    };
     Ok(DisplayField::Duration {
         title: ctx.title().to_string(),
         description: ctx.description().to_string(),
-        value: Duration::from_secs(value.try_into().err_ctx("Can't parse uint into u64")?),
+        value: value.saturating_mul(units.multiplier()),
     })
 }
 
 pub(crate) fn process_datetime(ctx: &ProcessingContext) -> crate::Result<DisplayField> {
     let value = ctx.resolve_param("value")?.as_uint()?;
-
+    let units = match ctx.resolve_optional_param("units")? {
+        Some(sol) => TimeUnits::from_str(&sol.as_string()?)?,
+        None => TimeUnits::Seconds,
+    };
     Ok(DisplayField::Datetime {
         title: ctx.title().to_string(),
         description: ctx.description().to_string(),
-        value: Duration::from_secs(value.try_into().err_ctx("Can't parse uint into u64")?),
+        value: value.saturating_mul(units.multiplier()),
     })
 }
 

@@ -3,7 +3,7 @@
     "sender": "0x056451BBCEbbb1A764b52A7FB1E90Ac07536daC5",
     "to": "0xec5ab17cc35221cdf54eaeb0868ea82d4d75d9bf",
     "value": "0x0",
-    "data": "0x0ab793e21adf387d370fcd9bf610451410a5e18e2b02a5d8bf521de92887283b1c23d12338ed17390000000000000000000000000000000000000000000000056bc75e2d6310000000000000000000000000000000000000000000000000000000700501e120f1a900000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000056451bbcebbb1a764b52a7fb1e90ac07536dac5000000000000000000000000000000000000000000000000000000006966512600000000000000000000000000000000000000000000000000000000000000020000000000000000000000006b175474e89094c44da98b954eedeac495271d0f000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000",
+    "data": "0x0ab793e2c0f1de3c8662b8c5152998e4e528e0995cf67090535306c810bfe2c964d72bbe38ed17390000000000000000000000000000000000000000000000056bc75e2d6310000000000000000000000000000000000000000000000000000000700501e120f1a900000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000056451bbcebbb1a764b52a7fb1e90ac07536dac5000000000000000000000000000000000000000000000000000000006966512600000000000000000000000000000000000000000000000000000000000000020000000000000000000000006b175474e89094c44da98b954eedeac495271d0f000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000",
     "displays": [
       {
         "abi": "function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline)",
@@ -15,8 +15,8 @@
             "description": "$labels.sending_description",
             "format": "tokenAmount",
             "params": [
-              {"key": "token", "value": "$data.path[0]"},
-              {"key": "amount", "value": "$data.amountIn"}
+              {"key": "token", "value": "$args.path[0]"},
+              {"key": "amount", "value": "$args.amountIn"}
             ]
           },
           {
@@ -24,8 +24,8 @@
             "description": "$labels.receiving_min_description",
             "format": "tokenAmount",
             "params": [
-              {"key": "token", "value": "$data.path[-1]"},
-              {"key": "amount", "value": "$data.amountOutMin"}
+              {"key": "token", "value": "$args.path[-1]"},
+              {"key": "amount", "value": "$args.amountOutMin"}
             ]
           },
           {
@@ -33,7 +33,7 @@
             "description": "$labels.recipient_description",
             "format": "address",
             "params": [
-              {"key": "value", "value": "$data.to"}
+              {"key": "value", "value": "$args.to"}
             ]
           },
           {
@@ -41,7 +41,7 @@
             "description": "$labels.deadline_description",
             "format": "datetime",
             "params": [
-              {"key": "value", "value": "$data.deadline"}
+              {"key": "value", "value": "$args.deadline"}
             ]
           }
         ],

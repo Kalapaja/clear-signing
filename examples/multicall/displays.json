@@ -10,7 +10,7 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$data.amount"}
+            {"key": "amount", "value": "$args.amount"}
           ]
         },
         {
@@ -21,7 +21,7 @@
         {
           "title": "$labels.receiver",
           "format": "address",
-          "params": [{"key": "value", "value": "$data.receiver"}]
+          "params": [{"key": "value", "value": "$args.receiver"}]
         }
       ],
       "labels": [
@@ -44,7 +44,7 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "amount", "value": "$data.amount"}
+            {"key": "amount", "value": "$args.amount"}
           ]
         },
         {
@@ -55,7 +55,7 @@
         {
           "title": "$labels.spender",
           "format": "contract",
-          "params": [{"key": "value", "value": "$data.spender"}]
+          "params": [{"key": "value", "value": "$args.spender"}]
         }
       ],
       "labels": [
@@ -76,13 +76,13 @@
         {
           "title": "$labels.calls",
           "format": "array",
-          "params": [{"key": "$call", "value": "$data.calls"}],
+          "params": [{"key": "$call", "value": "$args.calls"}],
           "fields": [
             {
               "format": "call",
               "params": [
-                {"key": "to", "value": "$data.call.to"},
-                {"key": "data", "value": "$data.call.data"},
+                {"key": "to", "value": "$args.call.to"},
+                {"key": "data", "value": "$args.call.data"},
                 {"key": "value", "value": "0"}
               ]
             }

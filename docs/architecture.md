@@ -340,7 +340,7 @@ structure is compatible with the **EIP-712 `hashStruct`** algorithm.
 **Key Concepts:**
 
 - **Named Parameters**: Standard Solidity function ABI, but with parameter names preserved. These names serve as paths
-  for value references (e.g., `$msg.data.amount`).
+  for value references (e.g., `$args.amount`).
 - **Display Types**: Each `format` (display type) defines its own unique schema for valid parameters.
 - **Envelope & Message**: The **Envelope** is the transaction container (e.g., Transaction or UserOperation) that holds
   one or more **Messages** (encoded calls). The `$msg` variable exposes the current message context.
@@ -646,7 +646,7 @@ Bytes 36+:    Actual call data (function selector + parameters of the inner func
 ```
 
 This packed format is more gas-efficient than traditional ABI-encoded parameters, reducing overhead to approximately
-2,700 gas while maintaining full security guarantees.
+3,764–3,979 gas overhead per call while maintaining full security guarantees.
 
 **Implementation Example:**
 
@@ -732,17 +732,17 @@ sequenceDiagram
     
     Note over Dapp, Wallet: 3. Request
     User->>Dapp: Initiate Action
-    Dapp->>Wallet: Packed format (0x0ab793e2 || displayId=0 || calldata) + Display Spec
+    Dapp->>Wallet: wallet_sendTransaction(tx: 0x0ab793e2 || displayId || calldata, metadata: Display Spec)
 
     Note over Wallet, User: 4. Verify & Display
     Wallet->>Wallet: Verify address is well-known token/contract
+    Wallet->>Wallet: Compute displayId locally from Display Spec
+    Wallet->>Wallet: Reject if computed displayId ≠ displayId in payload
     Wallet->>User: Display Human-Readable Intent
-    
+
     Note over Wallet, User: 5. Sign
     User->>Wallet: Approve
-    Wallet->>Wallet: Calculate real displayId
-    Wallet->>Wallet: Patch bytes 4-35 with calculated displayId
-    Wallet->>Wallet: Sign Transaction
+    Wallet->>Wallet: Sign Transaction (data unchanged)
 
     Note over Dapp, Contract: 6. Execute
     Wallet-->>Dapp: Return Signed Tx

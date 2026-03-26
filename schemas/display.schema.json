@@ -377,7 +377,7 @@
       "anyOf": [
         {
           "pattern": "^[#$][\\w_.\\[:\\]]*",
-          "description": "A reference to a context variable (e.g., $msg.data.amount, $data.val)"
+          "description": "A reference to a context variable (e.g., $args.amount, $msg.to)"
         },
         {
           "description": "A literal value"

@@ -13,12 +13,12 @@
         {
           "title": "$labels.amount",
           "format": "tokenAmount",
-          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$data.amount"}]
+          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$args.amount"}]
         },
         {
           "title": "$labels.receiver",
           "format": "address",
-          "params": [{"key": "value", "value": "$data.receiver"}]
+          "params": [{"key": "value", "value": "$args.receiver"}]
         }
       ],
       "labels": [
@@ -44,12 +44,12 @@
         {
           "title": "$labels.spender",
           "format": "contract",
-          "params": [{"key": "value", "value": "$data.spender"}]
+          "params": [{"key": "value", "value": "$args.spender"}]
         },
         {
           "title": "$labels.amount",
           "format": "tokenAmount",
-          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$data.amount"}]
+          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$args.amount"}]
         }
       ],
       "labels": [
@@ -70,22 +70,22 @@
         {
           "title": "$labels.sender",
           "format": "address",
-          "params": [{"key": "value", "value": "$data.from"}]
+          "params": [{"key": "value", "value": "$args.from"}]
         },
         {
           "title": "$labels.amount",
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "$msg.to"},
-            {"key": "tokenId", "value": "$data.id"},
-            {"key": "amount", "value": "$data.value"}
+            {"key": "tokenId", "value": "$args.id"},
+            {"key": "amount", "value": "$args.value"}
           ]
         },
         {
           "title": "$labels.receiver",
           "format": "address",
           "params": [
-            {"key": "value", "value": "$data.to"}
+            {"key": "value", "value": "$args.to"}
           ]
         }
       ],

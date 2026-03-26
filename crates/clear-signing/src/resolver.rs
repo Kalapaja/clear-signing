@@ -5,7 +5,7 @@ use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 
 pub const CLEAR_CALL_SELECTOR: [u8; 4] = [0x0a, 0xb7, 0x93, 0xe2];
 const CONTAINER_MSG: &str = "msg";
-const CONTAINER_DATA: &str = "data";
+const CONTAINER_DATA: &str = "args";
 
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -73,7 +73,7 @@ pub fn resolve_value(
                 Ok(value)
             }
             _ => anyhow::bail!(
-                "Invalid variable reference container: {}. Valid containers: ${}, ${}",
+                "Invalid variable reference container: ${}. Valid containers: ${}, ${}",
                 identifier.container,
                 CONTAINER_MSG,
                 CONTAINER_DATA
@@ -342,17 +342,17 @@ mod tests {
     #[test]
     fn test_resolve_param_by_name() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.amount", &message, &data).unwrap();
+        let result = resolve_value("$args.amount", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(42_U256), 256));
     }
 
     #[test]
     fn test_resolve_param_by_index() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.0", &message, &data).unwrap();
+        let result = resolve_value("$args.0", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(42_U256), 256));
 
-        let result = resolve_value("$data.1", &message, &data).unwrap();
+        let result = resolve_value("$args.1", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Address(address!("0000000000000000000000000000000000000003"))
@@ -362,70 +362,70 @@ mod tests {
     #[test]
     fn test_resolve_param_not_found() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.notfound", &message, &data);
+        let result = resolve_value("$args.notfound", &message, &data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_resolve_array_index() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.items[0]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[0]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(10_U256), 256));
 
-        let result = resolve_value("$data.items[1]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[1]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(20_U256), 256));
 
-        let result = resolve_value("$data.items[2]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[2]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(30_U256), 256));
     }
 
     #[test]
     fn test_resolve_array_negative_index() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.items[-1]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[-1]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(30_U256), 256));
 
-        let result = resolve_value("$data.items[-2]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[-2]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(20_U256), 256));
 
-        let result = resolve_value("$data.items[-3]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[-3]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(10_U256), 256));
     }
 
     #[test]
     fn test_resolve_array_out_of_bounds() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.items[99]", &message, &data);
+        let result = resolve_value("$args.items[99]", &message, &data);
         assert!(result.is_err());
 
-        let result = resolve_value("$data.items[-99]", &message, &data);
+        let result = resolve_value("$args.items[-99]", &message, &data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_resolve_string_index() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.message[0]", &message, &data).unwrap();
+        let result = resolve_value("$args.message[0]", &message, &data).unwrap();
         assert_eq!(result, SolValue::String("H".into()));
 
-        let result = resolve_value("$data.message[6]", &message, &data).unwrap();
+        let result = resolve_value("$args.message[6]", &message, &data).unwrap();
         assert_eq!(result, SolValue::String("W".into()));
     }
 
     #[test]
     fn test_resolve_string_negative_index() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.message[-1]", &message, &data).unwrap();
+        let result = resolve_value("$args.message[-1]", &message, &data).unwrap();
         assert_eq!(result, SolValue::String("d".into()));
     }
 
     #[test]
     fn test_resolve_bytes_index() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.data[0]", &message, &data).unwrap();
+        let result = resolve_value("$args.data[0]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(0xaa_U256), 8));
 
-        let result = resolve_value("$data.data[1]", &message, &data).unwrap();
+        let result = resolve_value("$args.data[1]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Uint(uint!(0xbb_U256), 8));
     }
 
@@ -433,7 +433,7 @@ mod tests {
     fn test_resolve_array_slice() {
         let (message, data) = create_test_context();
 
-        let result = resolve_value("$data.items[:]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[:]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Array(vec![
@@ -443,7 +443,7 @@ mod tests {
             ])
         );
 
-        let result = resolve_value("$data.items[1:]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[1:]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Array(vec![
@@ -452,7 +452,7 @@ mod tests {
             ])
         );
 
-        let result = resolve_value("$data.items[:2]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[:2]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Array(vec![
@@ -461,7 +461,7 @@ mod tests {
             ])
         );
 
-        let result = resolve_value("$data.items[1:2]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[1:2]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Array(vec![SolValue::Uint(uint!(20_U256), 256),])
@@ -472,13 +472,13 @@ mod tests {
     fn test_resolve_string_slice() {
         let (message, data) = create_test_context();
 
-        let result = resolve_value("$data.message[0:5]", &message, &data).unwrap();
+        let result = resolve_value("$args.message[0:5]", &message, &data).unwrap();
         assert_eq!(result, SolValue::String("Hello".into()));
 
-        let result = resolve_value("$data.message[6:]", &message, &data).unwrap();
+        let result = resolve_value("$args.message[6:]", &message, &data).unwrap();
         assert_eq!(result, SolValue::String("World".into()));
 
-        let result = resolve_value("$data.message[:5]", &message, &data).unwrap();
+        let result = resolve_value("$args.message[:5]", &message, &data).unwrap();
         assert_eq!(result, SolValue::String("Hello".into()));
     }
 
@@ -486,13 +486,13 @@ mod tests {
     fn test_resolve_bytes_slice() {
         let (message, data) = create_test_context();
 
-        let result = resolve_value("$data.data[1:3]", &message, &data).unwrap();
+        let result = resolve_value("$args.data[1:3]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Bytes(vec![0xbb, 0xcc]));
 
-        let result = resolve_value("$data.data[:2]", &message, &data).unwrap();
+        let result = resolve_value("$args.data[:2]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Bytes(vec![0xaa, 0xbb]));
 
-        let result = resolve_value("$data.data[2:]", &message, &data).unwrap();
+        let result = resolve_value("$args.data[2:]", &message, &data).unwrap();
         assert_eq!(result, SolValue::Bytes(vec![0xcc, 0xdd]));
     }
 
@@ -500,7 +500,7 @@ mod tests {
     fn test_resolve_slice_with_negative_indices() {
         let (message, data) = create_test_context();
 
-        let result = resolve_value("$data.items[-2:]", &message, &data).unwrap();
+        let result = resolve_value("$args.items[-2:]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Array(vec![
@@ -509,7 +509,7 @@ mod tests {
             ])
         );
 
-        let result = resolve_value("$data.message[:-6]", &message, &data).unwrap();
+        let result = resolve_value("$args.message[:-6]", &message, &data).unwrap();
         assert_eq!(result, SolValue::String("Hello".into()));
     }
 
@@ -528,17 +528,17 @@ mod tests {
     fn test_resolve_type_mismatch() {
         let (message, data) = create_test_context();
 
-        let result = resolve_value("$data.amount[0]", &message, &data);
+        let result = resolve_value("$args.amount[0]", &message, &data);
         assert!(result.is_err());
 
-        let result = resolve_value("$data.amount[1:2]", &message, &data);
+        let result = resolve_value("$args.amount[1:2]", &message, &data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_resolve_tuple_field() {
         let (message, data) = create_test_context();
-        let result = resolve_value("$data.tup.0", &message, &data).unwrap();
+        let result = resolve_value("$args.tup.0", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Address(address!("0000000000000000000000000000000000000004"))
@@ -549,19 +549,19 @@ mod tests {
     fn test_resolve_tuple_array_field() {
         let (message, data) = create_test_context();
 
-        let result = resolve_value("$data.tuples[0].0[0]", &message, &data).unwrap();
+        let result = resolve_value("$args.tuples[0].0[0]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Address(address!("0000000000000000000000000000000000000005"))
         );
 
-        let result = resolve_value("$data.tuples[1].0[0]", &message, &data).unwrap();
+        let result = resolve_value("$args.tuples[1].0[0]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Address(address!("0000000000000000000000000000000000000006"))
         );
 
-        let result = resolve_value("$data.tuples[2].0[0]", &message, &data).unwrap();
+        let result = resolve_value("$args.tuples[2].0[0]", &message, &data).unwrap();
         assert_eq!(
             result,
             SolValue::Address(address!("0000000000000000000000000000000000000007"))

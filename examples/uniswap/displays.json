@@ -13,20 +13,20 @@
         {
           "format": "array",
           "params": [
-            {"key": "$command", "value": "$data.commands"},
-            {"key": "$input", "value": "$data.inputs"}
+            {"key": "$command", "value": "$args.commands"},
+            {"key": "$input", "value": "$args.inputs"}
           ],
           "fields": [
             {
               "format": "switch",
-              "params": [{"key": "value", "value": "$data.command"}],
+              "params": [{"key": "value", "value": "$args.command"}],
               "fields": [
                 {
                   "description": "V2 SWAP EXACT IN",
                   "format": "map",
                   "case": ["0x08"],
                   "params": [
-                    {"key": "value", "value": "$data.input"},
+                    {"key": "value", "value": "$args.input"},
                     {
                       "key": "abi",
                       "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, address[] path, bool payerIsUser)"
@@ -35,15 +35,15 @@
                   "fields": [
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.payerIsUser"}],
+                      "params": [{"key": "value", "value": "$args.payerIsUser"}],
                       "fields": [
                         {
                           "title": "Send",
                           "format": "tokenAmount",
                           "case": ["true"],
                           "params": [
-                            {"key": "token", "value": "$data.path[0]"},
-                            {"key": "amount", "value": "$data.amountIn"},
+                            {"key": "token", "value": "$args.path[0]"},
+                            {"key": "amount", "value": "$args.amountIn"},
                             {"key": "direction", "value": "out"}
                           ]
                         }
@@ -51,15 +51,15 @@
                     },
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.recipient"}],
+                      "params": [{"key": "value", "value": "$args.recipient"}],
                       "fields": [
                         {
                           "title": "Receive minimum",
                           "format": "tokenAmount",
                           "case": ["$msg.sender", "0x0000000000000000000000000000000000000001"],
                           "params": [
-                            {"key": "token", "value": "$data.path[-1]"},
-                            {"key": "amount", "value": "$data.amountOutMin"},
+                            {"key": "token", "value": "$args.path[-1]"},
+                            {"key": "amount", "value": "$args.amountOutMin"},
                             {"key": "direction", "value": "in"}
                           ]
                         }
@@ -72,7 +72,7 @@
                   "format": "map",
                   "case": ["0x09"],
                   "params": [
-                    {"key": "value", "value": "$data.input"},
+                    {"key": "value", "value": "$args.input"},
                     {
                       "key": "abi",
                       "value": "(address recipient, uint256 amountOut, uint256 amountInMax, address[] path, bool payerIsUser)"
@@ -81,15 +81,15 @@
                   "fields": [
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.payerIsUser"}],
+                      "params": [{"key": "value", "value": "$args.payerIsUser"}],
                       "fields": [
                         {
                           "title": "Send maximum",
                           "format": "tokenAmount",
                           "case": ["true"],
                           "params": [
-                            {"key": "token", "value": "$data.path[0]"},
-                            {"key": "amount", "value": "$data.amountInMax"},
+                            {"key": "token", "value": "$args.path[0]"},
+                            {"key": "amount", "value": "$args.amountInMax"},
                             {"key": "direction", "value": "out"}
                           ]
                         }
@@ -97,15 +97,15 @@
                     },
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.recipient"}],
+                      "params": [{"key": "value", "value": "$args.recipient"}],
                       "fields": [
                         {
                           "title": "Receive",
                           "format": "tokenAmount",
                           "case": ["$msg.sender", "0x0000000000000000000000000000000000000001"],
                           "params": [
-                            {"key": "token", "value": "$data.path[-1]"},
-                            {"key": "amount", "value": "$data.amountOut"},
+                            {"key": "token", "value": "$args.path[-1]"},
+                            {"key": "amount", "value": "$args.amountOut"},
                             {"key": "direction", "value": "in"}
                           ]
                         }
@@ -118,7 +118,7 @@
                   "format": "map",
                   "case": ["0x00"],
                   "params": [
-                    {"key": "value", "value": "$data.input"},
+                    {"key": "value", "value": "$args.input"},
                     {
                       "key": "abi",
                       "value": "(address recipient, uint256 amountIn, uint256 amountOutMin, bytes pathBytes, bool payerIsUser)"
@@ -127,15 +127,15 @@
                   "fields": [
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.payerIsUser"}],
+                      "params": [{"key": "value", "value": "$args.payerIsUser"}],
                       "fields": [
                         {
                           "title": "Send",
                           "format": "tokenAmount",
                           "case": ["true"],
                           "params": [
-                            {"key": "token", "value": "$data.pathBytes[:20]"},
-                            {"key": "amount", "value": "$data.amountIn"},
+                            {"key": "token", "value": "$args.pathBytes[:20]"},
+                            {"key": "amount", "value": "$args.amountIn"},
                             {"key": "direction", "value": "out"}
                           ]
                         }
@@ -143,15 +143,15 @@
                     },
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.recipient"}],
+                      "params": [{"key": "value", "value": "$args.recipient"}],
                       "fields": [
                         {
                           "title": "Receive minimum",
                           "format": "tokenAmount",
                           "case": ["$msg.sender", "0x0000000000000000000000000000000000000001"],
                           "params": [
-                            {"key": "token", "value": "$data.pathBytes[-20:]"},
-                            {"key": "amount", "value": "$data.amountOutMin"},
+                            {"key": "token", "value": "$args.pathBytes[-20:]"},
+                            {"key": "amount", "value": "$args.amountOutMin"},
                             {"key": "direction", "value": "in"}
                           ]
                         }
@@ -166,7 +166,7 @@
                   "params": [
                     {
                       "key": "value",
-                      "value": "$data.input"
+                      "value": "$args.input"
                     },
                     {
                       "key": "abi",
@@ -179,7 +179,7 @@
                       "params": [
                         {
                           "key": "value",
-                          "value": "$data.payerIsUser"
+                          "value": "$args.payerIsUser"
                         }
                       ],
                       "fields": [
@@ -188,8 +188,8 @@
                           "format": "tokenAmount",
                           "case": ["true"],
                           "params": [
-                            {"key": "token", "value": "$data.pathBytes[:20]"},
-                            {"key": "amount", "value": "$data.amountInMax"},
+                            {"key": "token", "value": "$args.pathBytes[:20]"},
+                            {"key": "amount", "value": "$args.amountInMax"},
                             {"key": "direction", "value": "out"}
                           ]
                         }
@@ -197,15 +197,15 @@
                     },
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.recipient"}],
+                      "params": [{"key": "value", "value": "$args.recipient"}],
                       "fields": [
                         {
                           "title": "Receive",
                           "format": "tokenAmount",
                           "case": ["$msg.sender", "0x0000000000000000000000000000000000000001"],
                           "params": [
-                            {"key": "token", "value": "$data.pathBytes[-20:]"},
-                            {"key": "amount", "value": "$data.amountOut"},
+                            {"key": "token", "value": "$args.pathBytes[-20:]"},
+                            {"key": "amount", "value": "$args.amountOut"},
                             {"key": "direction", "value": "in"}
                           ]
                         }
@@ -218,13 +218,13 @@
                   "format": "map",
                   "case": ["0x0c"],
                   "params": [
-                    {"key": "value", "value": "$data.input"},
+                    {"key": "value", "value": "$args.input"},
                     {"key": "abi", "value": "(address recipient, uint256 amountOutMin)"}
                   ],
                   "fields": [
                     {
                       "format": "switch",
-                      "params": [{"key": "value", "value": "$data.recipient"}],
+                      "params": [{"key": "value", "value": "$args.recipient"}],
                       "fields": [
                         {
                           "title": "Receive minimum",
@@ -232,7 +232,7 @@
                           "case": ["$msg.sender"],
                           "params": [
                             {"key": "token", "value": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"},
-                            {"key": "amount", "value": "$data.amountOutMin"},
+                            {"key": "amount", "value": "$args.amountOutMin"},
                             {"key": "direction", "value": "in"}
                           ]
                         }
@@ -245,7 +245,7 @@
                   "format": "map",
                   "case": ["0x0b"],
                   "params": [
-                    {"key": "value", "value": "$data.input"},
+                    {"key": "value", "value": "$args.input"},
                     {"key": "abi", "value": "(address recipient, uint256 amountIn)"}
                   ],
                   "fields": [
@@ -254,7 +254,7 @@
                       "format": "tokenAmount",
                       "params": [
                         {"key": "token", "value": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
-                        {"key": "amount", "value": "$data.amountIn"},
+                        {"key": "amount", "value": "$args.amountIn"},
                         {"key": "direction", "value": "out"}
                       ]
                     }
@@ -265,15 +265,15 @@
                   "format": "map",
                   "case": ["0x21"],
                   "params": [
-                    {"key": "value", "value": "$data.input"},
+                    {"key": "value", "value": "$args.input"},
                     {"key": "abi", "value": "(bytes commands, bytes[] inputs)"}
                   ],
                   "fields": [
                     {
                       "format": "array",
                       "params": [
-                        {"key": "$command", "value": "$data.commands"},
-                        {"key": "$input", "value": "$data.inputs"}
+                        {"key": "$command", "value": "$args.commands"},
+                        {"key": "$input", "value": "$args.inputs"}
                       ],
                       "fields": []
                     }
@@ -284,27 +284,27 @@
                   "format": "map",
                   "case": ["0x10"],
                   "params": [
-                    {"key": "value", "value": "$data.input"},
+                    {"key": "value", "value": "$args.input"},
                     {"key": "abi", "value": "(bytes actions, bytes[] params)"}
                   ],
                   "fields": [
                     {
                       "format": "array",
                       "params": [
-                        {"key": "$action", "value": "$data.actions"},
-                        {"key": "$param", "value": "$data.params"}
+                        {"key": "$action", "value": "$args.actions"},
+                        {"key": "$param", "value": "$args.params"}
                       ],
                       "fields": [
                         {
                           "format": "switch",
-                          "params": [{"key": "value", "value": "$data.action"}],
+                          "params": [{"key": "value", "value": "$args.action"}],
                           "fields": [
                             {
                               "description": "V4 SWAP EXACT IN",
                               "format": "map",
                               "case": ["0x07"],
                               "params": [
-                                {"key": "value", "value": "$data.param"},
+                                {"key": "value", "value": "$args.param"},
                                 {
                                   "key": "abi",
                                   "value": "((address tokenIn, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountIn, uint256 amountOutMin) swap)"
@@ -315,8 +315,8 @@
                                   "title": "Send",
                                   "format": "tokenAmount",
                                   "params": [
-                                    {"key": "token", "value": "$data.swap.tokenIn"},
-                                    {"key": "amount", "value": "$data.swap.amountIn"},
+                                    {"key": "token", "value": "$args.swap.tokenIn"},
+                                    {"key": "amount", "value": "$args.swap.amountIn"},
                                     {"key": "direction", "value": "out"}
                                   ]
                                 },
@@ -324,8 +324,8 @@
                                   "title": "Receive minimum",
                                   "format": "tokenAmount",
                                   "params": [
-                                    {"key": "token", "value": "$data.swap.pathKeys[-1].token"},
-                                    {"key": "amount", "value": "$data.swap.amountOutMin"},
+                                    {"key": "token", "value": "$args.swap.pathKeys[-1].token"},
+                                    {"key": "amount", "value": "$args.swap.amountOutMin"},
                                     {"key": "direction", "value": "in"}
                                   ]
                                 }
@@ -336,7 +336,7 @@
                               "format": "map",
                               "case": ["0x06"],
                               "params": [
-                                {"key": "value", "value": "$data.param"},
+                                {"key": "value", "value": "$args.param"},
                                 {
                                   "key": "abi",
                                   "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, bytes) swap)"
@@ -345,15 +345,15 @@
                               "fields": [
                                 {
                                   "format": "switch",
-                                  "params": [{"key": "value", "value": "$data.swap.zeroForOne"}],
+                                  "params": [{"key": "value", "value": "$args.swap.zeroForOne"}],
                                   "fields": [
                                     {
                                       "title": "Send",
                                       "format": "tokenAmount",
                                       "case": ["true"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token0"},
-                                        {"key": "amount", "value": "$data.swap.amountIn"},
+                                        {"key": "token", "value": "$args.swap.pool.token0"},
+                                        {"key": "amount", "value": "$args.swap.amountIn"},
                                         {"key": "direction", "value": "out"}
                                       ]
                                     },
@@ -362,8 +362,8 @@
                                       "format": "tokenAmount",
                                       "case": ["true"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token1"},
-                                        {"key": "amount", "value": "$data.swap.amountOutMin"},
+                                        {"key": "token", "value": "$args.swap.pool.token1"},
+                                        {"key": "amount", "value": "$args.swap.amountOutMin"},
                                         {"key": "direction", "value": "in"}
                                       ]
                                     },
@@ -372,8 +372,8 @@
                                       "format": "tokenAmount",
                                       "case": ["false"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token1"},
-                                        {"key": "amount", "value": "$data.swap.amountIn"},
+                                        {"key": "token", "value": "$args.swap.pool.token1"},
+                                        {"key": "amount", "value": "$args.swap.amountIn"},
                                         {"key": "direction", "value": "out"}
                                       ]
                                     },
@@ -382,8 +382,8 @@
                                       "format": "tokenAmount",
                                       "case": ["false"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token0"},
-                                        {"key": "amount", "value": "$data.swap.amountOutMin"},
+                                        {"key": "token", "value": "$args.swap.pool.token0"},
+                                        {"key": "amount", "value": "$args.swap.amountOutMin"},
                                         {"key": "direction", "value": "in"}
                                       ]
                                     }
@@ -396,7 +396,7 @@
                               "format": "map",
                               "case": ["0x09"],
                               "params": [
-                                {"key": "value", "value": "$data.param"},
+                                {"key": "value", "value": "$args.param"},
                                 {
                                   "key": "abi",
                                   "value": "((address tokenOut, (address token, uint24, int24, address, bytes)[] pathKeys, uint256 amountOut, uint256 amountInMax) swap)"
@@ -407,8 +407,8 @@
                                   "title": "Send maximum",
                                   "format": "tokenAmount",
                                   "params": [
-                                    {"key": "token", "value": "$data.swap.tokenIn"},
-                                    {"key": "amount", "value": "$data.swap.amountInMax"},
+                                    {"key": "token", "value": "$args.swap.tokenIn"},
+                                    {"key": "amount", "value": "$args.swap.amountInMax"},
                                     {"key": "direction", "value": "out"}
                                   ]
                                 },
@@ -416,8 +416,8 @@
                                   "title": "Receive",
                                   "format": "tokenAmount",
                                   "params": [
-                                    {"key": "token", "value": "$data.swap.pathKeys[-1].token"},
-                                    {"key": "amount", "value": "$data.swap.amountOut"},
+                                    {"key": "token", "value": "$args.swap.pathKeys[-1].token"},
+                                    {"key": "amount", "value": "$args.swap.amountOut"},
                                     {"key": "direction", "value": "in"}
                                   ]
                                 }
@@ -428,7 +428,7 @@
                               "format": "map",
                               "case": ["0x08"],
                               "params": [
-                                {"key": "value", "value": "$data.param"},
+                                {"key": "value", "value": "$args.param"},
                                 {
                                   "key": "abi",
                                   "value": "(((address token0, address token1, uint24, int24, address) pool, bool zeroForOne, uint256 amountOut, uint256 amountInMax, bytes) swap)"
@@ -437,15 +437,15 @@
                               "fields": [
                                 {
                                   "format": "switch",
-                                  "params": [{"key": "value", "value": "$data.swap.zeroForOne"}],
+                                  "params": [{"key": "value", "value": "$args.swap.zeroForOne"}],
                                   "fields": [
                                     {
                                       "title": "Send maximum",
                                       "format": "tokenAmount",
                                       "case": ["true"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token0"},
-                                        {"key": "amount", "value": "$data.swap.amountInMax"},
+                                        {"key": "token", "value": "$args.swap.pool.token0"},
+                                        {"key": "amount", "value": "$args.swap.amountInMax"},
                                         {"key": "direction", "value": "out"}
                                       ]
                                     },
@@ -454,8 +454,8 @@
                                       "format": "tokenAmount",
                                       "case": ["true"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token1"},
-                                        {"key": "amount", "value": "$data.swap.amountOut"},
+                                        {"key": "token", "value": "$args.swap.pool.token1"},
+                                        {"key": "amount", "value": "$args.swap.amountOut"},
                                         {"key": "direction", "value": "in"}
                                       ]
                                     },
@@ -464,8 +464,8 @@
                                       "format": "tokenAmount",
                                       "case": ["false"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token1"},
-                                        {"key": "amount", "value": "$data.swap.amountInMax"},
+                                        {"key": "token", "value": "$args.swap.pool.token1"},
+                                        {"key": "amount", "value": "$args.swap.amountInMax"},
                                         {"key": "direction", "value": "out"}
                                       ]
                                     },
@@ -474,8 +474,8 @@
                                       "format": "tokenAmount",
                                       "case": ["false"],
                                       "params": [
-                                        {"key": "token", "value": "$data.swap.pool.token0"},
-                                        {"key": "amount", "value": "$data.swap.amountOut"},
+                                        {"key": "token", "value": "$args.swap.pool.token0"},
+                                        {"key": "amount", "value": "$args.swap.amountOut"},
                                         {"key": "direction", "value": "in"}
                                       ]
                                     }
@@ -496,7 +496,7 @@
         {
           "title": "Deadline",
           "format": "datetime",
-          "params": [{"key": "value", "value": "$data.deadline"}]
+          "params": [{"key": "value", "value": "$args.deadline"}]
         }
       ],
       "labels": [

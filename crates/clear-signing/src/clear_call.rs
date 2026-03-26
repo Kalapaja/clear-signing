@@ -403,11 +403,11 @@ mod tests {
             _ => panic!(),
         }
         match &result.fields[7] {
-            DisplayField::Duration { value, .. } => assert_eq!(value.as_secs(), 3600),
+            DisplayField::Duration { value, .. } => assert_eq!(*value, U256::from(3600u64)),
             _ => panic!(),
         }
         match &result.fields[8] {
-            DisplayField::Datetime { value, .. } => assert_eq!(value.as_secs(), 3600),
+            DisplayField::Datetime { value, .. } => assert_eq!(*value, U256::from(3600u64)),
             _ => panic!(),
         }
         match &result.fields[9] {

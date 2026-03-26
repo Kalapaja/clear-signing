@@ -8,7 +8,7 @@
         {
           "title": "Val",
           "format": "uint",
-          "params": [{"key": "value", "value": "$data.val"}]
+          "params": [{"key": "value", "value": "$args.val"}]
         }
       ]
     },
@@ -24,12 +24,12 @@
         {
           "title": "Receiver",
           "format": "address",
-          "params": [{"key": "value", "value": "$data.to"}]
+          "params": [{"key": "value", "value": "$args.to"}]
         },
         {
           "title": "Amount",
           "format": "tokenAmount",
-          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$data.value"}]
+          "params": [{"key": "token", "value": "$msg.to"}, {"key": "amount", "value": "$args.value"}]
         }
       ]
     },
@@ -41,53 +41,53 @@
         {
           "title": "Addr Title",
           "format": "address",
-          "params": [{"key": "value", "value": "$data.addr"}]
+          "params": [{"key": "value", "value": "$args.addr"}]
         },
         {
           "title": "Uint Title",
           "format": "uint",
-          "params": [{"key": "value", "value": "$data.uint_val"}]
+          "params": [{"key": "value", "value": "$args.uint_val"}]
         },
         {
           "title": "Int",
           "format": "int",
-          "params": [{"key": "value", "value": "$data.int_val"}]
+          "params": [{"key": "value", "value": "$args.int_val"}]
         },
         {
           "title": "Bool",
           "format": "boolean",
-          "params": [{"key": "value", "value": "$data.bool_val"}]
+          "params": [{"key": "value", "value": "$args.bool_val"}]
         },
         {
           "title": "String",
           "format": "string",
-          "params": [{"key": "value", "value": "$data.string_val"}]
+          "params": [{"key": "value", "value": "$args.string_val"}]
         },
         {
           "title": "Bytes",
           "format": "bytes",
-          "params": [{"key": "value", "value": "$data.bytes_val"}]
+          "params": [{"key": "value", "value": "$args.bytes_val"}]
         },
         {
           "title": "Percent",
           "format": "percentage",
-          "params": [{"key": "value", "value": "$data.percentage_val"}, {"key": "basis", "value": "$data.basis_val"}]
+          "params": [{"key": "value", "value": "$args.percentage_val"}, {"key": "basis", "value": "$args.basis_val"}]
         },
         {
           "title": "Duration",
           "format": "duration",
-          "params": [{"key": "value", "value": "$data.duration_val"}]
+          "params": [{"key": "value", "value": "$args.duration_val"}]
         },
         {
           "title": "Datetime",
           "format": "datetime",
-          "params": [{"key": "value", "value": "$data.duration_val"}]
+          "params": [{"key": "value", "value": "$args.duration_val"}]
         },
         {
           "title": "Bitmask",
           "format": "bitmask",
           "params": [
-            {"key": "value", "value": "$data.bitmask_val"},
+            {"key": "value", "value": "$args.bitmask_val"},
             {"key": "#0", "value": "Bit0"},
             {"key": "#2", "value": "Bit2"},
             {"key": "#3", "value": "Bit3 Label"}
@@ -108,13 +108,13 @@
           "format": "tokenAmount",
           "params": [
             {"key": "token", "value": "0x0000000000000000000000000000000000000003"},
-            {"key": "amount", "value": "$data.uint_val"}
+            {"key": "amount", "value": "$args.uint_val"}
           ]
         },
         {
           "title": "NativeAmt",
           "format": "nativeAmount",
-          "params": [{"key": "amount", "value": "$data.uint_val"}]
+          "params": [{"key": "amount", "value": "$args.uint_val"}]
         }
       ],
       "labels": [
@@ -133,17 +133,17 @@
           "title": "Call",
           "format": "call",
           "params": [
-            {"key": "to", "value": "$data.call_target"},
-            {"key": "data", "value": "$data.call_data"},
-            {"key": "value", "value": "$data.call_value"}
+            {"key": "to", "value": "$args.call_target"},
+            {"key": "data", "value": "$args.call_data"},
+            {"key": "value", "value": "$args.call_value"}
           ]
         },
         {
           "title": "ERC20",
           "format": "call",
           "params": [
-            {"key": "to", "value": "$data.erc20_target"},
-            {"key": "data", "value": "$data.erc20_data"},
+            {"key": "to", "value": "$args.erc20_target"},
+            {"key": "data", "value": "$args.erc20_data"},
             {"key": "value", "value": "0"}
           ]
         }
@@ -162,7 +162,7 @@
             {
               "title": "Proxy Result",
               "format": "uint",
-              "params": [{"key": "value", "value": "$data.check"}]
+              "params": [{"key": "value", "value": "$args.check"}]
             }
           ]
         }
@@ -176,12 +176,12 @@
         {
           "title": "Items",
           "format": "array",
-          "params": [{"key": "$val", "value": "$data.nums"}],
+          "params": [{"key": "$val", "value": "$args.nums"}],
           "fields": [
             {
               "title": "Item",
               "format": "uint",
-              "params": [{"key": "value", "value": "$data.val"}]
+              "params": [{"key": "value", "value": "$args.val"}]
             }
           ]
         }
@@ -194,14 +194,14 @@
         {
           "title": "Call",
           "format": "array",
-          "params": [{"key": "$item", "value": "$data.calls"}],
+          "params": [{"key": "$item", "value": "$args.calls"}],
           "fields": [
             {
               "title": "Call",
               "format": "call",
               "params": [
-                {"key": "to", "value": "$data.item.target"},
-                {"key": "data", "value": "$data.item.data"},
+                {"key": "to", "value": "$args.item.target"},
+                {"key": "data", "value": "$args.item.data"},
                 {"key": "value", "value": "0"}
               ]
             }
@@ -218,19 +218,19 @@
           "title": "Decoded",
           "format": "map",
           "params": [
-            {"key": "value", "value": "$data.data"},
+            {"key": "value", "value": "$args.data"},
             {"key": "abi", "value": "(address recipient, uint256 amount)"}
           ],
           "fields": [
             {
               "title": "Recipient",
               "format": "address",
-              "params": [{"key": "value", "value": "$data.recipient"}]
+              "params": [{"key": "value", "value": "$args.recipient"}]
             },
             {
               "title": "Amount",
               "format": "uint",
-              "params": [{"key": "value", "value": "$data.amount"}]
+              "params": [{"key": "value", "value": "$args.amount"}]
             }
           ]
         }
@@ -245,7 +245,7 @@
           "title": "Decoded",
           "format": "map",
           "params": [
-            {"key": "value", "value": "$data.data"},
+            {"key": "value", "value": "$args.data"},
             {"key": "abi", "value": "(address recipient, uint256 amount)"},
             {"key": "$sender_copy", "value": "$msg.sender"}
           ],
@@ -253,17 +253,17 @@
             {
               "title": "Sender Copy",
               "format": "address",
-              "params": [{"key": "value", "value": "$data.sender_copy"}]
+              "params": [{"key": "value", "value": "$args.sender_copy"}]
             },
             {
               "title": "Decoded Recipient",
               "format": "address",
-              "params": [{"key": "value", "value": "$data.recipient"}]
+              "params": [{"key": "value", "value": "$args.recipient"}]
             },
             {
               "title": "Decoded Amount",
               "format": "uint",
-              "params": [{"key": "value", "value": "$data.amount"}]
+              "params": [{"key": "value", "value": "$args.amount"}]
             }
           ]
         }
